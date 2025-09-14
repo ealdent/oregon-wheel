@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Slot Betting Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    label {
+      margin-right: 10px;
+    }
+    input[type="number"] {
+      width: 100px;
+    }
+    button {
+      margin: 4px;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #dashboard p {
+      margin: 4px 0;
+    }
+    #log {
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .status {
+      font-weight: bold;
+    }
+    .win {
+      color: green;
+    }
+    .loss {
+      color: red;
+    }
+    .push {
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Slot Betting Tracker</h1>
+  <div>
+    <label for="baseBet">Base Bet (≤31,250):</label>
+    <input type="number" id="baseBet" value="5000" min="1" max="31250" step="1">
+    <label for="maxBet" style="margin-left: 20px;">Max Bet:</label>
+    <input type="number" id="maxBet" value="250000" min="1">
+    <button id="resetSession">Reset Session</button>
+  </div>
+  <div id="dashboard" style="margin-top: 15px;">
+    <p>Current Bet: <span id="currentBet" class="status"></span></p>
+    <p>Session Profit/Loss: <span id="profit" class="status"></span></p>
+    <p>Ladder Step: <span id="ladder" class="status"></span> <span id="ladderHint"></span></p>
+    <p>Next Bet: <span id="nextBet" class="status"></span></p>
+    <p>Max Bet Shot Ready: <span id="shotReady" class="status"></span></p>
+    <button id="takeShot" disabled>Take Max Bet Shot</button>
+  </div>
+  <div id="controls" style="margin-top: 10px;">
+    <button id="btnLoss">Record Loss (0×)</button>
+    <button id="btnPush">Record Eggplant (1×)</button>
+    <button id="btnHeart">Record Hearts (2×)</button>
+    <button id="btnCherry">Record Cherries (3×)</button>
+    <button id="btnCowoncy">Record Cowoncy (4×)</button>
+    <button id="btnOwO">Record OwO (10×)</button>
+  </div>
+  <div id="log"></div>
+  <script>
+    (function () {
+      // DOM references
+      const baseBetInput = document.getElementById('baseBet');
+      const maxBetInput = document.getElementById('maxBet');
+      const currentBetSpan = document.getElementById('currentBet');
+      const profitSpan = document.getElementById('profit');
+      const ladderSpan = document.getElementById('ladder');
+      const ladderHint = document.getElementById('ladderHint');
+      const nextBetSpan = document.getElementById('nextBet');
+      const shotReadySpan = document.getElementById('shotReady');
+      const takeShotBtn = document.getElementById('takeShot');
+      const logDiv = document.getElementById('log');
+      const resetBtn = document.getElementById('resetSession');
+      // Buttons
+      const btnLoss = document.getElementById('btnLoss');
+      const btnPush = document.getElementById('btnPush');
+      const btnHeart = document.getElementById('btnHeart');
+      const btnCherry = document.getElementById('btnCherry');
+      const btnCowoncy = document.getElementById('btnCowoncy');
+      const btnOwO = document.getElementById('btnOwO');
+
+      // State variables
+      let baseBet = parseInt(baseBetInput.value, 10) || 0;
+      let maxBet = parseInt(maxBetInput.value, 10) || 250000;
+      let currentBet = baseBet;
+      let profit = 0;
+      let ladderStep = 0; // 0..2
+
+      // Initialize display
+      function updateDisplay() {
+        currentBetSpan.textContent = currentBet.toLocaleString();
+        profitSpan.textContent = profit.toLocaleString();
+        ladderSpan.textContent = ladderStep;
+        nextBetSpan.textContent = currentBet.toLocaleString();
+        // Ladder hint
+        if (ladderStep === 0) {
+          ladderHint.textContent = '(Start of ladder)';
+        } else {
+          ladderHint.textContent = '';
+        }
+        // Shot ready if profit >= max bet
+        if (profit >= maxBet) {
+          shotReadySpan.textContent = 'Yes';
+          takeShotBtn.disabled = false;
+        } else {
+          shotReadySpan.textContent = 'No';
+          takeShotBtn.disabled = true;
+        }
+      }
+
+      function log(message, cssClass) {
+        const entry = document.createElement('div');
+        entry.textContent = new Date().toLocaleTimeString() + ' — ' + message;
+        if (cssClass) entry.classList.add(cssClass);
+        logDiv.prepend(entry);
+      }
+
+      function resetSession() {
+        baseBet = parseInt(baseBetInput.value, 10) || 0;
+        maxBet = parseInt(maxBetInput.value, 10) || 250000;
+        if (baseBet <= 0) baseBet = 1;
+        if (maxBet <= baseBet) maxBet = baseBet;
+        currentBet = baseBet;
+        profit = 0;
+        ladderStep = 0;
+        log('Session reset. Base bet set to ' + baseBet.toLocaleString() + '.', 'push');
+        updateDisplay();
+      }
+
+      function handleLoss() {
+        profit -= currentBet;
+        ladderStep = 0;
+        currentBet = baseBet;
+        updateDisplay();
+        log('Loss: -' + currentBet.toLocaleString(), 'loss');
+      }
+
+      function handlePush() {
+        // Push: no profit/loss, reset ladder
+        ladderStep = 0;
+        currentBet = baseBet;
+        updateDisplay();
+        log('Eggplant push: bet returned.', 'push');
+      }
+
+      function handleWin(multiplier) {
+        const winAmount = currentBet * multiplier;
+        const profitDelta = winAmount - currentBet;
+        profit += profitDelta;
+        ladderStep += 1;
+        let nextBetCandidate = currentBet * 2;
+        // If ladder step reached 3 or next bet > maxBet, bank profit and reset
+        if (ladderStep >= 3 || nextBetCandidate > maxBet) {
+          ladderStep = 0;
+          currentBet = baseBet;
+          log(multiplier + '× win: +' + profitDelta.toLocaleString() + ' (bank & reset)', 'win');
+        } else {
+          currentBet = nextBetCandidate;
+          log(multiplier + '× win: +' + profitDelta.toLocaleString() + ' (press)', 'win');
+        }
+        updateDisplay();
+      }
+
+      function takeShot() {
+        // Start a max bet shot. Ladder resets and currentBet becomes maxBet
+        currentBet = maxBet;
+        ladderStep = 0;
+        updateDisplay();
+        log('Max bet shot initiated at ' + currentBet.toLocaleString() + '.', 'win');
+      }
+
+      // Event listeners
+      resetBtn.addEventListener('click', resetSession);
+      btnLoss.addEventListener('click', handleLoss);
+      btnPush.addEventListener('click', handlePush);
+      btnHeart.addEventListener('click', () => handleWin(2));
+      btnCherry.addEventListener('click', () => handleWin(3));
+      btnCowoncy.addEventListener('click', () => handleWin(4));
+      btnOwO.addEventListener('click', () => handleWin(10));
+      takeShotBtn.addEventListener('click', takeShot);
+      // Update base and max bet on input changes
+      baseBetInput.addEventListener('change', () => {
+        baseBet = parseInt(baseBetInput.value, 10) || 0;
+        if (baseBet <= 0) baseBet = 1;
+        if (currentBet === baseBet) {
+          currentBet = baseBet;
+        }
+        updateDisplay();
+      });
+      maxBetInput.addEventListener('change', () => {
+        maxBet = parseInt(maxBetInput.value, 10) || 250000;
+        if (maxBet <= 0) maxBet = 1;
+        updateDisplay();
+      });
+
+      // Initialize
+      updateDisplay();
+    })();
+  </script>
+</body>
+</html>
