@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spin the Journey</title>
+  <style>
+    :root{
+      --bg:#0b1320; --fg:#e8eef8; --muted:#a9b4c3; --accent:#7dd3fc; --card:#121b2e; --btn:#1f2a44;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif;
+      background: radial-gradient(1200px 800px at 50% -5%, #182441 0%, var(--bg) 60%);
+      color:var(--fg); display:grid; place-items:center; padding:24px;
+    }
+    .app{width:min(980px,100%);}
+    h1{margin:0 0 8px; font-weight:700; letter-spacing:.3px}
+    p{margin:0 0 18px; color:var(--muted)}
+    .stage{background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:18px; padding:22px; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .wrap{display:grid; grid-template-columns:1fr; gap:22px}
+    @media (min-width:880px){ .wrap{grid-template-columns:1.15fr .85fr} }
+    .wheelbox{position:relative; display:grid; place-items:center; aspect-ratio:1/1; width:100%; max-width:520px; margin-inline:auto}
+    canvas{width:100%; height:100%;}
+    .pointer{position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:16px solid transparent; border-right:16px solid transparent; border-bottom:28px solid var(--accent); filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))}
+    .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    button{
+      appearance:none; border:1px solid rgba(255,255,255,.12); background:var(--btn); color:var(--fg);
+      padding:10px 16px; border-radius:12px; font-weight:600; cursor:pointer;
+      transition:transform .06s ease, box-shadow .2s ease, background .2s ease;
+      box-shadow:0 6px 18px rgba(0,0,0,.25)
+    }
+    button:hover{transform:translateY(-1px)}
+    button:active{transform:translateY(0)}
+    .result{font-size:1.15rem; font-weight:700}
+    .list{max-height:420px; overflow:auto; padding:10px; background:rgba(255,255,255,.03); border-radius:12px; border:1px solid rgba(255,255,255,.06)}
+    .pill{display:inline-block; padding:6px 10px; margin:6px; border-radius:999px; font-size:.92rem; background:rgba(125,211,252,.12); border:1px solid rgba(125,211,252,.35)}
+    .dim{opacity:.7}
+    .sr{position:absolute; left:-9999px}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>Spin the Journey</h1>
+      <p>Click <strong>Spin</strong> to randomly choose one of the journeys. The arrow at the top marks the winner.</p>
+    </header>
+
+    <section class="stage wrap">
+      <div class="wheelbox">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="wheel" width="900" height="900" aria-label="Selection wheel"></canvas>
+      </div>
+
+      <div>
+        <div class="controls" style="margin-bottom:12px">
+          <button id="spinBtn">🎡 Spin</button>
+          <button id="shuffleBtn" title="Shuffle slice order">Shuffle</button>
+          <span class="result" id="result">—</span>
+        </div>
+        <div class="list" id="nameList" aria-live="polite"></div>
+        <p class="dim" style="margin-top:10px">Tip: use <kbd>Space</kbd> to spin.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const itemsDefault = [
+      'Standard – The Classic Oregon Journey!',
+      'A Day At The Zoo',
+      'Arcade Quest',
+      'Fear and Loathing in Oregon',
+      'Hollywood Hellscape',
+      'Magic School',
+      'Planet Penguin Episode 1',
+      'St Patricks',
+      'The Gallery',
+      'The Journeyverse #1',
+      'The Journeyverse #2',
+      'The Journeyverse #3',
+      'The Journeyverse #4',
+      'The Journeyverse #5',
+      'The Lion, the Witch and the Delorean',
+      'Two Tickets to Paris',
+      'Wonderland',
+      'Woodstock'
+    ];
+
+    let items = [...itemsDefault];
+
+    function colorFor(i, n){
+      const hue = (i * (360 / n)) % 360;
+      return `hsl(${hue} 70% 52%)`;
+    }
+
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const r = canvas.width / 2;
+    const center = { x: r, y: r };
+
+    let rotation = 0; // degrees
+    const spinBtn = document.getElementById('spinBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const resultEl = document.getElementById('result');
+    const nameList = document.getElementById('nameList');
+
+    function renderList(){
+      nameList.innerHTML = items.map(t=>`<span class="pill">${t}</span>`).join('');
+    }
+
+    function drawWheel(){
+      const n = items.length;
+      const slice = (Math.PI * 2) / n;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.translate(-center.x, -center.y);
+
+      for(let i=0;i<n;i++){
+        const start = i * slice - Math.PI/2;
+        const end = start + slice;
+        ctx.beginPath();
+        ctx.moveTo(center.x, center.y);
+        ctx.arc(center.x, center.y, r-6, start, end);
+        ctx.closePath();
+        ctx.fillStyle = colorFor(i, n);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.2)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const mid = (start + end) / 2;
+        const textR = r * 0.68;
+        const x = center.x + Math.cos(mid) * textR;
+        const y = center.y + Math.sin(mid) * textR;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(mid + Math.PI/2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#0b1320';
+        ctx.font = `${Math.max(12, Math.min(20, 780 / n))}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
+        const label = items[i];
+        const maxChars = Math.max(12, Math.floor(34 - n * 0.4));
+        const shown = label.length > maxChars ? label.slice(0, maxChars - 1) + '…' : label;
+        ctx.fillText(shown, 0, 0);
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, r*0.16, 0, Math.PI*2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255,255,255,.35)';
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function spin(){
+      if(spinning) return;
+      spinning = true;
+      const n = items.length;
+      const slice = 360 / n;
+      const targetIndex = Math.floor(Math.random() * n);
+
+      const current = ((rotation % 360) + 360) % 360;
+      const targetCenter = (targetIndex + 0.5) * slice;
+      const baseNeeded = (360 - targetCenter);
+      const spins = 5 + Math.floor(Math.random()*3);
+      const delta = (spins * 360) + ((baseNeeded - current + 360) % 360);
+      const newRotation = rotation + delta;
+
+      const duration = 4200 + Math.random()*800;
+      const start = performance.now();
+
+      function animate(t){
+        const p = Math.min(1, (t - start) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        rotation = rotation + delta * eased;
+        drawWheel();
+        if(p < 1){
+          requestAnimationFrame(animate);
+        } else {
+          rotation = newRotation;
+          drawWheel();
+          const winner = items[targetIndex];
+          resultEl.textContent = winner;
+          spinning = false;
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function shuffle(){
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      drawWheel();
+      renderList();
+      resultEl.textContent = '—';
+    }
+
+    let spinning = false;
+    spinBtn.addEventListener('click', spin);
+    shuffleBtn.addEventListener('click', shuffle);
+    window.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); spin(); }});
+
+    renderList();
+    drawWheel();
+  </script>
+</body>
+</html>
