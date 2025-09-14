@@ -89,6 +89,47 @@
 
     let items = [...itemsDefault];
 
+    // --- Arc text helpers ---
+    function ellipsizeToFit(ctx, text, maxArcRadians, radius, maxFont, minFont){
+      let fontSize = maxFont;
+      const setFont = ()=> ctx.font = `${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
+      setFont();
+      // shrink font until text arc length fits, then ellipsize if needed
+      const fitsAtSize = (t)=> (ctx.measureText(t).width / radius) <= maxArcRadians;
+      while(fontSize > minFont && !fitsAtSize(text)){ fontSize -= 1; setFont(); }
+      if(fitsAtSize(text)) return {text, size:fontSize};
+      // ellipsize progressively
+      let t = text;
+      while(t.length > 1 && !fitsAtSize(t + '…')){ t = t.slice(0, -1); }
+      return {text: t + '…', size:fontSize};
+    }
+
+    function drawTextOnArc(ctx, text, centerX, centerY, radius, centerAngle, inward=true){
+      // Draw text centered at centerAngle, along arc with letters following curvature.
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      // If inward, we want text facing center; rotate baseline accordingly
+      const direction = inward ? -1 : 1; // inward curves text towards center
+      // Total angular width for text:
+      const widths = Array.from(text, ch => ctx.measureText(ch).width);
+      const totalWidth = widths.reduce((a,b)=>a+b,0);
+      const totalAngle = totalWidth / radius;
+      // Start angle so that text is centered
+      let angle = centerAngle - direction * totalAngle / 2;
+      for(let i=0; i<text.length; i++){
+        const w = widths[i];
+        const charAngle = w / radius;
+        angle += direction * charAngle / 2;
+        ctx.save();
+        ctx.rotate(angle + (inward ? Math.PI/2 : -Math.PI/2));
+        ctx.fillText(text[i], 0, -direction * radius);
+        ctx.restore();
+        angle += direction * charAngle / 2;
+      }
+      ctx.restore();
+    }
+
+
     function colorFor(i, n){
       const hue = (i * (360 / n)) % 360;
       return `hsl(${hue} 70% 52%)`;
@@ -267,28 +308,13 @@
   </script>
 </body>
 </html>        // Labels
-        // Labels (auto-fit with 1–2 line wrap along the tangent)
+        // Labels (curved along the arc, auto-fit)
         const mid = (start + end) / 2;
-        const textR = r * 0.70;
-        const x = center.x + Math.cos(mid) * textR;
-        const y = center.y + Math.sin(mid) * textR;
-        ctx.save();
-        ctx.translate(x, y);
-        // rotate so text baseline is tangent to the wheel; keeps labels readable around the circle
-        ctx.rotate(mid + Math.PI/2);
-
-        const sliceArcLen = (end - start) * textR; // available arc length in px
-        const maxWidth = sliceArcLen * 0.85;       // margin inside slice
-        const fit = fitLines(ctx, items[i], Math.max(80, maxWidth), 20, 11, 2);
+        const arcRadians = (end - start) * 0.82; // 82% of slice arc for padding
+        const textR = r * 0.72;                  // place slightly inside the slice
+        ctx.fillStyle = '#0b1320';
+        // Fit font size and ellipsize if needed to fit arc length
+        const fit = ellipsizeToFit(ctx, items[i], arcRadians, textR, 20, 10);
         ctx.font = `${fit.size}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
-        const lineHeight = fit.size * 1.1;
-
-        // Draw one or two lines centered
-        if(fit.lines.length === 1){
-          ctx.fillText(fit.lines[0], 0, 0);
-        } else {
-          ctx.fillText(fit.lines[0], 0, -lineHeight * 0.55);
-          ctx.fillText(fit.lines[1], 0, lineHeight * 0.55);
-        }
-        ctx.restore();
+        drawTextOnArc(ctx, fit.text, center.x, center.y, textR, mid, true);
 
