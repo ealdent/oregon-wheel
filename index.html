@@ -110,6 +110,57 @@
     }
 
     function drawWheel(){
+
+    function fitLines(ctx, text, maxWidth, maxFont, minFont, maxLines){
+      // Try shrinking font to fit single-line; if can't, wrap into up to maxLines.
+      let fontSize = maxFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#0b1320';
+
+      function setFont(){ ctx.font = `${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`; }
+      setFont();
+
+      // First pass: try single line by shrinking
+      while (ctx.measureText(text).width > maxWidth && fontSize > minFont){
+        fontSize -= 1;
+        setFont();
+      }
+      if (ctx.measureText(text).width <= maxWidth){
+        return {lines:[text], size:fontSize};
+      }
+
+      // Second pass: word wrap into up to maxLines
+      fontSize = Math.max(minFont, Math.min(maxFont, fontSize)); setFont();
+      const words = text.split(/\s+/);
+      const lines = [];
+      let line = "";
+      for(const w of words){
+        const test = line ? line + " " + w : w;
+        if(ctx.measureText(test).width <= maxWidth){
+          line = test;
+        } else {
+          if(line){ lines.push(line); }
+          line = w;
+          if(lines.length === maxLines - 1){ break; }
+        }
+      }
+      if(line){ lines.push(line); }
+
+      // If we exceeded lines, ellipsize the last line to fit
+      if(lines.length > maxLines){ lines.length = maxLines; }
+      function ellipsize(s){
+        const ell = "…";
+        let t = s;
+        while(ctx.measureText(t + ell).width > maxWidth && t.length > 0){ t = t.slice(0, -1); }
+        return t + ell;
+      }
+      if(lines.length === maxLines && words.length && ctx.measureText(lines[lines.length-1]).width > maxWidth){
+        lines[lines.length-1] = ellipsize(lines[lines.length-1]);
+      }
+      return {lines, size:fontSize};
+    }
+
       const n = items.length;
       const slice = (Math.PI * 2) / n;
       ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -215,4 +266,29 @@
     drawWheel();
   </script>
 </body>
-</html>
+</html>        // Labels
+        // Labels (auto-fit with 1–2 line wrap along the tangent)
+        const mid = (start + end) / 2;
+        const textR = r * 0.70;
+        const x = center.x + Math.cos(mid) * textR;
+        const y = center.y + Math.sin(mid) * textR;
+        ctx.save();
+        ctx.translate(x, y);
+        // rotate so text baseline is tangent to the wheel; keeps labels readable around the circle
+        ctx.rotate(mid + Math.PI/2);
+
+        const sliceArcLen = (end - start) * textR; // available arc length in px
+        const maxWidth = sliceArcLen * 0.85;       // margin inside slice
+        const fit = fitLines(ctx, items[i], Math.max(80, maxWidth), 20, 11, 2);
+        ctx.font = `${fit.size}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
+        const lineHeight = fit.size * 1.1;
+
+        // Draw one or two lines centered
+        if(fit.lines.length === 1){
+          ctx.fillText(fit.lines[0], 0, 0);
+        } else {
+          ctx.fillText(fit.lines[0], 0, -lineHeight * 0.55);
+          ctx.fillText(fit.lines[1], 0, lineHeight * 0.55);
+        }
+        ctx.restore();
+
