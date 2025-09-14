@@ -37,7 +37,6 @@
     .list{max-height:420px; overflow:auto; padding:10px; background:rgba(255,255,255,.03); border-radius:12px; border:1px solid rgba(255,255,255,.06)}
     .pill{display:inline-block; padding:6px 10px; margin:6px; border-radius:999px; font-size:.92rem; background:rgba(125,211,252,.12); border:1px solid rgba(125,211,252,.35)}
     .dim{opacity:.7}
-    .sr{position:absolute; left:-9999px}
   </style>
 </head>
 <body>
@@ -60,12 +59,13 @@
           <span class="result" id="result">—</span>
         </div>
         <div class="list" id="nameList" aria-live="polite"></div>
-        <p class="dim" style="margin-top:10px">Tip: use <kbd>Space</kbd> to spin.</p>
+        <p class="dim" style="margin-top:10px">Tip: press <kbd>Space</kbd> to spin.</p>
       </div>
     </section>
   </main>
 
   <script>
+    // ------- Data -------
     const itemsDefault = [
       'Standard – The Classic Oregon Journey!',
       'A Day At The Zoo',
@@ -86,61 +86,60 @@
       'Wonderland',
       'Woodstock'
     ];
-
     let items = [...itemsDefault];
 
-    // --- Arc text helpers ---
-    function ellipsizeToFit(ctx, text, maxArcRadians, radius, maxFont, minFont){
-      let fontSize = maxFont;
-      const setFont = ()=> ctx.font = `${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
-      setFont();
-      // shrink font until text arc length fits, then ellipsize if needed
-      const fitsAtSize = (t)=> (ctx.measureText(t).width / radius) <= maxArcRadians;
-      while(fontSize > minFont && !fitsAtSize(text)){ fontSize -= 1; setFont(); }
-      if(fitsAtSize(text)) return {text, size:fontSize};
-      // ellipsize progressively
-      let t = text;
-      while(t.length > 1 && !fitsAtSize(t + '…')){ t = t.slice(0, -1); }
-      return {text: t + '…', size:fontSize};
-    }
-
-    function drawTextOnArc(ctx, text, centerX, centerY, radius, centerAngle, inward=true){
-      // Draw text centered at centerAngle, along arc with letters following curvature.
-      ctx.save();
-      ctx.translate(centerX, centerY);
-      // If inward, we want text facing center; rotate baseline accordingly
-      const direction = inward ? -1 : 1; // inward curves text towards center
-      // Total angular width for text:
-      const widths = Array.from(text, ch => ctx.measureText(ch).width);
-      const totalWidth = widths.reduce((a,b)=>a+b,0);
-      const totalAngle = totalWidth / radius;
-      // Start angle so that text is centered
-      let angle = centerAngle - direction * totalAngle / 2;
-      for(let i=0; i<text.length; i++){
-        const w = widths[i];
-        const charAngle = w / radius;
-        angle += direction * charAngle / 2;
-        ctx.save();
-        ctx.rotate(angle + (inward ? Math.PI/2 : -Math.PI/2));
-        ctx.fillText(text[i], 0, -direction * radius);
-        ctx.restore();
-        angle += direction * charAngle / 2;
-      }
-      ctx.restore();
-    }
-
-
+    // ------- Utilities -------
     function colorFor(i, n){
       const hue = (i * (360 / n)) % 360;
       return `hsl(${hue} 70% 52%)`;
     }
 
+    // Fit/ellipsize text to a target arc length at a given radius
+    function ellipsizeToFit(ctx, text, maxArcRadians, radius, maxFont, minFont){
+      let fontSize = maxFont;
+      const setFont = ()=> ctx.font = `${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
+      setFont();
+      const fits = t => (ctx.measureText(t).width / radius) <= maxArcRadians;
+      // shrink to try to fit uncut
+      while(fontSize > minFont && !fits(text)){ fontSize -= 1; setFont(); }
+      if(fits(text)) return {text, size:fontSize};
+      // ellipsize
+      let t = text;
+      while(t.length > 1 && !fits(t + '…')){ t = t.slice(0, -1); }
+      return {text: t + '…', size:fontSize};
+    }
+
+    function drawTextOnArc(ctx, text, cx, cy, radius, centerAngle, inward=true){
+      // Render text following the arc, centered at centerAngle
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.fillStyle = '#081226';
+      const glyphs = Array.from(text);
+      const widths = glyphs.map(ch => ctx.measureText(ch).width);
+      const total = widths.reduce((a,b)=>a+b,0);
+      const totalAng = total / radius;
+      const dir = inward ? -1 : 1;
+      let angle = centerAngle - dir * totalAng/2;
+      for(let i=0;i<glyphs.length;i++){
+        const w = widths[i];
+        const a = w / radius;
+        angle += dir * a/2;
+        ctx.save();
+        ctx.rotate(angle + (inward ? Math.PI/2 : -Math.PI/2));
+        ctx.fillText(glyphs[i], 0, -dir * radius);
+        ctx.restore();
+        angle += dir * a/2;
+      }
+      ctx.restore();
+    }
+
+    // ------- Main -------
     const canvas = document.getElementById('wheel');
     const ctx = canvas.getContext('2d');
     const r = canvas.width / 2;
     const center = { x: r, y: r };
-
     let rotation = 0; // degrees
+
     const spinBtn = document.getElementById('spinBtn');
     const shuffleBtn = document.getElementById('shuffleBtn');
     const resultEl = document.getElementById('result');
@@ -151,97 +150,41 @@
     }
 
     function drawWheel(){
-
-    function fitLines(ctx, text, maxWidth, maxFont, minFont, maxLines){
-      // Try shrinking font to fit single-line; if can't, wrap into up to maxLines.
-      let fontSize = maxFont;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#0b1320';
-
-      function setFont(){ ctx.font = `${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`; }
-      setFont();
-
-      // First pass: try single line by shrinking
-      while (ctx.measureText(text).width > maxWidth && fontSize > minFont){
-        fontSize -= 1;
-        setFont();
-      }
-      if (ctx.measureText(text).width <= maxWidth){
-        return {lines:[text], size:fontSize};
-      }
-
-      // Second pass: word wrap into up to maxLines
-      fontSize = Math.max(minFont, Math.min(maxFont, fontSize)); setFont();
-      const words = text.split(/\s+/);
-      const lines = [];
-      let line = "";
-      for(const w of words){
-        const test = line ? line + " " + w : w;
-        if(ctx.measureText(test).width <= maxWidth){
-          line = test;
-        } else {
-          if(line){ lines.push(line); }
-          line = w;
-          if(lines.length === maxLines - 1){ break; }
-        }
-      }
-      if(line){ lines.push(line); }
-
-      // If we exceeded lines, ellipsize the last line to fit
-      if(lines.length > maxLines){ lines.length = maxLines; }
-      function ellipsize(s){
-        const ell = "…";
-        let t = s;
-        while(ctx.measureText(t + ell).width > maxWidth && t.length > 0){ t = t.slice(0, -1); }
-        return t + ell;
-      }
-      if(lines.length === maxLines && words.length && ctx.measureText(lines[lines.length-1]).width > maxWidth){
-        lines[lines.length-1] = ellipsize(lines[lines.length-1]);
-      }
-      return {lines, size:fontSize};
-    }
-
       const n = items.length;
-      const slice = (Math.PI * 2) / n;
+      const sliceRad = (Math.PI * 2) / n;
       ctx.clearRect(0,0,canvas.width,canvas.height);
 
       ctx.save();
+      // apply rotation (degrees to radians)
       ctx.translate(center.x, center.y);
       ctx.rotate((rotation * Math.PI) / 180);
       ctx.translate(-center.x, -center.y);
 
       for(let i=0;i<n;i++){
-        const start = i * slice - Math.PI/2;
-        const end = start + slice;
+        const start = i * sliceRad - Math.PI/2; // 12 o'clock
+        const end = start + sliceRad;
+
+        // slice fill
         ctx.beginPath();
         ctx.moveTo(center.x, center.y);
         ctx.arc(center.x, center.y, r-6, start, end);
         ctx.closePath();
         ctx.fillStyle = colorFor(i, n);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,.2)';
+        ctx.strokeStyle = 'rgba(255,255,255,.22)';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        const mid = (start + end) / 2;
-        const textR = r * 0.68;
-        const x = center.x + Math.cos(mid) * textR;
-        const y = center.y + Math.sin(mid) * textR;
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(mid + Math.PI/2);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#0b1320';
-        ctx.font = `${Math.max(12, Math.min(20, 780 / n))}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
-        const label = items[i];
-        const maxChars = Math.max(12, Math.floor(34 - n * 0.4));
-        const shown = label.length > maxChars ? label.slice(0, maxChars - 1) + '…' : label;
-        ctx.fillText(shown, 0, 0);
-        ctx.restore();
+        // curved label
+        const mid = (start + end)/2;
+        const textR = r * 0.72;
+        const usableArc = (end - start) * 0.82; // a little padding
+        const fit = ellipsizeToFit(ctx, items[i], usableArc, textR, 20, 10);
+        ctx.font = `${fit.size}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
+        drawTextOnArc(ctx, fit.text, center.x, center.y, textR, mid, true);
       }
 
+      // hub
       ctx.beginPath();
       ctx.arc(center.x, center.y, r*0.16, 0, Math.PI*2);
       ctx.fillStyle = '#0f172a';
@@ -280,8 +223,7 @@
         } else {
           rotation = newRotation;
           drawWheel();
-          const winner = items[targetIndex];
-          resultEl.textContent = winner;
+          resultEl.textContent = items[targetIndex];
           spinning = false;
         }
       }
@@ -307,14 +249,4 @@
     drawWheel();
   </script>
 </body>
-</html>        // Labels
-        // Labels (curved along the arc, auto-fit)
-        const mid = (start + end) / 2;
-        const arcRadians = (end - start) * 0.82; // 82% of slice arc for padding
-        const textR = r * 0.72;                  // place slightly inside the slice
-        ctx.fillStyle = '#0b1320';
-        // Fit font size and ellipsize if needed to fit arc length
-        const fit = ellipsizeToFit(ctx, items[i], arcRadians, textR, 20, 10);
-        ctx.font = `${fit.size}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
-        drawTextOnArc(ctx, fit.text, center.x, center.y, textR, mid, true);
-
+</html>
