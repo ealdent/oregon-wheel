@@ -88,53 +88,32 @@
     ];
     let items = [...itemsDefault];
 
+    // Emoji mappings for each journey
+    const itemEmojis = {
+      'Standard – The Classic Oregon Journey!': '🌲',
+      'A Day At The Zoo': '🦁',
+      'Arcade Quest': '🕹️',
+      'Fear and Loathing in Oregon': '🦇',
+      'Hollywood Hellscape': '🎬',
+      'Magic School': '🪄',
+      'Planet Penguin Episode 1': '🐧',
+      'St Patricks': '🍀',
+      'The Gallery': '🎨',
+      'The Journeyverse #1': '🌌',
+      'The Journeyverse #2': '⭐',
+      'The Journeyverse #3': '🚀',
+      'The Journeyverse #4': '🌙',
+      'The Journeyverse #5': '🌟',
+      'The Lion, the Witch and the Delorean': '🦁',
+      'Two Tickets to Paris': '🗼',
+      'Wonderland': '🐰',
+      'Woodstock': '🎸'
+    };
+
     // ------- Utilities -------
     function colorFor(i, n){
       const hue = (i * (360 / n)) % 360;
       return `hsl(${hue} 70% 52%)`;
-    }
-
-    // Choose font/ellipsis so linear width at radius fits the target arc radians
-    function fitTextForArc(ctx, text, targetArcRad, radius, maxFont=20, minFont=10){
-      let t = text;
-      let fontSize = maxFont;
-      const setFont = () => ctx.font = `${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
-      const fits = txt => (ctx.measureText(txt).width / radius) <= targetArcRad;
-      while(fontSize > minFont && !fits(t)){ fontSize--; setFont(); }
-      if(!fits(t)){
-        // ellipsize until fits
-        while(t.length > 1 && !fits(t + '…')){ t = t.slice(0,-1); }
-        t = t + '…';
-      }
-      return {text:t, size:fontSize};
-    }
-
-    // Draw text following an arc, distributing glyphs to fill targetArcRad exactly (centered at centerAngle).
-    function drawTextOnArcScaled(ctx, text, cx, cy, radius, centerAngle, targetArcRad, outward=true){
-      ctx.save();
-      ctx.translate(cx, cy);
-      const glyphs = Array.from(text);
-      const widths = glyphs.map(ch => ctx.measureText(ch).width);
-      const total = widths.reduce((a,b)=>a+b,0) || 1;
-      // proportional angles per glyph, scaled to fill targetArcRad
-      const angles = widths.map(w => (w/total) * targetArcRad);
-      // start angle so text is centered
-      const dir = outward ? 1 : -1;
-      let angle = centerAngle - dir * targetArcRad/2;
-      for(let i=0;i<glyphs.length;i++){
-        const a = angles[i];
-        angle += dir * a/2;
-        ctx.save();
-        ctx.rotate(angle - (outward ? Math.PI/2 : -Math.PI/2));
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle = '#081226';
-        // draw outward: baseline outside center
-        ctx.fillText(glyphs[i], 0, outward ? -radius : radius);
-        ctx.restore();
-        angle += dir * a/2;
-      }
-      ctx.restore();
     }
 
     // ------- Main -------
@@ -178,13 +157,21 @@
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // outward curved label
+        // emoji label
         const mid = (start + end)/2;
-        const textR = r * 0.73;        // slightly inside the slice
-        const targetArc = (end - start) * 0.80; // leave padding at edges
-        const fit = fitTextForArc(ctx, items[i], targetArc, textR, 20, 10);
-        ctx.font = `${fit.size}px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif`;
-        drawTextOnArcScaled(ctx, fit.text, center.x, center.y, textR, mid, targetArc, true);
+        const emojiR = r * 0.73;        // slightly inside the slice
+        const emoji = itemEmojis[items[i]] || '❓'; // fallback emoji if not found
+        
+        // Position emoji in center of slice
+        const emojiX = center.x + Math.cos(mid) * emojiR;
+        const emojiY = center.y + Math.sin(mid) * emojiR;
+        
+        // Draw emoji
+        ctx.font = '36px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000000'; // Black color for better contrast
+        ctx.fillText(emoji, emojiX, emojiY);
       }
 
       // hub
