@@ -1,0 +1,2017 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Baseboard Bandit: Tight-Turn Edition</title>
+  <style>
+    :root{
+      --bg:#0f1115;
+      --panel: rgba(20, 24, 33, 0.86);
+      --panel2: rgba(20, 24, 33, 0.55);
+      --text:#e9eefc;
+      --muted: rgba(233, 238, 252, 0.75);
+      --warn:#fbbf24;
+      --danger:#fb7185;
+      --ok:#86efac;
+    }
+
+    html, body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(900px 600px at 70% 30%, #141a26, var(--bg));
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      overflow:hidden;
+    }
+
+    #wrap{
+      height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:stretch;
+      padding:16px;
+      box-sizing:border-box;
+    }
+
+    #app{
+      width:min(1440px, 98vw);
+      height:100%;
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap:14px;
+      min-height:0;
+    }
+
+    #gamePane{
+      position:relative;
+      border-radius:14px;
+      overflow:hidden;
+      background:#0b0e14;
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow:
+        0 20px 60px rgba(0,0,0,0.45),
+        0 2px 0 rgba(255,255,255,0.04) inset;
+      min-height:0;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      background:#0b0e14;
+    }
+
+    #ui{
+      border-radius:14px;
+      background: var(--panel2);
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow:
+        0 20px 60px rgba(0,0,0,0.30),
+        0 2px 0 rgba(255,255,255,0.04) inset;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:0;
+      overflow:auto;
+      backdrop-filter: blur(10px);
+    }
+
+    .card{
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius:12px;
+      padding:10px 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.20);
+      display:grid;
+      gap:8px;
+    }
+
+    .titleRow{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+
+    .titleRow b{
+      font-weight:850;
+      letter-spacing:0.2px;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:13px;
+      color: var(--muted);
+      align-items:baseline;
+    }
+    .row b{ color: var(--text); font-weight:750; }
+
+    #barWrap{
+      height:10px;
+      background: rgba(255,255,255,0.08);
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.10);
+    }
+    #bar{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, var(--ok), var(--warn), var(--danger));
+      border-radius:999px;
+    }
+
+    .mini{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.35;
+    }
+
+    kbd{
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      padding:2px 6px;
+      border-radius:7px;
+      border:1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      white-space:nowrap;
+    }
+
+    #buttons, #houseButtons{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:2px;
+    }
+
+    button{
+      cursor:pointer;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.16);
+      padding:7px 10px;
+      border-radius:10px;
+      font-weight:750;
+      font-size:13px;
+    }
+    button:hover{ background: rgba(255,255,255,0.12); }
+    button:active{ transform: translateY(1px); }
+
+    input[type="text"]{
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      font: 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      outline: none;
+    }
+    input[type="text"]:focus{
+      border-color: rgba(251,191,36,0.7);
+      box-shadow: 0 0 0 3px rgba(251,191,36,0.15);
+    }
+
+    .statusWin{ color: var(--ok) !important; }
+    .statusLose{ color: var(--danger) !important; }
+    .statusWarn{ color: var(--warn) !important; }
+
+    .legendGrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:6px;
+      font-size:12px;
+      color: var(--muted);
+    }
+
+    .swatch{
+      width:10px;
+      height:10px;
+      border-radius:3px;
+      display:inline-block;
+      margin-right:8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      vertical-align: -1px;
+    }
+
+    .legendItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .legendLeft{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+    }
+
+    .legendLeft span{
+      color: var(--text);
+      font-weight:750;
+      font-size:12px;
+    }
+
+    .legendRight{
+      color: var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    @media (max-width: 1020px){
+      #wrap{ padding:12px; }
+      #app{
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+        gap:12px;
+      }
+      #ui{ max-height: 48vh; }
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="app">
+      <div id="gamePane">
+        <canvas id="game" width="960" height="640" aria-label="Wheelchair scooter driving game"></canvas>
+      </div>
+
+      <aside id="ui" aria-label="Game UI">
+        <div class="card" id="house">
+          <div class="titleRow">
+            <b>House</b>
+            <span class="pill">room-graph</span>
+          </div>
+          <div class="row"><span>Seed</span><b id="seedLabel">—</b></div>
+          <input id="seedInput" type="text" spellcheck="false" autocomplete="off" placeholder="Enter seed (e.g. 12345 or 0xC0FFEE)" />
+          <div id="houseButtons">
+            <button id="btnUseSeed" type="button">Use Seed</button>
+            <button id="btnNewHouse" type="button">New House</button>
+          </div>
+          <div class="mini">
+            Bigger scooter, bigger rear wheels, tighter doors. Sharp turns at speed can <b>snap</b> the front casters.
+            <div style="margin-top:6px;">
+              Coasting below ~30% speed has heavy <b>engine drag</b> so you can tap the throttle for micro-moves.
+            </div>
+            <div style="margin-top:6px;">
+              Shortcut: <kbd>N</kbd> new house • <kbd>V</kbd> overview/follow
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="stats" role="status" aria-live="polite">
+          <div class="titleRow">
+            <b>Dashboard</b>
+            <span class="pill">paint is fragile</span>
+          </div>
+          <div class="row"><span>Time</span><b id="time">0.0s</b></div>
+          <div class="row"><span>Speed</span><b id="speed">0</b></div>
+          <div class="row"><span>Surface</span><b id="surface">Wood</b></div>
+          <div class="row"><span>Baseboard damage</span><b id="damage">0</b></div>
+          <div id="barWrap" aria-hidden="true"><div id="bar"></div></div>
+          <div class="row"><span>Status</span><b id="status">Cruising</b></div>
+          <div class="row"><span>Layout</span><b id="layoutInfo">—</b></div>
+          <div class="row"><span>View</span><b id="viewInfo">Follow</b></div>
+        </div>
+
+        <div class="card" id="objective">
+          <div class="titleRow">
+            <b>Objective</b>
+            <span class="pill">Charging Dock</span>
+          </div>
+          <div class="mini">
+            Drive to the <b>yellow dock tile</b> and <b>stop</b> (slow enough to “park”).<br/>
+            Walls are <b>baseboards</b>. Rear wheels stick out a bit. You have been warned.
+          </div>
+
+          <div class="titleRow" style="margin-top:2px;">
+            <b>Legend</b>
+            <span class="pill">surfaces</span>
+          </div>
+          <div class="legendGrid">
+            <div class="legendItem">
+              <div class="legendLeft">
+                <span><span class="swatch" style="background:#1a1b14;"></span>Wood</span>
+              </div>
+              <div class="legendRight">normal</div>
+            </div>
+            <div class="legendItem">
+              <div class="legendLeft">
+                <span><span class="swatch" style="background:#12311e;"></span>Carpet</span>
+              </div>
+              <div class="legendRight">draggy</div>
+            </div>
+            <div class="legendItem">
+              <div class="legendLeft">
+                <span><span class="swatch" style="background:#0f2e3b;"></span>Bathroom tile</span>
+              </div>
+              <div class="legendRight">slippery</div>
+            </div>
+            <div class="legendItem">
+              <div class="legendLeft">
+                <span><span class="swatch" style="background:#0d1018;"></span>Wall</span>
+              </div>
+              <div class="legendRight">baseboards</div>
+            </div>
+            <div class="legendItem">
+              <div class="legendLeft">
+                <span><span class="swatch" style="background:#fbbf24;"></span>Dock</span>
+              </div>
+              <div class="legendRight">park</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="controls">
+          <div class="titleRow">
+            <b>Controls</b>
+            <span class="pill">tight-turn edition</span>
+          </div>
+
+          <div class="mini">
+            <div><kbd>W</kbd>/<kbd>↑</kbd> throttle • <kbd>S</kbd>/<kbd>↓</kbd> reverse/brake</div>
+            <div><kbd>A</kbd>/<kbd>←</kbd> left • <kbd>D</kbd>/<kbd>→</kbd> right</div>
+            <div><kbd>Shift</kbd> precision mode • <kbd>R</kbd> reset run • <kbd>P</kbd> pause</div>
+            <div><kbd>C</kbd> hitbox • <kbd>N</kbd> new house • <kbd>V</kbd> view toggle</div>
+            <div><kbd>Space</kbd> honk (still useless, still therapeutic)</div>
+            <div style="margin-top:6px;">
+              Pro tip: turning hard at speed can trigger a <b>caster snap</b>. That’s… not a compliment.
+            </div>
+          </div>
+
+          <div id="buttons">
+            <button id="btnReset" type="button">Reset Run</button>
+            <button id="btnPause" type="button">Pause</button>
+            <button id="btnHitbox" type="button">Hitbox: Off</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // =========================================================
+      // Tuning
+      // =========================================================
+      const TILE = 32;
+
+      // Macro tiling: each cell is a room-sized chunk with its own walls.
+      const MACRO = {
+        cols: 6,
+        rows: 4,
+        cellW: 8,         // tiles per macro cell (includes boundary walls)
+        cellH: 8,
+        doorW: 2,         // door opening width (tiles)
+        corridorW: 2,     // hallway corridor width (tiles)
+        minCells: 10,
+        maxCells: 15,
+        maxTries: 220,
+      };
+
+      // Vehicle geometry (bigger, rectangular body + protruding rear wheels)
+      const VEH = (() => {
+        const bodyL = 56;          // px
+        const bodyW = 30;          // px
+        const rearWheelR = 10;     // px (big)
+        const rearWheelOut = 5;    // px protrusion beyond body width
+        const frontWheelR = 5;     // px (small)
+
+        const halfL = bodyL / 2;
+        const halfW = bodyW / 2;
+
+        const rearWheelX = -halfL + 10;
+        const rearWheelY = halfW + rearWheelOut;
+
+        const frontWheelX = halfL - 9;
+        const frontWheelY = halfW - 6;
+
+        const wheels = [
+          { name: "rearL",  lx: rearWheelX,  ly: -rearWheelY, r: rearWheelR },
+          { name: "rearR",  lx: rearWheelX,  ly: +rearWheelY, r: rearWheelR },
+          { name: "frontL", lx: frontWheelX, ly: -frontWheelY, r: frontWheelR },
+          { name: "frontR", lx: frontWheelX, ly: +frontWheelY, r: frontWheelR },
+        ];
+
+        // Bounding radius for broadphase + world clamps
+        let boundR = Math.hypot(halfL, halfW);
+        for (const w of wheels) {
+          boundR = Math.max(boundR, Math.hypot(w.lx, w.ly) + w.r);
+        }
+
+        return {
+          bodyL, bodyW, halfL, halfW,
+          rearWheelR, frontWheelR,
+          wheels,
+          boundR: boundR + 1.5,
+          cornerRadius: 9,
+        };
+      })();
+
+      // Physics / handling (jerkier, faster, caster snap)
+      const CFG = {
+        // speed (px/s)
+        maxSpeed: 330,         // increased
+        reverseMax: 170,
+
+        // accel curve time constants (seconds): ~95% in ~3*tau
+        accelTau: 1.0,         // ~3s to ~95% max
+        reverseTau: 0.9,
+
+        // "engine drag" at low speeds while coasting (throttle == 0)
+        // Under (cutoff * maxSpeed) the scooter stops almost immediately, enabling throttle tapping.
+        engineDragCutoff: 0.30,   // 30% speed threshold
+        engineDragTau: 0.045,     // seconds (smaller = snappier stop)
+        engineDragDead: 8.0,      // px/s: snap to zero under this
+
+        // turning
+        turnBase: 1.9,         // rad/s at low speed
+        turnSpeed: 2.6,        // extra rad/s at max speed
+        precisionTurnMul: 0.55,
+
+        // caster snap (dangerous hard turn at speed)
+        hardTurnSpeed: 215,    // px/s forward component threshold
+        hardTurnSnap: 6.0,     // extra rad/s at full severity
+        hardTurnKick: 820,     // lateral velocity injection per second
+        hardTurnScrub: 0.06,   // speed loss during snap
+
+        // collision response
+        bounce: 0.05,
+
+        damageLimit: 850,
+        safeImpact: 70,
+        impactScale: 0.62,
+        scrapeSpeed: 95,
+        scrapeScale: 0.09,
+
+        parkSpeed: 60,
+      };
+
+      // =========================================================
+      // DOM
+      // =========================================================
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+
+      const $seedLabel = document.getElementById("seedLabel");
+      const $seedInput = document.getElementById("seedInput");
+      const $btnUseSeed = document.getElementById("btnUseSeed");
+      const $btnNewHouse = document.getElementById("btnNewHouse");
+
+      const $time = document.getElementById("time");
+      const $speed = document.getElementById("speed");
+      const $surface = document.getElementById("surface");
+      const $damage = document.getElementById("damage");
+      const $bar = document.getElementById("bar");
+      const $status = document.getElementById("status");
+      const $layoutInfo = document.getElementById("layoutInfo");
+      const $viewInfo = document.getElementById("viewInfo");
+
+      const btnReset = document.getElementById("btnReset");
+      const btnPause = document.getElementById("btnPause");
+      const btnHitbox = document.getElementById("btnHitbox");
+
+      // =========================================================
+      // RNG
+      // =========================================================
+      function mulberry32(seed) {
+        let a = seed >>> 0;
+        return function() {
+          a |= 0;
+          a = (a + 0x6D2B79F5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function parseSeed(str) {
+        const s = (str || "").trim();
+        if (!s) return null;
+
+        if (/^0x[0-9a-f]+$/i.test(s)) {
+          const n = Number.parseInt(s, 16);
+          if (Number.isFinite(n)) return (n >>> 0);
+        }
+
+        if (/^-?\d+$/.test(s)) {
+          const n = Number.parseInt(s, 10);
+          if (Number.isFinite(n)) return (n >>> 0);
+        }
+
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < s.length; i++) {
+          h ^= s.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+      }
+
+      function randomSeed() {
+        const t = Date.now() >>> 0;
+        const r = (Math.random() * 0xFFFFFFFF) >>> 0;
+        return (t ^ (r + 0x9E3779B9)) >>> 0;
+      }
+
+      function seedFromURL() {
+        const p = new URLSearchParams(location.search);
+        const s = p.get("seed");
+        if (!s) return null;
+        return parseSeed(s);
+      }
+
+      function setSeedInURL(seed) {
+        const p = new URLSearchParams(location.search);
+        p.set("seed", String(seed >>> 0));
+        history.replaceState(null, "", location.pathname + "?" + p.toString());
+      }
+
+      // =========================================================
+      // Helpers
+      // =========================================================
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const hypot = (x, y) => Math.hypot(x, y);
+
+      function hash01(x, y, k = 0) {
+        let n = (x * 374761393 + y * 668265263 + k * 1442695041) | 0;
+        n = (n ^ (n >>> 13)) | 0;
+        n = Math.imul(n, 1274126177) | 0;
+        n = (n ^ (n >>> 16)) >>> 0;
+        return (n % 10000) / 10000;
+      }
+
+      // local -> world
+      function localToWorld(cx, cy, a, lx, ly) {
+        const c = Math.cos(a), s = Math.sin(a);
+        return { x: cx + c * lx - s * ly, y: cy + s * lx + c * ly };
+      }
+
+      // =========================================================
+      // Macro graph generator (rooms + doors)
+      // =========================================================
+      const DIRS = [
+        { name: "N", dx: 0, dy: -1, bit: 1, opp: 4 },
+        { name: "E", dx: 1, dy: 0,  bit: 2, opp: 8 },
+        { name: "S", dx: 0, dy: 1,  bit: 4, opp: 1 },
+        { name: "W", dx: -1,dy: 0,  bit: 8, opp: 2 },
+      ];
+
+      function cidx(cx, cy) { return cy * MACRO.cols + cx; }
+      function cinBounds(cx, cy) {
+        return cx >= 0 && cy >= 0 && cx < MACRO.cols && cy < MACRO.rows;
+      }
+      function manhattan(ax, ay, bx, by) { return Math.abs(ax - bx) + Math.abs(ay - by); }
+
+      function neighborsOfCell(ci) {
+        const cx = ci % MACRO.cols;
+        const cy = Math.floor(ci / MACRO.cols);
+        const out = [];
+        for (const d of DIRS) {
+          const nx = cx + d.dx;
+          const ny = cy + d.dy;
+          if (!cinBounds(nx, ny)) continue;
+          out.push({ ni: cidx(nx, ny), dir: d });
+        }
+        return out;
+      }
+
+      function bfsCellDistances(startCi) {
+        const N = MACRO.cols * MACRO.rows;
+        const dist = new Int16Array(N);
+        dist.fill(-1);
+        const q = new Int16Array(N);
+        let head = 0, tail = 0;
+        dist[startCi] = 0;
+        q[tail++] = startCi;
+
+        while (head < tail) {
+          const ci = q[head++];
+          const base = dist[ci];
+          for (const { ni } of neighborsOfCell(ci)) {
+            if (dist[ni] !== -1) continue;
+            dist[ni] = base + 1;
+            q[tail++] = ni;
+          }
+        }
+        return dist;
+      }
+
+      function randomShortestMacroPath(rng, startCi, goalCi) {
+        const dist = bfsCellDistances(startCi);
+        if (dist[goalCi] < 0) return null;
+
+        const path = [goalCi];
+        let cur = goalCi;
+
+        while (cur !== startCi) {
+          const curD = dist[cur];
+          const preds = [];
+          for (const { ni } of neighborsOfCell(cur)) {
+            if (dist[ni] === curD - 1) preds.push(ni);
+          }
+          if (preds.length === 0) return null;
+          cur = preds[Math.floor(rng() * preds.length)];
+          path.push(cur);
+        }
+        path.reverse();
+        return path;
+      }
+
+      // Edmonds-Karp max-flow for edge-disjoint paths on macro graph (unit capacities)
+      function maxEdgeDisjointPaths(occupied, connBits, s, t, earlyStopAt = 2) {
+        const N = MACRO.cols * MACRO.rows;
+        const cap = Array.from({ length: N }, () => new Int8Array(N));
+
+        for (let i = 0; i < N; i++) {
+          if (!occupied[i]) continue;
+          for (const d of DIRS) {
+            if ((connBits[i] & d.bit) === 0) continue;
+            const cx = i % MACRO.cols;
+            const cy = Math.floor(i / MACRO.cols);
+            const nx = cx + d.dx;
+            const ny = cy + d.dy;
+            if (!cinBounds(nx, ny)) continue;
+            const j = cidx(nx, ny);
+            if (!occupied[j]) continue;
+            cap[i][j] = 1;
+          }
+        }
+
+        let flow = 0;
+
+        while (flow < earlyStopAt) {
+          const prev = new Int16Array(N);
+          prev.fill(-1);
+          const q = new Int16Array(N);
+          let head = 0, tail = 0;
+
+          q[tail++] = s;
+          prev[s] = s;
+
+          while (head < tail && prev[t] === -1) {
+            const u = q[head++];
+            for (let v = 0; v < N; v++) {
+              if (!occupied[v]) continue;
+              if (prev[v] !== -1) continue;
+              if (cap[u][v] <= 0) continue;
+              prev[v] = u;
+              q[tail++] = v;
+              if (v === t) break;
+            }
+          }
+
+          if (prev[t] === -1) break;
+
+          // augment
+          let v = t;
+          while (v !== s) {
+            const u = prev[v];
+            cap[u][v] -= 1;
+            cap[v][u] += 1;
+            v = u;
+          }
+          flow += 1;
+        }
+
+        return flow;
+      }
+
+      function countEdges(occupied, connBits) {
+        let edges = 0;
+        for (let i = 0; i < occupied.length; i++) {
+          if (!occupied[i]) continue;
+          if (connBits[i] & 2) edges++;
+          if (connBits[i] & 4) edges++;
+        }
+        return edges;
+      }
+
+      // =========================================================
+      // Tile world generation
+      // =========================================================
+      function cellRect(cx, cy) {
+        const x0 = 1 + cx * MACRO.cellW;
+        const y0 = 1 + cy * MACRO.cellH;
+        const x1 = x0 + MACRO.cellW - 1;
+        const y1 = y0 + MACRO.cellH - 1;
+        return { x0, y0, x1, y1 };
+      }
+
+      function doorOffsetsForCellRect(r) {
+        const dx0 = r.x0 + Math.floor(MACRO.cellW / 2) - Math.floor(MACRO.doorW / 2);
+        const dy0 = r.y0 + Math.floor(MACRO.cellH / 2) - Math.floor(MACRO.doorW / 2);
+        return { dx0, dy0 };
+      }
+
+      function fillRect(g, x0, y0, x1, y1, ch) {
+        for (let y = y0; y <= y1; y++) {
+          if (y < 0 || y >= g.length) continue;
+          for (let x = x0; x <= x1; x++) {
+            if (x < 0 || x >= g[0].length) continue;
+            g[y][x] = ch;
+          }
+        }
+      }
+
+      function openDoor(g, cx, cy, side) {
+        const r = cellRect(cx, cy);
+        const { dx0, dy0 } = doorOffsetsForCellRect(r);
+
+        if (side === "N") {
+          const y = r.y0;
+          for (let i = 0; i < MACRO.doorW; i++) {
+            g[y][dx0 + i] = ".";
+            g[y + 1][dx0 + i] = ".";
+          }
+        } else if (side === "S") {
+          const y = r.y1;
+          for (let i = 0; i < MACRO.doorW; i++) {
+            g[y][dx0 + i] = ".";
+            g[y - 1][dx0 + i] = ".";
+          }
+        } else if (side === "W") {
+          const x = r.x0;
+          for (let i = 0; i < MACRO.doorW; i++) {
+            g[dy0 + i][x] = ".";
+            g[dy0 + i][x + 1] = ".";
+          }
+        } else if (side === "E") {
+          const x = r.x1;
+          for (let i = 0; i < MACRO.doorW; i++) {
+            g[dy0 + i][x] = ".";
+            g[dy0 + i][x - 1] = ".";
+          }
+        }
+      }
+
+      function carveHallCell(g, cx, cy, connMask) {
+        const r = cellRect(cx, cy);
+        const { dx0, dy0 } = doorOffsetsForCellRect(r);
+        const w = MACRO.corridorW;
+
+        // central pad
+        fillRect(g, dx0, dy0, dx0 + w - 1, dy0 + w - 1, ".");
+
+        if (connMask & 1) fillRect(g, dx0, r.y0 + 1, dx0 + w - 1, dy0 + w - 1, ".");
+        if (connMask & 4) fillRect(g, dx0, dy0, dx0 + w - 1, r.y1 - 1, ".");
+        if (connMask & 8) fillRect(g, r.x0 + 1, dy0, dx0 + w - 1, dy0 + w - 1, ".");
+        if (connMask & 2) fillRect(g, dx0, dy0, r.x1 - 1, dy0 + w - 1, ".");
+      }
+
+      function buildTileHouseFromMacro(seed) {
+        const rng = mulberry32(seed);
+        const rint = (a, b) => a + Math.floor(rng() * (b - a + 1));
+        const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+        const shuffleInPlace = (arr) => {
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          return arr;
+        };
+
+        const N = MACRO.cols * MACRO.rows;
+
+        for (let attempt = 0; attempt < MACRO.maxTries; attempt++) {
+          const startCx = rint(0, Math.max(0, Math.floor(MACRO.cols / 2) - 1));
+          const startCy = rint(0, MACRO.rows - 1);
+          const startCi = cidx(startCx, startCy);
+
+          const far = [];
+          for (let cy = 0; cy < MACRO.rows; cy++) {
+            for (let cx = 0; cx < MACRO.cols; cx++) {
+              const ci = cidx(cx, cy);
+              if (ci === startCi) continue;
+              far.push({ ci, d: manhattan(cx, cy, startCx, startCy) });
+            }
+          }
+          far.sort((a, b) => b.d - a.d);
+          const goalCi = pick(far.slice(0, Math.min(6, far.length))).ci;
+
+          const path = randomShortestMacroPath(rng, startCi, goalCi);
+          if (!path) continue;
+
+          const occupied = new Uint8Array(N);
+          const occList = [];
+          for (const ci of path) {
+            if (!occupied[ci]) {
+              occupied[ci] = 1;
+              occList.push(ci);
+            }
+          }
+
+          const connBits = new Uint8Array(N);
+
+          function connect(a, b) {
+            const ax = a % MACRO.cols, ay = Math.floor(a / MACRO.cols);
+            const bx = b % MACRO.cols, by = Math.floor(b / MACRO.cols);
+            const dx = bx - ax, dy = by - ay;
+            for (const d of DIRS) {
+              if (d.dx === dx && d.dy === dy) {
+                connBits[a] |= d.bit;
+                connBits[b] |= d.opp;
+                return true;
+              }
+            }
+            return false;
+          }
+
+          for (let i = 0; i < path.length - 1; i++) connect(path[i], path[i + 1]);
+
+          const target = clamp(rint(MACRO.minCells, MACRO.maxCells), path.length, N - 1);
+
+          let safety = 0;
+          while (occList.length < target && safety++ < 2000) {
+            const parent = occList[Math.floor(rng() * occList.length)];
+            const nbs = neighborsOfCell(parent).filter(({ ni }) => !occupied[ni]);
+            if (nbs.length === 0) continue;
+            const { ni } = nbs[Math.floor(rng() * nbs.length)];
+            occupied[ni] = 1;
+            occList.push(ni);
+            connect(parent, ni);
+          }
+
+          // add loop edges until we get >=2 edge-disjoint room-transition routes start->goal
+          const candidates = [];
+          for (let ci = 0; ci < N; ci++) {
+            if (!occupied[ci]) continue;
+            const cx = ci % MACRO.cols, cy = Math.floor(ci / MACRO.cols);
+            const east = (cx + 1 < MACRO.cols) ? cidx(cx + 1, cy) : -1;
+            const south = (cy + 1 < MACRO.rows) ? cidx(cx, cy + 1) : -1;
+
+            if (east !== -1 && occupied[east] && (connBits[ci] & 2) === 0) candidates.push([ci, east]);
+            if (south !== -1 && occupied[south] && (connBits[ci] & 4) === 0) candidates.push([ci, south]);
+          }
+
+          shuffleInPlace(candidates);
+
+          let routes = maxEdgeDisjointPaths(occupied, connBits, startCi, goalCi, 2);
+          for (let k = 0; k < candidates.length && routes < 2; k++) {
+            connect(candidates[k][0], candidates[k][1]);
+            routes = maxEdgeDisjointPaths(occupied, connBits, startCi, goalCi, 2);
+          }
+          if (routes < 2) continue;
+
+          const nodes = occList.length;
+          const edges = countEdges(occupied, connBits);
+          const loops = edges - nodes + 1;
+
+          const cellType = new Array(N).fill(null);
+
+          function degree(ci) {
+            let d = 0;
+            const m = connBits[ci];
+            if (m & 1) d++;
+            if (m & 2) d++;
+            if (m & 4) d++;
+            if (m & 8) d++;
+            return d;
+          }
+
+          cellType[startCi] = "living";
+
+          // bias hall placement along shortest path in the room graph
+          function shortestPathOnRoomGraph() {
+            const prev = new Int16Array(N);
+            prev.fill(-1);
+            const q = new Int16Array(N);
+            let head = 0, tail = 0;
+
+            q[tail++] = startCi;
+            prev[startCi] = startCi;
+
+            while (head < tail && prev[goalCi] === -1) {
+              const u = q[head++];
+              const ux = u % MACRO.cols, uy = Math.floor(u / MACRO.cols);
+              for (const d of DIRS) {
+                if ((connBits[u] & d.bit) === 0) continue;
+                const vx = ux + d.dx, vy = uy + d.dy;
+                if (!cinBounds(vx, vy)) continue;
+                const v = cidx(vx, vy);
+                if (!occupied[v]) continue;
+                if (prev[v] !== -1) continue;
+                prev[v] = u;
+                q[tail++] = v;
+                if (v === goalCi) break;
+              }
+            }
+
+            if (prev[goalCi] === -1) return [];
+            const p = [];
+            let cur = goalCi;
+            while (true) {
+              p.push(cur);
+              if (cur === startCi) break;
+              cur = prev[cur];
+            }
+            p.reverse();
+            return p;
+          }
+
+          const sgPath = shortestPathOnRoomGraph();
+          const hallCandidates = new Set();
+          for (const ci of occList) {
+            if (ci === startCi) continue;
+            if (degree(ci) >= 3) hallCandidates.add(ci);
+          }
+          for (let i = 1; i < sgPath.length - 1; i++) hallCandidates.add(sgPath[i]);
+
+          const hallCount = clamp(rint(2, 5), 2, Math.max(2, nodes - 6));
+
+          const hallList = Array.from(hallCandidates);
+          shuffleInPlace(hallList);
+
+          const chosenHalls = new Set();
+          const pathInterior = sgPath.slice(1, -1);
+          shuffleInPlace(pathInterior);
+          for (let i = 0; i < pathInterior.length && chosenHalls.size < Math.min(2, hallCount); i++) {
+            chosenHalls.add(pathInterior[i]);
+          }
+          for (let i = 0; i < hallList.length && chosenHalls.size < hallCount; i++) {
+            chosenHalls.add(hallList[i]);
+          }
+          for (const ci of chosenHalls) cellType[ci] = "hall";
+
+          if (!cellType[goalCi]) cellType[goalCi] = (degree(goalCi) >= 2) ? "hall" : "office";
+
+          const remaining = occList.filter(ci => cellType[ci] === null);
+          shuffleInPlace(remaining);
+
+          const bathCount = 2;
+          const bedCount = 3;
+          const officeCount = 1;
+
+          const leaves = remaining.filter(ci => degree(ci) === 1);
+          const nonLeaves = remaining.filter(ci => degree(ci) !== 1);
+          shuffleInPlace(leaves);
+          shuffleInPlace(nonLeaves);
+          const rem = leaves.concat(nonLeaves);
+
+          let cursor = 0;
+          for (let i = 0; i < bathCount && cursor < rem.length; i++, cursor++) cellType[rem[cursor]] = "bath";
+          for (let i = 0; i < bedCount && cursor < rem.length; i++, cursor++) cellType[rem[cursor]] = "bedroom";
+          for (let i = 0; i < officeCount && cursor < rem.length; i++, cursor++) cellType[rem[cursor]] = "office";
+          while (cursor < rem.length) {
+            cellType[rem[cursor]] = (rng() < 0.75) ? "bedroom" : "den";
+            cursor++;
+          }
+
+          const tileCols = MACRO.cols * MACRO.cellW + 2;
+          const tileRows = MACRO.rows * MACRO.cellH + 2;
+
+          const g = Array.from({ length: tileRows }, () => Array.from({ length: tileCols }, () => "#"));
+
+          const inGBounds = (x, y) => x >= 0 && y >= 0 && x < tileCols && y < tileRows;
+
+          function floorCharForType(t) {
+            if (t === "bedroom") return "c";
+            if (t === "bath") return "b";
+            return ".";
+          }
+
+          for (let ci = 0; ci < N; ci++) {
+            if (!occupied[ci]) continue;
+            const cx = ci % MACRO.cols;
+            const cy = Math.floor(ci / MACRO.cols);
+            const r = cellRect(cx, cy);
+            const t = cellType[ci] || "den";
+
+            if (t === "hall") {
+              carveHallCell(g, cx, cy, connBits[ci]);
+            } else {
+              const fc = floorCharForType(t);
+              fillRect(g, r.x0 + 1, r.y0 + 1, r.x1 - 1, r.y1 - 1, fc);
+
+              // slightly more furniture nibs for difficulty (still not cruel)
+              if (t !== "bath" && ci !== startCi && rng() < 0.28) {
+                const fx = r.x0 + 2 + rint(0, Math.max(0, MACRO.cellW - 6));
+                const fy = r.y0 + 2 + rint(0, Math.max(0, MACRO.cellH - 6));
+                if (rng() < 0.5) fillRect(g, fx, fy, fx + 1, fy, "#");
+                else fillRect(g, fx, fy, fx, fy + 1, "#");
+              }
+            }
+          }
+
+          for (let ci = 0; ci < N; ci++) {
+            if (!occupied[ci]) continue;
+            const cx = ci % MACRO.cols;
+            const cy = Math.floor(ci / MACRO.cols);
+
+            if (connBits[ci] & 2) {
+              const ni = cidx(cx + 1, cy);
+              if (occupied[ni]) {
+                openDoor(g, cx, cy, "E");
+                openDoor(g, cx + 1, cy, "W");
+              }
+            }
+            if (connBits[ci] & 4) {
+              const ni = cidx(cx, cy + 1);
+              if (occupied[ni]) {
+                openDoor(g, cx, cy, "S");
+                openDoor(g, cx, cy + 1, "N");
+              }
+            }
+          }
+
+          function cellCenterTile(ci) {
+            const cx = ci % MACRO.cols;
+            const cy = Math.floor(ci / MACRO.cols);
+            const r = cellRect(cx, cy);
+            const tx = r.x0 + Math.floor(MACRO.cellW / 2);
+            const ty = r.y0 + Math.floor(MACRO.cellH / 2);
+            return { tx, ty };
+          }
+
+          const sCenter = cellCenterTile(startCi);
+          const gCenter = cellCenterTile(goalCi);
+
+          function findNearbyFloor(tx, ty, maxR = 4) {
+            for (let rr = 0; rr <= maxR; rr++) {
+              for (let dy = -rr; dy <= rr; dy++) {
+                for (let dx = -rr; dx <= rr; dx++) {
+                  const nx = tx + dx, ny = ty + dy;
+                  if (!inGBounds(nx, ny)) continue;
+                  if (g[ny][nx] !== "#") return { tx: nx, ty: ny };
+                }
+              }
+            }
+            return { tx, ty };
+          }
+
+          const sTile = findNearbyFloor(sCenter.tx, sCenter.ty, 4);
+          const goalTile = findNearbyFloor(gCenter.tx, gCenter.ty, 4);
+
+          g[goalTile.ty][goalTile.tx] = "G";
+
+          const labs = [];
+          for (let ci = 0; ci < N; ci++) {
+            if (!occupied[ci]) continue;
+            const cx = ci % MACRO.cols;
+            const cy = Math.floor(ci / MACRO.cols);
+            const r = cellRect(cx, cy);
+            const t = cellType[ci] || "den";
+            const name =
+              (ci === startCi) ? "Living" :
+              (ci === goalCi) ? "Dock Zone" :
+              (t === "bedroom") ? "Bedroom" :
+              (t === "bath") ? "Bathroom" :
+              (t === "office") ? "Office" :
+              (t === "hall") ? "Hallway" :
+              "Den";
+            labs.push({ t: name, x: (r.x0 + r.x1) / 2 + 0.5, y: (r.y0 + r.y1) / 2 + 0.5 });
+          }
+
+          return {
+            grid: g,
+            rows: tileRows,
+            cols: tileCols,
+            startTile: sTile,
+            goalTile,
+            labels: labs,
+            info: { nodes, edges, loops, routes }
+          };
+        }
+
+        // fallback
+        const cols = MACRO.cols * MACRO.cellW + 2;
+        const rows = MACRO.rows * MACRO.cellH + 2;
+        const g = Array.from({ length: rows }, () => Array.from({ length: cols }, () => "."));
+        for (let x = 0; x < cols; x++) { g[0][x] = "#"; g[rows - 1][x] = "#"; }
+        for (let y = 0; y < rows; y++) { g[y][0] = "#"; g[y][cols - 1] = "#"; }
+        g[rows - 3][cols - 3] = "G";
+
+        return {
+          grid: g,
+          rows,
+          cols,
+          startTile: { tx: 2, ty: 2 },
+          goalTile: { tx: cols - 3, ty: rows - 3 },
+          labels: [{ t: "Fallback House", x: cols / 2, y: rows / 2 }],
+          info: { nodes: 0, edges: 0, loops: 0, routes: 2 }
+        };
+      }
+
+      // =========================================================
+      // World state
+      // =========================================================
+      let grid = null;
+      let ROWS = 0, COLS = 0;
+      let WORLD_W = 0, WORLD_H = 0;
+
+      let start = { tx: 0, ty: 0, x: 0, y: 0 };
+      let goal = { tx: 0, ty: 0, x: 0, y: 0 };
+      let labels = [];
+      let wallDamage = null;
+
+      function tidx(tx, ty) { return ty * COLS + tx; }
+      function inBounds(tx, ty) { return tx >= 0 && ty >= 0 && tx < COLS && ty < ROWS; }
+      function isWall(tx, ty) { return !inBounds(tx, ty) ? true : (grid[ty][tx] === "#"); }
+
+      function tileAtWorld(x, y) {
+        const tx = Math.floor(x / TILE);
+        const ty = Math.floor(y / TILE);
+        if (!inBounds(tx, ty)) return "#";
+        return grid[ty][tx];
+      }
+
+      // =========================================================
+      // Camera / view
+      // =========================================================
+      let viewMode = "follow";
+      const camera = { x: 0, y: 0, zoom: 1.0 };
+
+      function toggleView() {
+        viewMode = (viewMode === "follow") ? "overview" : "follow";
+        $viewInfo.textContent = (viewMode === "follow") ? "Follow" : "Overview";
+      }
+
+      // =========================================================
+      // Game state
+      // =========================================================
+      const keys = new Set();
+      let paused = false;
+      let showHitbox = false;
+
+      const scooter = { x: 0, y: 0, a: 0, vx: 0, vy: 0 };
+
+      let totalDamage = 0;
+      let elapsed = 0;
+      let won = false;
+      let lost = false;
+
+      let hardTurnFlash = 0; // seconds of warning message after caster snap
+
+      function setStatus(text, cls) {
+        $status.textContent = text;
+        $status.className = cls || "";
+      }
+
+      function updateHitboxButton() {
+        btnHitbox.textContent = showHitbox ? "Hitbox: On" : "Hitbox: Off";
+      }
+
+      function resetRun() {
+        scooter.x = start.x;
+        scooter.y = start.y;
+        scooter.a = 0;
+        scooter.vx = 0;
+        scooter.vy = 0;
+
+        totalDamage = 0;
+        elapsed = 0;
+        won = false;
+        lost = false;
+        paused = false;
+        hardTurnFlash = 0;
+
+        wallDamage.fill(0);
+
+        btnPause.textContent = "Pause";
+        setStatus("Cruising", "");
+      }
+
+      function togglePause() {
+        if (won || lost) return;
+        paused = !paused;
+        btnPause.textContent = paused ? "Resume" : "Pause";
+        setStatus(paused ? "Paused" : "Cruising", paused ? "statusWarn" : "");
+      }
+
+      function toggleHitbox() {
+        showHitbox = !showHitbox;
+        updateHitboxButton();
+      }
+
+      // =========================================================
+      // Collision primitives
+      // =========================================================
+      function circleVsAABB(cx, cy, r, minX, minY, maxX, maxY) {
+        const closestX = clamp(cx, minX, maxX);
+        const closestY = clamp(cy, minY, maxY);
+
+        let dx = cx - closestX;
+        let dy = cy - closestY;
+        let dist2 = dx * dx + dy * dy;
+
+        if (dist2 >= r * r - 1e-9) return null;
+
+        if (dist2 > 1e-9) {
+          const dist = Math.sqrt(dist2);
+          return { nx: dx / dist, ny: dy / dist, pen: r - dist };
+        }
+
+        // center inside box: push out via nearest side
+        const left = cx - minX;
+        const right = maxX - cx;
+        const top = cy - minY;
+        const bottom = maxY - cy;
+
+        const m = Math.min(left, right, top, bottom);
+
+        if (m === left)   return { nx:  1, ny:  0, pen: r - left };
+        if (m === right)  return { nx: -1, ny:  0, pen: r - right };
+        if (m === top)    return { nx:  0, ny:  1, pen: r - top };
+        return             { nx:  0, ny: -1, pen: r - bottom };
+      }
+
+      function obbVsAABB(ox, oy, a, halfL, halfW, minX, minY, maxX, maxY) {
+        const tileCx = (minX + maxX) * 0.5;
+        const tileCy = (minY + maxY) * 0.5;
+        const hx = (maxX - minX) * 0.5;
+        const hy = (maxY - minY) * 0.5;
+
+        const c = Math.cos(a), s = Math.sin(a);
+        const ux = c,  uy = s;     // local +x (forward)
+        const vx = -s, vy = c;     // local +y (down)
+
+        const dx = ox - tileCx;
+        const dy = oy - tileCy;
+
+        // axes to test (unit vectors): world x, world y, u, v
+        const axes = [
+          { ax: 1,  ay: 0 },
+          { ax: 0,  ay: 1 },
+          { ax: ux, ay: uy },
+          { ax: vx, ay: vy },
+        ];
+
+        let bestPen = Infinity;
+        let bestNx = 0, bestNy = 0;
+
+        for (const { ax, ay } of axes) {
+          const sep = dx * ax + dy * ay;
+
+          const rOBB =
+            halfL * Math.abs(ux * ax + uy * ay) +
+            halfW * Math.abs(vx * ax + vy * ay);
+
+          const rAABB =
+            hx * Math.abs(ax) +
+            hy * Math.abs(ay);
+
+          const overlap = (rOBB + rAABB) - Math.abs(sep);
+          if (overlap <= 0) return null;
+
+          if (overlap < bestPen) {
+            bestPen = overlap;
+            const sign = (sep >= 0) ? 1 : -1; // normal from tile -> OBB
+            bestNx = ax * sign;
+            bestNy = ay * sign;
+          }
+        }
+
+        return { nx: bestNx, ny: bestNy, pen: bestPen };
+      }
+
+      // =========================================================
+      // Collision resolve (compound shape: OBB body + wheel circles)
+      // =========================================================
+      function resolveCollisions(nx, ny, vx, vy, a, dt) {
+        const boundR = VEH.boundR;
+
+        const minTx = Math.floor((nx - boundR) / TILE) - 1;
+        const maxTx = Math.floor((nx + boundR) / TILE) + 1;
+        const minTy = Math.floor((ny - boundR) / TILE) - 1;
+        const maxTy = Math.floor((ny + boundR) / TILE) + 1;
+
+        let inContact = false;
+        let lastWallTX = -1, lastWallTY = -1;
+
+        const bounce = CFG.bounce;
+
+        // A few passes helps settle compound collisions in doorways
+        for (let pass = 0; pass < 3; pass++) {
+          for (let ty = minTy; ty <= maxTy; ty++) {
+            for (let tx = minTx; tx <= maxTx; tx++) {
+              if (!isWall(tx, ty)) continue;
+
+              const minX = tx * TILE;
+              const minY = ty * TILE;
+              const maxX = minX + TILE;
+              const maxY = minY + TILE;
+
+              // 1) Wheels (circles)
+              for (const w of VEH.wheels) {
+                const wc = localToWorld(nx, ny, a, w.lx, w.ly);
+                const hit = circleVsAABB(wc.x, wc.y, w.r, minX, minY, maxX, maxY);
+                if (!hit) continue;
+
+                inContact = true;
+                lastWallTX = tx; lastWallTY = ty;
+
+                nx += hit.nx * hit.pen;
+                ny += hit.ny * hit.pen;
+
+                const vn = vx * hit.nx + vy * hit.ny;
+                if (vn < 0) {
+                  const impact = -vn;
+                  if (impact > CFG.safeImpact) {
+                    const d = (impact - CFG.safeImpact) * CFG.impactScale;
+                    totalDamage += d;
+                    if (inBounds(tx, ty)) wallDamage[tidx(tx, ty)] += d;
+                  }
+                  vx -= (1 + bounce) * vn * hit.nx;
+                  vy -= (1 + bounce) * vn * hit.ny;
+                }
+              }
+
+              // 2) Body (OBB)
+              const hitB = obbVsAABB(nx, ny, a, VEH.halfL, VEH.halfW, minX, minY, maxX, maxY);
+              if (!hitB) continue;
+
+              inContact = true;
+              lastWallTX = tx; lastWallTY = ty;
+
+              nx += hitB.nx * hitB.pen;
+              ny += hitB.ny * hitB.pen;
+
+              const vn = vx * hitB.nx + vy * hitB.ny;
+              if (vn < 0) {
+                const impact = -vn;
+                if (impact > CFG.safeImpact) {
+                  const d = (impact - CFG.safeImpact) * CFG.impactScale;
+                  totalDamage += d;
+                  if (inBounds(tx, ty)) wallDamage[tidx(tx, ty)] += d;
+                }
+                vx -= (1 + bounce) * vn * hitB.nx;
+                vy -= (1 + bounce) * vn * hitB.ny;
+              }
+            }
+          }
+        }
+
+        // Scrape damage: if still contacting and moving fast
+        if (inContact) {
+          const spd = Math.hypot(vx, vy);
+          if (spd > CFG.scrapeSpeed) {
+            const d = (spd - CFG.scrapeSpeed) * CFG.scrapeScale * dt;
+            totalDamage += d;
+            if (inBounds(lastWallTX, lastWallTY)) wallDamage[tidx(lastWallTX, lastWallTY)] += d;
+          }
+        }
+
+        // world bounds clamp
+        nx = clamp(nx, boundR, WORLD_W - boundR);
+        ny = clamp(ny, boundR, WORLD_H - boundR);
+
+        return { x: nx, y: ny, vx, vy };
+      }
+
+      // =========================================================
+      // Update (jerkier control model + caster snap + low-speed engine drag)
+      // =========================================================
+      function update(dt) {
+        if (!grid) return;
+        if (paused || won || lost) return;
+
+        elapsed += dt;
+        hardTurnFlash = Math.max(0, hardTurnFlash - dt);
+
+        const up = keys.has("ArrowUp") || keys.has("KeyW");
+        const down = keys.has("ArrowDown") || keys.has("KeyS");
+        const left = keys.has("ArrowLeft") || keys.has("KeyA");
+        const right = keys.has("ArrowRight") || keys.has("KeyD");
+        const slow = keys.has("ShiftLeft") || keys.has("ShiftRight");
+
+        const throttle = (up ? 1 : 0) + (down ? -1 : 0);
+        const steer = (right ? 1 : 0) + (left ? -1 : 0);
+
+        // Surface properties
+        const under = tileAtWorld(scooter.x, scooter.y);
+        const rollDrag =
+          under === "c" ? 0.988 :     // carpet: slow + stable
+          under === "b" ? 0.995 :     // tile: rolls more
+          0.992;                      // wood
+
+        const lateralDrag =
+          under === "c" ? 0.86 :      // carpet: grabs you
+          under === "b" ? 0.965 :     // tile: slippery
+          0.90;                       // wood
+
+        // Convert velocity into scooter-local frame:
+        // forward f = (cos, sin)
+        // left   l = (sin, -cos)
+        const c = Math.cos(scooter.a), s = Math.sin(scooter.a);
+        const fx = c,  fy = s;
+        const lx = s,  ly = -c; // left in screen coords
+
+        let vF = scooter.vx * fx + scooter.vy * fy;
+        let vL = scooter.vx * lx + scooter.vy * ly;
+
+        // Engine: approach target speed (curved acceleration: exponential)
+        const maxF = slow ? CFG.maxSpeed * 0.55 : CFG.maxSpeed;
+        const maxR = slow ? CFG.reverseMax * 0.55 : CFG.reverseMax;
+
+        if (throttle > 0) {
+          const alpha = 1 - Math.exp(-dt / CFG.accelTau);
+          vF = vF + (maxF - vF) * alpha;
+        } else if (throttle < 0) {
+          const alpha = 1 - Math.exp(-dt / CFG.reverseTau);
+          vF = vF + ((-maxR) - vF) * alpha;
+        }
+
+        // Rolling + lateral friction (frame-rate independent)
+        vF *= Math.pow(rollDrag, dt * 60);
+        vL *= Math.pow(lateralDrag, dt * 60);
+
+        // Low-speed engine drag when coasting (throttle == 0)
+        // Under 30% speed, coasting should basically "stick" so you can tap throttle for micro moves.
+        if (throttle === 0) {
+          const cutoff = CFG.engineDragCutoff * maxF;
+          if (Math.abs(vF) < cutoff) {
+            const beta = Math.exp(-dt / CFG.engineDragTau);
+            vF *= beta;
+            if (Math.abs(vF) < CFG.engineDragDead) vF = 0;
+          }
+        }
+
+        // Steering: base yaw + speed sensitivity
+        const speedAbs = Math.abs(vF);
+        const turnMul = slow ? CFG.precisionTurnMul : 1.0;
+
+        let yawRate =
+          steer * (CFG.turnBase + CFG.turnSpeed * (speedAbs / CFG.maxSpeed)) * turnMul;
+
+        // Hard turn behavior: crank steering at speed -> "caster snap"
+        const forwardSpeed = vF;
+        if (!slow && steer !== 0 && Math.abs(forwardSpeed) > CFG.hardTurnSpeed) {
+          const sev = clamp((Math.abs(forwardSpeed) - CFG.hardTurnSpeed) / (CFG.maxSpeed - CFG.hardTurnSpeed), 0, 1);
+
+          yawRate += steer * CFG.hardTurnSnap * sev;
+
+          // outward lateral kick (steer right => kick left, steer left => kick right)
+          vL += steer * CFG.hardTurnKick * sev * dt;
+
+          // slight speed scrub
+          vF *= (1 - CFG.hardTurnScrub * sev);
+
+          hardTurnFlash = Math.max(hardTurnFlash, 0.18 + 0.25 * sev);
+        }
+
+        // Apply rotation
+        scooter.a += yawRate * dt;
+
+        // Recompute basis after rotation so velocity follows heading a bit
+        const c2 = Math.cos(scooter.a), s2 = Math.sin(scooter.a);
+        const fx2 = c2,  fy2 = s2;
+        const lx2 = s2,  ly2 = -c2;
+
+        scooter.vx = vF * fx2 + vL * lx2;
+        scooter.vy = vF * fy2 + vL * ly2;
+
+        // Move + collide
+        let nx = scooter.x + scooter.vx * dt;
+        let ny = scooter.y + scooter.vy * dt;
+
+        const solved = resolveCollisions(nx, ny, scooter.vx, scooter.vy, scooter.a, dt);
+        scooter.x = solved.x;
+        scooter.y = solved.y;
+        scooter.vx = solved.vx;
+        scooter.vy = solved.vy;
+
+        // Win/lose checks
+        const tx = Math.floor(scooter.x / TILE);
+        const ty = Math.floor(scooter.y / TILE);
+        const speedNow = Math.hypot(scooter.vx, scooter.vy);
+
+        if (tx === goal.tx && ty === goal.ty && speedNow < CFG.parkSpeed) {
+          won = true;
+          setStatus("Parked ✔", "statusWin");
+        } else if (tx === goal.tx && ty === goal.ty && speedNow >= CFG.parkSpeed) {
+          setStatus("Slow down to park", "statusWarn");
+        } else if (hardTurnFlash > 0.0001) {
+          setStatus("Caster snap! (slow down)", "statusWarn");
+        } else {
+          setStatus("Cruising", "");
+        }
+
+        if (totalDamage >= CFG.damageLimit) {
+          lost = true;
+          setStatus("Insurance Nightmare ✖", "statusLose");
+        }
+      }
+
+      // =========================================================
+      // Rendering
+      // =========================================================
+      function drawRoundedRect(x, y, w, h, r) {
+        r = Math.min(r, w * 0.5, h * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function applyCameraTransform(canvasW, canvasH, dpr) {
+        if (viewMode === "overview") {
+          const scale = Math.min(canvasW / WORLD_W, canvasH / WORLD_H);
+          const offX = (canvasW - WORLD_W * scale) / 2;
+          const offY = (canvasH - WORLD_H * scale) / 2;
+          ctx.setTransform(scale, 0, 0, scale, offX, offY);
+          return { scale, offX, offY, viewLeft: 0, viewTop: 0, viewRight: WORLD_W, viewBottom: WORLD_H };
+        }
+
+        const scale = dpr * camera.zoom;
+
+        const halfW = canvasW / (2 * scale);
+        const halfH = canvasH / (2 * scale);
+
+        camera.x = clamp(scooter.x, halfW, WORLD_W - halfW);
+        camera.y = clamp(scooter.y, halfH, WORLD_H - halfH);
+
+        const offX = canvasW * 0.5 - camera.x * scale;
+        const offY = canvasH * 0.5 - camera.y * scale;
+
+        ctx.setTransform(scale, 0, 0, scale, offX, offY);
+
+        return {
+          scale, offX, offY,
+          viewLeft: camera.x - halfW,
+          viewTop: camera.y - halfH,
+          viewRight: camera.x + halfW,
+          viewBottom: camera.y + halfH
+        };
+      }
+
+      function drawGoalArrowIfOffscreen(cam, canvasW, canvasH, dpr) {
+        if (viewMode !== "follow") return;
+
+        const gx = goal.x * cam.scale + cam.offX;
+        const gy = goal.y * cam.scale + cam.offY;
+
+        const margin = 22 * dpr;
+        const onScreen = (gx >= margin && gx <= canvasW - margin && gy >= margin && gy <= canvasH - margin);
+        if (onScreen) return;
+
+        const cx = canvasW / 2;
+        const cy = canvasH / 2;
+
+        let dx = gx - cx;
+        let dy = gy - cy;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len;
+        dy /= len;
+
+        const minX = margin, maxX = canvasW - margin;
+        const minY = margin, maxY = canvasH - margin;
+
+        let t = 1e9;
+
+        if (Math.abs(dx) > 1e-6) {
+          const tx1 = (minX - cx) / dx;
+          const tx2 = (maxX - cx) / dx;
+          if (tx1 > 0) t = Math.min(t, tx1);
+          if (tx2 > 0) t = Math.min(t, tx2);
+        }
+        if (Math.abs(dy) > 1e-6) {
+          const ty1 = (minY - cy) / dy;
+          const ty2 = (maxY - cy) / dy;
+          if (ty1 > 0) t = Math.min(t, ty1);
+          if (ty2 > 0) t = Math.min(t, ty2);
+        }
+
+        const px = cx + dx * t;
+        const py = cy + dy * t;
+
+        const ang = Math.atan2(dy, dx);
+
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.translate(px, py);
+        ctx.rotate(ang);
+
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = "#fbbf24";
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.lineWidth = 2 * dpr;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-18 * dpr, -10 * dpr);
+        ctx.lineTo(-18 * dpr, 10 * dpr);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function render() {
+        if (!grid) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const canvasW = Math.max(1, Math.floor(rect.width * dpr));
+        const canvasH = Math.max(1, Math.floor(rect.height * dpr));
+
+        if (canvas.width !== canvasW || canvas.height !== canvasH) {
+          canvas.width = canvasW;
+          canvas.height = canvasH;
+        }
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = "#0b0e14";
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        const cam = applyCameraTransform(canvasW, canvasH, dpr);
+
+        const startTx = clamp(Math.floor(cam.viewLeft / TILE) - 2, 0, COLS - 1);
+        const endTx   = clamp(Math.floor(cam.viewRight / TILE) + 2, 0, COLS - 1);
+        const startTy = clamp(Math.floor(cam.viewTop / TILE) - 2, 0, ROWS - 1);
+        const endTy   = clamp(Math.floor(cam.viewBottom / TILE) + 2, 0, ROWS - 1);
+
+        // Tiles
+        for (let ty = startTy; ty <= endTy; ty++) {
+          for (let tx = startTx; tx <= endTx; tx++) {
+            const t = grid[ty][tx];
+            const px = tx * TILE;
+            const py = ty * TILE;
+
+            if (t !== "#") {
+              if (t === "c") ctx.fillStyle = "#12311e";
+              else if (t === "b") ctx.fillStyle = "#0f2e3b";
+              else if (t === "G") ctx.fillStyle = "#3a2f12";
+              else ctx.fillStyle = "#1a1b14";
+
+              ctx.fillRect(px, py, TILE, TILE);
+
+              ctx.globalAlpha = 0.18;
+              ctx.fillStyle = "#ffffff";
+              const n = hash01(tx, ty, 1);
+
+              if (t === "b") {
+                ctx.fillRect(px, py + TILE - 1.2, TILE, 1.2);
+                ctx.fillRect(px + TILE - 1.2, py, 1.2, TILE);
+              } else if (t === "c") {
+                for (let i = 0; i < 3; i++) {
+                  const rx = px + 4 + hash01(tx, ty, 10 + i) * (TILE - 8);
+                  const ry = py + 4 + hash01(tx, ty, 20 + i) * (TILE - 8);
+                  ctx.fillRect(rx, ry, 1.2, 1.2);
+                }
+              } else {
+                const stripeY = py + (n * TILE);
+                ctx.fillRect(px, stripeY, TILE, 0.9);
+              }
+              ctx.globalAlpha = 1;
+
+              if (t === "G") {
+                ctx.save();
+                ctx.globalAlpha = 0.95;
+                ctx.fillStyle = "#fbbf24";
+                drawRoundedRect(px + 5, py + 5, TILE - 10, TILE - 10, 7);
+                ctx.fill();
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = "#0b0e14";
+                drawRoundedRect(px + 9, py + 9, TILE - 18, TILE - 18, 6);
+                ctx.fill();
+                ctx.restore();
+              }
+              continue;
+            }
+
+            // Wall
+            ctx.fillStyle = "#0d1018";
+            ctx.fillRect(px, py, TILE, TILE);
+
+            // Baseboards on edges adjacent to floor
+            const d = wallDamage[tidx(tx, ty)] || 0;
+            const dNorm = clamp(d / 80, 0, 1);
+            const baseW = 4;
+
+            const drawBase = (side) => {
+              const r = Math.floor(210 + 25 * dNorm);
+              const g = Math.floor(210 - 120 * dNorm);
+              const b = Math.floor(215 - 160 * dNorm);
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+              if (side === "L") ctx.fillRect(px, py, baseW, TILE);
+              if (side === "R") ctx.fillRect(px + TILE - baseW, py, baseW, TILE);
+              if (side === "T") ctx.fillRect(px, py, TILE, baseW);
+              if (side === "B") ctx.fillRect(px, py + TILE - baseW, TILE, baseW);
+
+              const scratchCount = Math.floor(dNorm * 6);
+              if (scratchCount > 0) {
+                ctx.save();
+                ctx.globalAlpha = 0.55;
+                ctx.strokeStyle = "rgba(0,0,0,0.55)";
+                ctx.lineWidth = 1.2;
+                for (let i = 0; i < scratchCount; i++) {
+                  const a = hash01(tx, ty, 100 + i) * Math.PI * 2;
+                  const len = 6 + hash01(tx, ty, 200 + i) * 10;
+
+                  let sx0 = px + 6 + hash01(tx, ty, 300 + i) * (TILE - 12);
+                  let sy0 = py + 6 + hash01(tx, ty, 400 + i) * (TILE - 12);
+
+                  if (side === "L") sx0 = px + 2 + hash01(tx, ty, 500 + i) * 8;
+                  if (side === "R") sx0 = px + TILE - 10 + hash01(tx, ty, 500 + i) * 8;
+                  if (side === "T") sy0 = py + 2 + hash01(tx, ty, 600 + i) * 8;
+                  if (side === "B") sy0 = py + TILE - 10 + hash01(tx, ty, 600 + i) * 8;
+
+                  ctx.beginPath();
+                  ctx.moveTo(sx0, sy0);
+                  ctx.lineTo(sx0 + Math.cos(a) * len, sy0 + Math.sin(a) * len);
+                  ctx.stroke();
+                }
+                ctx.restore();
+              }
+            };
+
+            const passL = (tx > 0 && grid[ty][tx - 1] !== "#");
+            const passR = (tx < COLS - 1 && grid[ty][tx + 1] !== "#");
+            const passT = (ty > 0 && grid[ty - 1][tx] !== "#");
+            const passB = (ty < ROWS - 1 && grid[ty + 1][tx] !== "#");
+
+            if (passL) drawBase("L");
+            if (passR) drawBase("R");
+            if (passT) drawBase("T");
+            if (passB) drawBase("B");
+
+            ctx.strokeStyle = "rgba(255,255,255,0.06)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
+          }
+        }
+
+        // Labels (overview always; follow only if nearby)
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (const L of labels) {
+          const lx = L.x * TILE;
+          const ly = L.y * TILE;
+          if (viewMode === "follow") {
+            if (lx < cam.viewLeft - 200 || lx > cam.viewRight + 200 || ly < cam.viewTop - 200 || ly > cam.viewBottom + 200) continue;
+          }
+          ctx.fillStyle = "rgba(0,0,0,0.55)";
+          ctx.fillText(L.t, lx + 1.2, ly + 1.2);
+          ctx.fillStyle = "rgba(233,238,252,0.78)";
+          ctx.fillText(L.t, lx, ly);
+        }
+        ctx.restore();
+
+        // Scooter (body rectangle + wheels)
+        ctx.save();
+        ctx.translate(scooter.x, scooter.y);
+        ctx.rotate(scooter.a);
+
+        // Wheels
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "#0a0c12";
+        for (const w of VEH.wheels) {
+          const isRear = w.name.startsWith("rear");
+          ctx.beginPath();
+          ctx.arc(w.lx, w.ly, w.r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.globalAlpha = 0.22;
+          ctx.strokeStyle = isRear ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.18)";
+          ctx.lineWidth = isRear ? 2 : 1.5;
+          ctx.beginPath();
+          ctx.arc(w.lx, w.ly, Math.max(1, w.r - 2), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 0.95;
+        }
+        ctx.globalAlpha = 1;
+
+        // Body
+        ctx.fillStyle = "#1b2a44";
+        drawRoundedRect(-VEH.halfL, -VEH.halfW, VEH.bodyL, VEH.bodyW, VEH.cornerRadius);
+        ctx.fill();
+
+        // Seat / console
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "#0b0e14";
+        drawRoundedRect(-10, -9, 18, 18, 6);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Front marker
+        ctx.fillStyle = "#7dd3fc";
+        drawRoundedRect(VEH.halfL - 10, -4, 8, 8, 3);
+        ctx.fill();
+
+        // Rear bumper shadow
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = "#000";
+        drawRoundedRect(-VEH.halfL + 2, -VEH.halfW - 2, VEH.bodyL - 4, 3.5, 2);
+        ctx.fill();
+        drawRoundedRect(-VEH.halfL + 2, VEH.halfW - 1.5, VEH.bodyL - 4, 3.5, 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Hitbox debug
+        if (showHitbox) {
+          ctx.globalAlpha = 0.9;
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = 2;
+
+          ctx.strokeRect(-VEH.halfL, -VEH.halfW, VEH.bodyL, VEH.bodyW);
+
+          for (const w of VEH.wheels) {
+            ctx.beginPath();
+            ctx.arc(w.lx, w.ly, w.r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.restore();
+
+        // UI values
+        const spd = Math.hypot(scooter.vx, scooter.vy);
+        $time.textContent = `${elapsed.toFixed(1)}s`;
+        $speed.textContent = `${Math.round(spd)}`;
+        $damage.textContent = `${Math.round(totalDamage)}/${CFG.damageLimit}`;
+        $bar.style.width = `${clamp((totalDamage / CFG.damageLimit) * 100, 0, 100)}%`;
+
+        const under2 = tileAtWorld(scooter.x, scooter.y);
+        const surface =
+          under2 === "c" ? "Carpet" :
+          under2 === "b" ? "Bathroom tile" :
+          under2 === "G" ? "Dock" :
+          under2 === "#" ? "Wall??" :
+          "Wood";
+        $surface.textContent = surface;
+
+        drawGoalArrowIfOffscreen(cam, canvasW, canvasH, dpr);
+
+        // overlays
+        if (paused || won || lost) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = "#000";
+          ctx.fillRect(0, 0, canvasW, canvasH);
+          ctx.globalAlpha = 1;
+
+          const panelW = Math.min(canvasW * 0.9, 860 * dpr);
+          const panelH = Math.min(canvasH * 0.35, 240 * dpr);
+          const x = (canvasW - panelW) / 2;
+          const y = (canvasH - panelH) / 2;
+
+          ctx.fillStyle = "rgba(20,24,33,0.92)";
+          drawRoundedRect(x, y, panelW, panelH, 18 * dpr);
+          ctx.fill();
+
+          ctx.strokeStyle = "rgba(255,255,255,0.14)";
+          ctx.lineWidth = 2 * dpr;
+          ctx.stroke();
+
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          const title =
+            paused ? "Paused." :
+            won ? "Parked like a pro." :
+            "The baseboards have filed a complaint.";
+
+          const subtitle =
+            paused ? "Press P to resume." :
+            won ? `Time: ${elapsed.toFixed(1)}s • Damage: ${Math.round(totalDamage)}` :
+            `Damage: ${Math.round(totalDamage)} (limit ${CFG.damageLimit}) • Press R to try again`;
+
+          ctx.fillStyle = won ? "#86efac" : (lost ? "#fb7185" : "#fbbf24");
+          ctx.font = `800 ${34 * dpr}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+          ctx.fillText(title, canvasW / 2, y + panelH * 0.42);
+
+          ctx.fillStyle = "rgba(233,238,252,0.85)";
+          ctx.font = `700 ${16 * dpr}px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+          ctx.fillText(subtitle, canvasW / 2, y + panelH * 0.72);
+        }
+      }
+
+      // =========================================================
+      // House loading
+      // =========================================================
+      function loadHouse(seed) {
+        const house = buildTileHouseFromMacro(seed);
+
+        grid = house.grid;
+        ROWS = house.rows;
+        COLS = house.cols;
+        WORLD_W = COLS * TILE;
+        WORLD_H = ROWS * TILE;
+
+        start.tx = house.startTile.tx;
+        start.ty = house.startTile.ty;
+        start.x = (start.tx + 0.5) * TILE;
+        start.y = (start.ty + 0.5) * TILE;
+
+        goal.tx = house.goalTile.tx;
+        goal.ty = house.goalTile.ty;
+        goal.x = (goal.tx + 0.5) * TILE;
+        goal.y = (goal.ty + 0.5) * TILE;
+
+        labels = house.labels || [];
+
+        wallDamage = new Float32Array(ROWS * COLS);
+        wallDamage.fill(0);
+
+        $seedLabel.textContent = String(seed >>> 0);
+        $seedInput.value = String(seed >>> 0);
+        $layoutInfo.textContent = `${house.info.nodes} rooms • ${house.info.routes} routes • loops ${house.info.loops}`;
+
+        resetRun();
+      }
+
+      function newHouse(seed = null) {
+        const s = (seed === null) ? randomSeed() : (seed >>> 0);
+        setSeedInURL(s);
+        loadHouse(s);
+      }
+
+      // =========================================================
+      // Loop
+      // =========================================================
+      let lastT = performance.now();
+
+      function loop(t) {
+        const dt = Math.min(0.033, (t - lastT) / 1000);
+        lastT = t;
+        update(dt);
+        render();
+        requestAnimationFrame(loop);
+      }
+
+      // =========================================================
+      // Events
+      // =========================================================
+      window.addEventListener("keydown", (e) => {
+        if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
+        keys.add(e.code);
+
+        if (e.code === "KeyR") resetRun();
+        if (e.code === "KeyP") togglePause();
+        if (e.code === "KeyC") toggleHitbox();
+        if (e.code === "KeyN") newHouse();
+        if (e.code === "KeyV") toggleView();
+
+        if (e.code === "Space") {
+          if (!paused && !won && !lost) {
+            scooter.vx *= 1.01;
+            scooter.vy *= 1.01;
+          }
+        }
+      }, { passive:false });
+
+      window.addEventListener("keyup", (e) => keys.delete(e.code));
+
+      btnReset.addEventListener("click", resetRun);
+      btnPause.addEventListener("click", togglePause);
+      btnHitbox.addEventListener("click", toggleHitbox);
+
+      $btnNewHouse.addEventListener("click", () => newHouse());
+      $btnUseSeed.addEventListener("click", () => {
+        const s = parseSeed($seedInput.value);
+        if (s === null) return;
+        newHouse(s);
+      });
+
+      $seedInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") $btnUseSeed.click();
+      });
+
+      // =========================================================
+      // Boot
+      // =========================================================
+      updateHitboxButton();
+      $viewInfo.textContent = "Follow";
+
+      const initialSeed = seedFromURL();
+      if (initialSeed !== null) {
+        loadHouse(initialSeed);
+      } else {
+        const s = randomSeed();
+        setSeedInURL(s);
+        loadHouse(s);
+      }
+
+      requestAnimationFrame((t) => { lastT = t; requestAnimationFrame(loop); });
+    })();
+  </script>
+</body>
+</html>
