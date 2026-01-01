@@ -1,0 +1,1410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Life Lab — Rule Explorer</title>
+  <style>
+    :root{
+      --bg0:#04050a;
+      --bg1:#070a14;
+      --panel:rgba(10,12,22,0.72);
+      --panel2:rgba(10,12,22,0.45);
+      --text:#e9ecff;
+      --muted:#a9b0d6;
+      --edge:rgba(255,255,255,0.10);
+      --edge2:rgba(255,255,255,0.06);
+      --accent:#8b5cf6;
+      --accent2:#22c55e;
+      --danger:#fb7185;
+      --shadow:rgba(0,0,0,0.55);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    html, body { height: 100%; margin: 0; }
+    body{
+      background: radial-gradient(900px 600px at 20% 15%, rgba(139,92,246,0.18), transparent 60%),
+                  radial-gradient(900px 600px at 80% 30%, rgba(34,197,94,0.10), transparent 62%),
+                  radial-gradient(900px 600px at 55% 85%, rgba(244,63,94,0.10), transparent 60%),
+                  linear-gradient(180deg, #050612, #02020a);
+      overflow:hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    #life{
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      image-rendering: pixelated;
+      cursor: crosshair;
+    }
+
+    #ui{
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      width: min(400px, calc(100vw - 28px));
+      max-height: calc(100vh - 28px);
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--edge);
+      border-radius: 16px;
+      padding: 12px 12px 10px;
+      box-shadow: 0 18px 50px var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: transform 160ms ease, opacity 160ms ease;
+    }
+    #ui.hidden{
+      opacity: 0;
+      transform: translateX(-10px) scale(0.98);
+      pointer-events: none;
+    }
+
+    .header{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .title{
+      display:flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .title .name{
+      font-weight: 750;
+      letter-spacing: 0.2px;
+      font-size: 16px;
+      line-height: 1.05;
+    }
+    .title .sub{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.1;
+    }
+    .status{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      user-select:none;
+    }
+    .dot{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--accent2);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 14px rgba(34,197,94,0.55);
+    }
+    .dot.paused{
+      background: var(--danger);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 0 14px rgba(251,113,133,0.55);
+    }
+
+    .row{
+      display:flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    button{
+      appearance:none;
+      border: 1px solid var(--edge2);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-weight: 650;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform 80ms ease, background 120ms ease, border-color 120ms ease;
+      user-select:none;
+    }
+    button:hover{ background: rgba(255,255,255,0.10); border-color: var(--edge); }
+    button:active{ transform: translateY(1px); }
+
+    .section{
+      background: var(--panel2);
+      border: 1px solid var(--edge2);
+      border-radius: 14px;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    .sectionTitle{
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.25px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display:flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .pill{
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--edge2);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+    }
+
+    .field{
+      display:grid;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .field > span{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    input[type="text"], select{
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--edge2);
+      background: rgba(0,0,0,0.25);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+      outline: none;
+      font-size: 13px;
+    }
+    input[type="text"]:focus, select:focus{
+      border-color: rgba(139,92,246,0.55);
+      box-shadow: 0 0 0 2px rgba(139,92,246,0.18);
+    }
+
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+    }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .grid3{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 520px){
+      .grid2, .grid3{ grid-template-columns: 1fr; }
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      margin: 8px 0;
+      font-size: 13px;
+      color: var(--text);
+      user-select:none;
+    }
+    .toggle input{ transform: translateY(1px); }
+
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+      margin-top: 6px;
+    }
+    .hint.small{ font-size: 11px; }
+
+    code{
+      font-family: var(--mono);
+      font-size: 11.5px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .subgrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .subTitle{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      display:flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .checkGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
+      gap: 6px;
+    }
+    .chk{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 6px;
+      padding: 6px 6px;
+      border-radius: 10px;
+      border: 1px solid var(--edge2);
+      background: rgba(0,0,0,0.18);
+      cursor: pointer;
+      user-select:none;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .chk input{ margin: 0; }
+    .chk span{ transform: translateY(-0.5px); }
+
+    .stats .statRow{
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      font-size: 13px;
+      padding: 6px 2px;
+      border-bottom: 1px dashed rgba(255,255,255,0.08);
+    }
+    .stats .statRow:last-child{ border-bottom: none; }
+    .stats .k{ color: var(--muted); }
+    .stats .v{ font-family: var(--mono); }
+
+    .fileInput{ display:none; }
+
+    /* Scrollbar: subtle, because we're civilized */
+    #ui::-webkit-scrollbar { width: 10px; }
+    #ui::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 10px; border: 2px solid rgba(0,0,0,0.0); }
+    #ui::-webkit-scrollbar-track { background: rgba(0,0,0,0.0); }
+  </style>
+</head>
+<body>
+  <canvas id="life" aria-label="Game of Life canvas"></canvas>
+
+  <div id="ui" class="panel">
+    <div class="header">
+      <div class="title">
+        <div class="name">Life Lab</div>
+        <div class="sub">Conway-style cellular automata, but with knobs. Many knobs.</div>
+      </div>
+      <div class="status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Running</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <button id="btnRun">Pause</button>
+      <button id="btnStep">Step</button>
+      <button id="btnRandom">Random</button>
+      <button id="btnClear">Clear</button>
+    </div>
+
+    <div class="row">
+      <button id="btnSave">Save</button>
+      <button id="btnLoad">Load</button>
+      <input id="fileLoad" class="fileInput" type="file" accept=".json,application/json" />
+    </div>
+
+    <div class="section">
+      <div class="sectionTitle">
+        <span>Rules</span>
+        <span class="pill" id="neighborPill">neighbors: 8</span>
+      </div>
+
+      <label class="field">
+        <span>Preset</span>
+        <select id="preset"></select>
+      </label>
+
+      <label class="field">
+        <span>Rule string</span>
+        <input id="ruleText" type="text" value="B3/S23" spellcheck="false" />
+      </label>
+
+      <div class="hint">Accepted: <code>B3/S23</code>, <code>B3,6/S2,3</code>, or <code>23/3</code> (S/B).</div>
+
+      <div class="grid2" style="margin-top:10px;">
+        <label class="field">
+          <span>Neighborhood</span>
+          <select id="neighborhood">
+            <option value="moore">Moore (square)</option>
+            <option value="vonneumann">Von Neumann (diamond)</option>
+            <option value="circular">Circular</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Radius</span>
+          <input id="radius" type="range" min="1" max="4" step="1" value="1" />
+        </label>
+      </div>
+
+      <label class="toggle">
+        <input id="wrap" type="checkbox" checked />
+        <span>Wrap edges (toroid)</span>
+      </label>
+
+      <div class="subgrid">
+        <div class="subTitle"><span>Birth</span><span class="pill" id="birthPill">B</span></div>
+        <div id="birthBox" class="checkGrid"></div>
+
+        <div class="subTitle"><span>Survive</span><span class="pill" id="survivePill">S</span></div>
+        <div id="surviveBox" class="checkGrid"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sectionTitle"><span>World</span><span class="pill" id="gridPill">grid</span></div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Cell size</span>
+          <input id="cellSize" type="range" min="3" max="24" value="8" />
+        </label>
+
+        <label class="field">
+          <span>Speed (steps/sec)</span>
+          <input id="speed" type="range" min="1" max="120" value="30" />
+        </label>
+      </div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Seed density (Random)</span>
+          <input id="density" type="range" min="0" max="100" value="20" />
+        </label>
+
+        <label class="field">
+          <span>Max age (for color)</span>
+          <input id="maxAge" type="range" min="1" max="256" value="64" />
+        </label>
+      </div>
+
+      <div class="hint">Drawing works while running. Right-click (or hold <code>Shift</code>) to erase.</div>
+    </div>
+
+    <div class="section">
+      <div class="sectionTitle"><span>Visual</span><span class="pill" id="vizPill">neon</span></div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Color mode</span>
+          <select id="colorMode">
+            <option value="age">Age spectrum</option>
+            <option value="heat">Neighbor heat</option>
+            <option value="plasma">Plasma swirl</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Trail</span>
+          <input id="trail" type="range" min="0" max="100" value="78" />
+        </label>
+      </div>
+
+      <label class="toggle">
+        <input id="glow" type="checkbox" checked />
+        <span>Glow</span>
+      </label>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Glow strength</span>
+          <input id="glowStrength" type="range" min="0" max="100" value="55" />
+        </label>
+
+        <label class="field">
+          <span>Glow blur</span>
+          <input id="glowBlur" type="range" min="0" max="30" value="10" />
+        </label>
+      </div>
+
+      <label class="toggle">
+        <input id="gridLines" type="checkbox" />
+        <span>Grid lines</span>
+      </label>
+    </div>
+
+    <div class="section">
+      <div class="sectionTitle"><span>Brush</span><span class="pill" id="brushPill">paint</span></div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>Tool</span>
+          <select id="tool">
+            <option value="paint">Paint</option>
+            <option value="erase">Erase</option>
+            <option value="toggle">Toggle</option>
+            <option value="stamp">Stamp</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Size</span>
+          <input id="brush" type="range" min="1" max="12" value="2" />
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Stamp</span>
+        <select id="stamp">
+          <option value="glider">Glider</option>
+          <option value="rpentomino">R-pentomino</option>
+          <option value="lwss">LWSS</option>
+          <option value="gosper">Gosper gun</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="section stats">
+      <div class="sectionTitle"><span>Stats</span><span class="pill" id="fpsPill">fps</span></div>
+      <div class="statRow"><span class="k">Generation</span><span class="v" id="gen">0</span></div>
+      <div class="statRow"><span class="k">Alive</span><span class="v" id="alive">0</span></div>
+      <div class="statRow"><span class="k">FPS</span><span class="v" id="fps">0</span></div>
+
+      <div class="hint small" style="margin-top:8px;">
+        Shortcuts: <code>Space</code> run/pause · <code>R</code> random · <code>C</code> clear · <code>S</code> step · <code>H</code> hide UI
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('life');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  // Offscreen buffer for crisp cells + optional glow pass.
+  const buf = document.createElement('canvas');
+  const bctx = buf.getContext('2d', { alpha: true });
+
+  const ui = {
+    panel: document.getElementById('ui'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+
+    btnRun: document.getElementById('btnRun'),
+    btnStep: document.getElementById('btnStep'),
+    btnRandom: document.getElementById('btnRandom'),
+    btnClear: document.getElementById('btnClear'),
+
+    btnSave: document.getElementById('btnSave'),
+    btnLoad: document.getElementById('btnLoad'),
+    fileLoad: document.getElementById('fileLoad'),
+
+    preset: document.getElementById('preset'),
+    ruleText: document.getElementById('ruleText'),
+    neighborhood: document.getElementById('neighborhood'),
+    radius: document.getElementById('radius'),
+    wrap: document.getElementById('wrap'),
+    birthBox: document.getElementById('birthBox'),
+    surviveBox: document.getElementById('surviveBox'),
+
+    cellSize: document.getElementById('cellSize'),
+    speed: document.getElementById('speed'),
+    density: document.getElementById('density'),
+    maxAge: document.getElementById('maxAge'),
+
+    colorMode: document.getElementById('colorMode'),
+    trail: document.getElementById('trail'),
+    glow: document.getElementById('glow'),
+    glowStrength: document.getElementById('glowStrength'),
+    glowBlur: document.getElementById('glowBlur'),
+    gridLines: document.getElementById('gridLines'),
+
+    tool: document.getElementById('tool'),
+    brush: document.getElementById('brush'),
+    stamp: document.getElementById('stamp'),
+
+    gen: document.getElementById('gen'),
+    alive: document.getElementById('alive'),
+    fps: document.getElementById('fps'),
+
+    neighborPill: document.getElementById('neighborPill'),
+    birthPill: document.getElementById('birthPill'),
+    survivePill: document.getElementById('survivePill'),
+    gridPill: document.getElementById('gridPill'),
+    vizPill: document.getElementById('vizPill'),
+    brushPill: document.getElementById('brushPill'),
+    fpsPill: document.getElementById('fpsPill'),
+  };
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // "Life-like" presets (B/S).
+  // Note: these are best-known with Moore radius=1, but you're free to do weird science.
+  const PRESETS = [
+    { name: 'Conway (Life) — B3/S23', b: [3], s: [2,3] },
+    { name: 'HighLife — B36/S23',     b: [3,6], s: [2,3] },
+    { name: 'Seeds — B2/S',           b: [2],   s: [] },
+    { name: 'Day & Night — B3678/S34678', b: [3,6,7,8], s: [3,4,6,7,8] },
+    { name: 'Morley — B368/S245',     b: [3,6,8], s: [2,4,5] },
+    { name: 'Anneal — B4678/S35678',  b: [4,6,7,8], s: [3,5,6,7,8] },
+    { name: 'Replicator — B1357/S1357', b: [1,3,5,7], s: [1,3,5,7] },
+    { name: '2x2 — B36/S125',         b: [3,6], s: [1,2,5] },
+    { name: 'Life without Death — B3/S(all)', b: [3], s: 'all' },
+  ];
+
+  // Built-in stamps (a few classics).
+  const STAMPS = {
+    glider: { w: 3,  h: 3, cells: [[1,0],[2,1],[0,2],[1,2],[2,2]] },
+    rpentomino: { w: 3, h: 3, cells: [[1,0],[2,0],[0,1],[1,1],[1,2]] },
+    lwss: { w: 5, h: 4, cells: [[1,0],[4,0],[0,1],[0,2],[4,2],[0,3],[1,3],[2,3],[3,3]] },
+    gosper: { w: 36, h: 9, cells: [
+      // Gosper glider gun (classic)
+      [24,0],
+      [22,1],[24,1],
+      [12,2],[13,2],[20,2],[21,2],[34,2],[35,2],
+      [11,3],[15,3],[20,3],[21,3],[34,3],[35,3],
+      [0,4],[1,4],[10,4],[16,4],[20,4],[21,4],
+      [0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],
+      [10,6],[16,6],[24,6],
+      [11,7],[15,7],
+      [12,8],[13,8],
+    ]},
+  };
+
+  const state = {
+    running: true,
+
+    // Simulation
+    speed: 30,             // steps/sec
+    cellSize: 8,           // px
+    seedDensity: 0.20,     // 0..1
+    wrap: true,
+
+    neighborhood: 'moore', // moore | vonneumann | circular
+    radius: 1,             // 1..4
+    offsets: new Int8Array(0),
+    maxNeighbors: 8,
+
+    birth: new Set([3]),
+    survive: new Set([2,3]),
+
+    maxAge: 64,
+
+    // Stats
+    generation: 0,
+    alive: 0,
+
+    // Visual
+    colorMode: 'age',
+    trail: 0.78,           // 0..1 (higher = longer trails)
+    glow: true,
+    glowStrength: 0.55,    // 0..1
+    glowBlur: 10,          // px
+    gridLines: false,
+
+    // Brush
+    tool: 'paint',
+    brush: 2,
+    stamp: 'glider',
+
+    // Aesthetic drift (tiny hue change each generation)
+    hueBase: 220,
+    hueCycle: 0.20,
+  };
+
+  let cols = 0, rows = 0;
+  let grid = new Uint16Array(0);   // age (0=dead)
+  let next = new Uint16Array(0);
+  let neigh = new Uint8Array(0);   // neighbor count (for coloring)
+
+  let cssW = 0, cssH = 0, dpr = 1;
+  let bgGradient = null;
+
+  function setStatus() {
+    ui.statusText.textContent = state.running ? 'Running' : 'Paused';
+    ui.btnRun.textContent = state.running ? 'Pause' : 'Run';
+    ui.statusDot.classList.toggle('paused', !state.running);
+  }
+
+  function buildBackground() {
+    // Subtle radial mood lighting; the cells provide the fireworks.
+    const g = ctx.createRadialGradient(cssW * 0.25, cssH * 0.18, 0, cssW * 0.45, cssH * 0.50, Math.max(cssW, cssH));
+    g.addColorStop(0.0, 'rgba(139,92,246,0.10)');
+    g.addColorStop(0.4, 'rgba(34,197,94,0.05)');
+    g.addColorStop(0.75, 'rgba(244,63,94,0.04)');
+    g.addColorStop(1.0, 'rgba(4,5,10,1.00)');
+    bgGradient = g;
+  }
+
+  function ruleToString() {
+    const b = [...state.birth].sort((a,b) => a - b);
+    const s = [...state.survive].sort((a,b) => a - b);
+    const comma = state.maxNeighbors >= 10;
+    const bTxt = comma ? b.join(',') : b.join('');
+    const sTxt = comma ? s.join(',') : s.join('');
+    return `B${bTxt}/S${sTxt}`;
+  }
+
+  function computeOffsets() {
+    const r = state.radius;
+    const type = state.neighborhood;
+
+    const arr = [];
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx === 0 && dy === 0) continue;
+
+        if (type === 'moore') {
+          arr.push(dx, dy);
+        } else if (type === 'vonneumann') {
+          if (Math.abs(dx) + Math.abs(dy) <= r) arr.push(dx, dy);
+        } else { // circular
+          if ((dx*dx + dy*dy) <= r*r) arr.push(dx, dy);
+        }
+      }
+    }
+
+    state.offsets = new Int8Array(arr);
+    state.maxNeighbors = arr.length / 2;
+
+    // Clamp rule sets to new maxNeighbors
+    state.birth = new Set([...state.birth].filter(n => n >= 0 && n <= state.maxNeighbors));
+    state.survive = new Set([...state.survive].filter(n => n >= 0 && n <= state.maxNeighbors));
+
+    rebuildRuleChecks();
+    ui.ruleText.value = ruleToString();
+
+    ui.neighborPill.textContent = `neighbors: ${state.maxNeighbors}`;
+    ui.birthPill.textContent = `B (${[...state.birth].sort((a,b)=>a-b).join(',') || '∅'})`;
+    ui.survivePill.textContent = `S (${[...state.survive].sort((a,b)=>a-b).join(',') || '∅'})`;
+  }
+
+  function rebuildRuleChecks() {
+    const max = state.maxNeighbors;
+
+    const makeBox = (parent, kind) => {
+      parent.innerHTML = '';
+      for (let i = 0; i <= max; i++) {
+        const label = document.createElement('label');
+        label.className = 'chk';
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.dataset.kind = kind;
+        input.dataset.n = String(i);
+
+        const span = document.createElement('span');
+        span.textContent = String(i);
+
+        label.appendChild(input);
+        label.appendChild(span);
+        parent.appendChild(label);
+
+        input.addEventListener('input', () => {
+          const n = Number(input.dataset.n);
+          const set = kind === 'b' ? state.birth : state.survive;
+          if (input.checked) set.add(n);
+          else set.delete(n);
+
+          ui.ruleText.value = ruleToString();
+          ui.preset.value = 'custom';
+          ui.birthPill.textContent = `B (${[...state.birth].sort((a,b)=>a-b).join(',') || '∅'})`;
+          ui.survivePill.textContent = `S (${[...state.survive].sort((a,b)=>a-b).join(',') || '∅'})`;
+        });
+      }
+    };
+
+    makeBox(ui.birthBox, 'b');
+    makeBox(ui.surviveBox, 's');
+    syncRuleChecksFromState();
+  }
+
+  function syncRuleChecksFromState() {
+    for (const input of ui.birthBox.querySelectorAll('input[type="checkbox"]')) {
+      const n = Number(input.dataset.n);
+      input.checked = state.birth.has(n);
+    }
+    for (const input of ui.surviveBox.querySelectorAll('input[type="checkbox"]')) {
+      const n = Number(input.dataset.n);
+      input.checked = state.survive.has(n);
+    }
+  }
+
+  function parseRule(text) {
+    const raw = (text || '').trim();
+    if (!raw) return false;
+
+    let bPart = '';
+    let sPart = '';
+
+    const mB = raw.match(/B([^\/]*)/i);
+    const mS = raw.match(/S([^\/]*)/i);
+    if (mB) bPart = mB[1];
+    if (mS) sPart = mS[1];
+
+    if (!mB && !mS) {
+      // Accept "23/3" (S/B) notation.
+      const parts = raw.split('/');
+      if (parts.length === 2) {
+        sPart = parts[0];
+        bPart = parts[1];
+      } else {
+        return false;
+      }
+    }
+
+    const bNums = (bPart.match(/\d+/g) || []).map(Number).filter(Number.isFinite);
+    const sNums = (sPart.match(/\d+/g) || []).map(Number).filter(Number.isFinite);
+
+    state.birth = new Set(bNums.filter(n => n >= 0 && n <= state.maxNeighbors));
+    state.survive = new Set(sNums.filter(n => n >= 0 && n <= state.maxNeighbors));
+
+    ui.ruleText.value = ruleToString();
+    syncRuleChecksFromState();
+
+    ui.birthPill.textContent = `B (${[...state.birth].sort((a,b)=>a-b).join(',') || '∅'})`;
+    ui.survivePill.textContent = `S (${[...state.survive].sort((a,b)=>a-b).join(',') || '∅'})`;
+
+    ui.preset.value = 'custom';
+    return true;
+  }
+
+  function applyPreset(idx) {
+    const p = PRESETS[idx];
+    if (!p) return;
+
+    state.birth = new Set((p.b || []).filter(n => n >= 0 && n <= state.maxNeighbors));
+    if (p.s === 'all') {
+      const all = [];
+      for (let n = 0; n <= state.maxNeighbors; n++) all.push(n);
+      state.survive = new Set(all);
+    } else {
+      state.survive = new Set((p.s || []).filter(n => n >= 0 && n <= state.maxNeighbors));
+    }
+
+    ui.ruleText.value = ruleToString();
+    syncRuleChecksFromState();
+
+    ui.birthPill.textContent = `B (${[...state.birth].sort((a,b)=>a-b).join(',') || '∅'})`;
+    ui.survivePill.textContent = `S (${[...state.survive].sort((a,b)=>a-b).join(',') || '∅'})`;
+  }
+
+  function populatePresets() {
+    ui.preset.innerHTML = '';
+    const custom = document.createElement('option');
+    custom.value = 'custom';
+    custom.textContent = 'Custom';
+    ui.preset.appendChild(custom);
+
+    PRESETS.forEach((p, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = p.name;
+      ui.preset.appendChild(o);
+    });
+
+    ui.preset.value = '0';
+  }
+
+  function idx(x, y) { return x + y * cols; }
+  function inBounds(x, y) { return x >= 0 && x < cols && y >= 0 && y < rows; }
+
+  function resizeCanvas(preserve = true) {
+    dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    cssW = Math.floor(window.innerWidth);
+    cssH = Math.floor(window.innerHeight);
+
+    canvas.width = cssW * dpr;
+    canvas.height = cssH * dpr;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+
+    buf.width = canvas.width;
+    buf.height = canvas.height;
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bctx.imageSmoothingEnabled = false;
+
+    buildBackground();
+
+    const oldCols = cols, oldRows = rows;
+    const oldGrid = grid;
+
+    cols = Math.max(10, Math.floor(cssW / state.cellSize));
+    rows = Math.max(10, Math.floor(cssH / state.cellSize));
+
+    const size = cols * rows;
+    grid = new Uint16Array(size);
+    next = new Uint16Array(size);
+    neigh = new Uint8Array(size);
+
+    if (preserve && oldGrid && oldGrid.length && oldCols && oldRows) {
+      // Nearest-neighbor resample from old grid into new grid.
+      for (let y = 0; y < rows; y++) {
+        const oy = Math.floor(y * oldRows / rows);
+        for (let x = 0; x < cols; x++) {
+          const ox = Math.floor(x * oldCols / cols);
+          grid[idx(x, y)] = oldGrid[ox + oy * oldCols];
+        }
+      }
+    } else {
+      randomize();
+    }
+
+    ui.gridPill.textContent = `${cols}×${rows}`;
+  }
+
+  function randomize() {
+    const p = state.seedDensity;
+    let alive = 0;
+    for (let i = 0; i < grid.length; i++) {
+      if (Math.random() < p) { grid[i] = 1; alive++; }
+      else grid[i] = 0;
+      neigh[i] = 0;
+    }
+    state.generation = 0;
+    state.alive = alive;
+  }
+
+  function clearGrid() {
+    grid.fill(0);
+    neigh.fill(0);
+    state.generation = 0;
+    state.alive = 0;
+  }
+
+  function step() {
+    const off = state.offsets;
+    const wrap = state.wrap;
+    const birth = state.birth;
+    const survive = state.survive;
+    const maxAge = state.maxAge;
+
+    let alive = 0;
+
+    for (let y = 0; y < rows; y++) {
+      const yOff = y * cols;
+      for (let x = 0; x < cols; x++) {
+        const i = x + yOff;
+        let count = 0;
+
+        for (let k = 0; k < off.length; k += 2) {
+          const dx = off[k], dy = off[k + 1];
+          let nx = x + dx;
+          let ny = y + dy;
+
+          if (wrap) {
+            if (nx < 0) nx += cols; else if (nx >= cols) nx -= cols;
+            if (ny < 0) ny += rows; else if (ny >= rows) ny -= rows;
+          } else {
+            if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+          }
+
+          if (grid[nx + ny * cols]) count++;
+        }
+
+        neigh[i] = count;
+
+        const age = grid[i];
+        if (age) {
+          if (survive.has(count)) {
+            const na = age + 1;
+            next[i] = na > maxAge ? maxAge : na;
+            alive++;
+          } else {
+            next[i] = 0;
+          }
+        } else {
+          if (birth.has(count)) {
+            next[i] = 1;
+            alive++;
+          } else {
+            next[i] = 0;
+          }
+        }
+      }
+    }
+
+    const tmp = grid; grid = next; next = tmp;
+    state.generation++;
+    state.alive = alive;
+
+    // Slow hue drift for visual life-support.
+    state.hueBase = (state.hueBase + state.hueCycle) % 360;
+  }
+
+  function draw() {
+    // Fade-to-dark for trails (higher trail => smaller fade alpha).
+    const trail = clamp(state.trail, 0, 1);
+    const fadeAlpha = trail === 0 ? 1 : (1 - trail);
+
+    if (fadeAlpha >= 1) {
+      ctx.clearRect(0, 0, cssW, cssH);
+      ctx.fillStyle = bgGradient || 'rgba(4,5,10,1)';
+      ctx.fillRect(0, 0, cssW, cssH);
+    } else {
+      // Use a dark overlay to slowly erase.
+      ctx.globalAlpha = fadeAlpha;
+      ctx.fillStyle = bgGradient || 'rgba(4,5,10,1)';
+      ctx.fillRect(0, 0, cssW, cssH);
+      ctx.globalAlpha = 1;
+    }
+
+    // Draw cells into buffer
+    bctx.clearRect(0, 0, cssW, cssH);
+
+    const cs = state.cellSize;
+    const mode = state.colorMode;
+
+    const sat = 95;
+    const base = state.hueBase;
+
+    const pad = state.gridLines ? 0.55 : 0.0;
+    const w = cs - pad * 2;
+    const h = cs - pad * 2;
+
+    for (let y = 0; y < rows; y++) {
+      const yOff = y * cols;
+      const py = y * cs + pad;
+      for (let x = 0; x < cols; x++) {
+        const i = x + yOff;
+        const age = grid[i];
+        if (!age) continue;
+
+        const n = neigh[i] | 0;
+
+        let hue, light, alpha;
+        if (mode === 'age') {
+          hue = (base + age * 6 + (x * 0.40) + (y * 0.18)) % 360;
+          light = clamp(22 + age * 0.95 + n * 3.0, 16, 72);
+          alpha = 0.95;
+        } else if (mode === 'heat') {
+          hue = (base + n * 22 + age * 2) % 360;
+          light = clamp(16 + n * 8 + age * 0.40, 14, 78);
+          alpha = 0.92;
+        } else { // plasma
+          const swirl = Math.sin((x * 0.14) + (base * 0.02)) + Math.cos((y * 0.12) - (base * 0.02));
+          hue = (base + age * 5 + swirl * 60 + n * 8) % 360;
+          light = clamp(16 + (swirl + 2) * 12 + n * 4, 14, 80);
+          alpha = 0.88;
+        }
+
+        const px = x * cs + pad;
+        bctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${alpha})`;
+        bctx.fillRect(px, py, w, h);
+      }
+    }
+
+    if (state.gridLines) {
+      bctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      bctx.lineWidth = 1;
+      for (let x = 0; x <= cols; x++) {
+        const px = x * cs + 0.5;
+        bctx.beginPath();
+        bctx.moveTo(px, 0);
+        bctx.lineTo(px, rows * cs);
+        bctx.stroke();
+      }
+      for (let y = 0; y <= rows; y++) {
+        const py = y * cs + 0.5;
+        bctx.beginPath();
+        bctx.moveTo(0, py);
+        bctx.lineTo(cols * cs, py);
+        bctx.stroke();
+      }
+    }
+
+    // Composite buffer to main canvas
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.filter = 'none';
+    ctx.drawImage(buf, 0, 0, cssW, cssH);
+
+    // Glow pass (blur + additive blend)
+    if (state.glow && state.glowBlur > 0 && state.glowStrength > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = clamp(state.glowStrength, 0, 1);
+      ctx.filter = `blur(${state.glowBlur}px)`;
+      ctx.drawImage(buf, 0, 0, cssW, cssH);
+      ctx.filter = 'none';
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  // -------- Brush / Interaction --------
+
+  function applyBrush(cx, cy, kind, brush) {
+    const r = brush - 1;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx*dx + dy*dy > r*r) continue;
+        const x = cx + dx, y = cy + dy;
+        if (!inBounds(x, y)) continue;
+
+        const i = idx(x, y);
+        if (kind === 'paint') grid[i] = 1;
+        else if (kind === 'erase') grid[i] = 0;
+        else if (kind === 'toggle') grid[i] = grid[i] ? 0 : 1;
+      }
+    }
+  }
+
+  function stampAt(cx, cy, stampName) {
+    const s = STAMPS[stampName];
+    if (!s) return;
+
+    const ox = cx - Math.floor(s.w / 2);
+    const oy = cy - Math.floor(s.h / 2);
+
+    for (const [dx, dy] of s.cells) {
+      const x = ox + dx, y = oy + dy;
+      if (inBounds(x, y)) grid[idx(x, y)] = 1;
+    }
+  }
+
+  function eventToCell(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / state.cellSize);
+    const y = Math.floor((e.clientY - rect.top) / state.cellSize);
+    return [x, y];
+  }
+
+  let drawing = false;
+  let drawButton = 0;
+
+  function handlePointerDown(e) {
+    drawing = true;
+    drawButton = e.button;
+
+    canvas.setPointerCapture?.(e.pointerId);
+
+    const [x, y] = eventToCell(e);
+    const erase = (drawButton === 2) || e.shiftKey;
+    const tool = erase ? 'erase' : state.tool;
+
+    if (tool === 'stamp') stampAt(x, y, state.stamp);
+    else applyBrush(x, y, tool, state.brush);
+
+    e.preventDefault();
+  }
+
+  function handlePointerMove(e) {
+    if (!drawing) return;
+
+    const [x, y] = eventToCell(e);
+    const erase = (drawButton === 2) || e.shiftKey;
+    const tool = erase ? 'erase' : state.tool;
+
+    if (tool === 'stamp') stampAt(x, y, state.stamp);
+    else applyBrush(x, y, tool, state.brush);
+
+    e.preventDefault();
+  }
+
+  function handlePointerUp(e) {
+    drawing = false;
+    e.preventDefault();
+  }
+
+  canvas.addEventListener('pointerdown', handlePointerDown);
+  canvas.addEventListener('pointermove', handlePointerMove);
+  canvas.addEventListener('pointerup', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerUp);
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // -------- Save / Load --------
+
+  function exportPattern() {
+    const cells = [];
+    for (let y = 0; y < rows; y++) {
+      const yOff = y * cols;
+      for (let x = 0; x < cols; x++) {
+        const i = x + yOff;
+        const age = grid[i];
+        if (age) cells.push([x, y, age]);
+      }
+    }
+
+    return {
+      v: 1,
+      savedAt: new Date().toISOString(),
+      grid: { cols, rows },
+      rule: {
+        neighborhood: state.neighborhood,
+        radius: state.radius,
+        wrap: state.wrap,
+        birth: [...state.birth].sort((a,b)=>a-b),
+        survive: [...state.survive].sort((a,b)=>a-b),
+      },
+      params: {
+        cellSize: state.cellSize,
+        maxAge: state.maxAge,
+      },
+      generation: state.generation,
+      cells,
+    };
+  }
+
+  function savePattern() {
+    const data = exportPattern();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lifelab_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function importPattern(obj) {
+    if (!obj || typeof obj !== 'object' || !obj.grid || !Array.isArray(obj.cells)) return false;
+
+    const srcCols = obj.grid.cols|0;
+    const srcRows = obj.grid.rows|0;
+    if (!(srcCols > 0 && srcRows > 0)) return false;
+
+    // Apply rules/settings first
+    if (obj.rule) {
+      if (typeof obj.rule.neighborhood === 'string') state.neighborhood = obj.rule.neighborhood;
+      if (Number.isFinite(obj.rule.radius)) state.radius = clamp(obj.rule.radius|0, 1, 4);
+      if (typeof obj.rule.wrap === 'boolean') state.wrap = obj.rule.wrap;
+
+      ui.neighborhood.value = state.neighborhood;
+      ui.radius.value = String(state.radius);
+      ui.wrap.checked = state.wrap;
+
+      computeOffsets();
+
+      const b = Array.isArray(obj.rule.birth) ? obj.rule.birth : [];
+      const s = Array.isArray(obj.rule.survive) ? obj.rule.survive : [];
+      state.birth = new Set(b.map(Number).filter(n => Number.isFinite(n) && n >= 0 && n <= state.maxNeighbors));
+      state.survive = new Set(s.map(Number).filter(n => Number.isFinite(n) && n >= 0 && n <= state.maxNeighbors));
+
+      ui.ruleText.value = ruleToString();
+      syncRuleChecksFromState();
+      ui.preset.value = 'custom';
+    }
+
+    if (obj.params) {
+      if (Number.isFinite(obj.params.maxAge)) state.maxAge = clamp(obj.params.maxAge|0, 1, 256);
+      ui.maxAge.value = String(state.maxAge);
+    }
+
+    // Clear and map coordinates to current grid size
+    clearGrid();
+
+    const sx = cols / srcCols;
+    const sy = rows / srcRows;
+
+    for (const c of obj.cells) {
+      if (!Array.isArray(c) || c.length < 2) continue;
+      const x0 = c[0] | 0;
+      const y0 = c[1] | 0;
+      const age = (c.length >= 3 ? (c[2] | 0) : 1);
+      const x = Math.floor(x0 * sx);
+      const y = Math.floor(y0 * sy);
+      if (inBounds(x, y)) grid[idx(x, y)] = clamp(age, 1, state.maxAge);
+    }
+
+    // Update alive count
+    let alive = 0;
+    for (let i = 0; i < grid.length; i++) if (grid[i]) alive++;
+    state.alive = alive;
+
+    state.generation = 0;
+    return true;
+  }
+
+  ui.btnSave.addEventListener('click', savePattern);
+  ui.btnLoad.addEventListener('click', () => ui.fileLoad.click());
+  ui.fileLoad.addEventListener('change', () => {
+    const file = ui.fileLoad.files && ui.fileLoad.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(String(reader.result || ''));
+        importPattern(obj);
+      } catch (err) {
+        console.warn('Load failed:', err);
+        alert('Could not load that file (invalid JSON).');
+      }
+    };
+    reader.readAsText(file);
+    ui.fileLoad.value = '';
+  });
+
+  // -------- UI Wiring --------
+
+  ui.btnRun.addEventListener('click', () => { state.running = !state.running; setStatus(); });
+
+  ui.btnStep.addEventListener('click', () => {
+    state.running = false;
+    setStatus();
+    step();
+  });
+
+  ui.btnRandom.addEventListener('click', randomize);
+  ui.btnClear.addEventListener('click', clearGrid);
+
+  ui.preset.addEventListener('change', () => {
+    if (ui.preset.value === 'custom') return;
+    applyPreset(Number(ui.preset.value));
+  });
+
+  ui.ruleText.addEventListener('change', () => parseRule(ui.ruleText.value));
+  ui.ruleText.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { parseRule(ui.ruleText.value); ui.ruleText.blur(); e.preventDefault(); }
+  });
+
+  ui.neighborhood.addEventListener('change', () => {
+    state.neighborhood = ui.neighborhood.value;
+    computeOffsets();
+    ui.preset.value = 'custom';
+  });
+
+  ui.radius.addEventListener('input', () => {
+    state.radius = Number(ui.radius.value);
+    computeOffsets();
+    ui.preset.value = 'custom';
+  });
+
+  ui.wrap.addEventListener('input', () => { state.wrap = ui.wrap.checked; });
+
+  ui.cellSize.addEventListener('input', () => {
+    state.cellSize = Number(ui.cellSize.value);
+    resizeCanvas(true);
+  });
+
+  ui.speed.addEventListener('input', () => { state.speed = Number(ui.speed.value); });
+  ui.density.addEventListener('input', () => { state.seedDensity = Number(ui.density.value) / 100; });
+  ui.maxAge.addEventListener('input', () => { state.maxAge = Number(ui.maxAge.value); });
+
+  ui.colorMode.addEventListener('input', () => { state.colorMode = ui.colorMode.value; ui.vizPill.textContent = ui.colorMode.options[ui.colorMode.selectedIndex].text; });
+  ui.trail.addEventListener('input', () => { state.trail = Number(ui.trail.value) / 100; });
+  ui.glow.addEventListener('input', () => { state.glow = ui.glow.checked; });
+  ui.glowStrength.addEventListener('input', () => { state.glowStrength = Number(ui.glowStrength.value) / 100; });
+  ui.glowBlur.addEventListener('input', () => { state.glowBlur = Number(ui.glowBlur.value); });
+  ui.gridLines.addEventListener('input', () => { state.gridLines = ui.gridLines.checked; });
+
+  ui.tool.addEventListener('input', () => { state.tool = ui.tool.value; ui.brushPill.textContent = state.tool; });
+  ui.brush.addEventListener('input', () => { state.brush = Number(ui.brush.value); });
+  ui.stamp.addEventListener('input', () => { state.stamp = ui.stamp.value; });
+
+  document.addEventListener('keydown', (e) => {
+    // Ignore keybinds while typing in controls.
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+
+    const k = e.key.toLowerCase();
+    if (e.code === 'Space') {
+      state.running = !state.running;
+      setStatus();
+      e.preventDefault();
+    } else if (k === 'r') {
+      randomize();
+    } else if (k === 'c') {
+      clearGrid();
+    } else if (k === 's') {
+      state.running = false;
+      setStatus();
+      step();
+    } else if (k === 'h') {
+      ui.panel.classList.toggle('hidden');
+    }
+  });
+
+  window.addEventListener('resize', () => resizeCanvas(true));
+
+  // -------- Main Loop --------
+
+  let last = performance.now();
+  let acc = 0;
+  let fps = 0;
+
+  function tick(t) {
+    const dt = t - last;
+    last = t;
+
+    // FPS estimate (exponential smoothing)
+    const inst = 1000 / Math.max(1, dt);
+    fps = fps ? (fps * 0.90 + inst * 0.10) : inst;
+
+    if (state.running) {
+      const stepsPerSec = clamp(state.speed, 1, 240);
+      const msPerStep = 1000 / stepsPerSec;
+      acc += dt;
+
+      let steps = 0;
+      const maxSteps = 64; // avoid "spiral of death" if tab is backgrounded
+      while (acc >= msPerStep && steps < maxSteps) {
+        step();
+        acc -= msPerStep;
+        steps++;
+      }
+      if (steps === maxSteps) acc = 0;
+    }
+
+    draw();
+
+    // Update stats
+    ui.gen.textContent = String(state.generation);
+    ui.alive.textContent = String(state.alive);
+    ui.fps.textContent = String(Math.round(fps));
+    ui.fpsPill.textContent = `${Math.round(fps)} fps`;
+
+    requestAnimationFrame(tick);
+  }
+
+  // -------- Boot --------
+
+  populatePresets();
+  computeOffsets();
+
+  ui.cellSize.value = String(state.cellSize);
+  ui.speed.value = String(state.speed);
+  ui.density.value = String(Math.round(state.seedDensity * 100));
+  ui.maxAge.value = String(state.maxAge);
+
+  ui.colorMode.value = state.colorMode;
+  ui.trail.value = String(Math.round(state.trail * 100));
+  ui.glow.checked = state.glow;
+  ui.glowStrength.value = String(Math.round(state.glowStrength * 100));
+  ui.glowBlur.value = String(state.glowBlur);
+  ui.gridLines.checked = state.gridLines;
+
+  ui.tool.value = state.tool;
+  ui.brush.value = String(state.brush);
+  ui.stamp.value = state.stamp;
+
+  ui.neighborhood.value = state.neighborhood;
+  ui.radius.value = String(state.radius);
+  ui.wrap.checked = state.wrap;
+
+  ui.vizPill.textContent = ui.colorMode.options[ui.colorMode.selectedIndex].text;
+  ui.brushPill.textContent = state.tool;
+
+  resizeCanvas(false);
+  applyPreset(0);
+  setStatus();
+
+  requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>
