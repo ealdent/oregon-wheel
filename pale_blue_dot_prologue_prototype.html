@@ -1,0 +1,1484 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Pale Blue Dot — Prologue Prototype</title>
+  <style>
+    :root{
+      --bg0:#05070f;
+      --bg1:#0b1430;
+      --panel:#0b1222cc;
+      --panel2:#0b1222ee;
+      --text:#e7eefc;
+      --muted:#a8b4d7;
+      --accent:#76a8ff;
+      --good:#7dffb2;
+      --warn:#ffd37d;
+      --bad:#ff7d7d;
+      --grid:#203057;
+      --tileOcean:#0b2a57;
+      --tileLand:#145a3a;
+      --tileIce:#5f7ea8;
+      --tileDesert:#6a5b2e;
+      --tileForest:#0f5b2f;
+      --tileCity:#d9d3c3;
+      --tileSolar:#ffe8a6;
+      --tileData:#c7c9ff;
+      --tileRewild:#6cff9c;
+      --tileTether:#c8f0ff;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 20% 10%, #17255a 0%, var(--bg0) 55%),
+                  radial-gradient(900px 600px at 80% 20%, #0e2e4d 0%, var(--bg0) 50%),
+                  linear-gradient(180deg, var(--bg0), #02030a);
+      font-family: var(--sans);
+      overflow:hidden;
+    }
+    a{color:var(--accent)}
+    #app{
+      display:flex;
+      height:100%;
+      width:100%;
+    }
+    #left{
+      width: 380px;
+      max-width: 42vw;
+      min-width: 320px;
+      padding:14px 14px 14px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border-right:1px solid rgba(255,255,255,.06);
+      box-shadow: var(--shadow);
+    }
+    #right{
+      flex:1;
+      position:relative;
+      display:flex;
+      align-items:stretch;
+      justify-content:stretch;
+    }
+    #game{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+    .card{
+      background: rgba(6,10,20,.55);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 10px 18px rgba(0,0,0,.25);
+      backdrop-filter: blur(6px);
+    }
+    .title{
+      font-family: var(--mono);
+      letter-spacing:.06em;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 8px 0;
+    }
+    #story{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      overflow:hidden;
+    }
+    #storyText{
+      height: 44vh;
+      min-height: 240px;
+      overflow:auto;
+      padding-right:6px;
+      font-size: 14px;
+      line-height: 1.45;
+      scrollbar-color: rgba(255,255,255,.25) transparent;
+    }
+    #storyText::-webkit-scrollbar{width:10px}
+    #storyText::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12); border-radius: 10px}
+    #stats{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .stat{
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(12,18,35,.4);
+    }
+    .stat .k{
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing:.06em;
+    }
+    .stat .v{
+      margin-top:4px;
+      font-size: 18px;
+      font-weight: 650;
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .bar{
+      height:8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      overflow:hidden;
+      margin-top:8px;
+    }
+    .bar > i{
+      display:block;
+      height:100%;
+      width:30%;
+      background: linear-gradient(90deg, var(--accent), rgba(118,168,255,.2));
+    }
+    .bar.good > i{ background: linear-gradient(90deg, var(--good), rgba(125,255,178,.2)); }
+    .bar.warn > i{ background: linear-gradient(90deg, var(--warn), rgba(255,211,125,.2)); }
+    .bar.bad  > i{ background: linear-gradient(90deg, var(--bad), rgba(255,125,125,.2)); }
+    #controls{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    #buttons{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    button{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(18,26,55,.55);
+      color: var(--text);
+      padding:10px 10px;
+      border-radius: 12px;
+      font-weight: 650;
+      cursor:pointer;
+      box-shadow: 0 10px 20px rgba(0,0,0,.18);
+      transition: transform .06s ease, background .2s ease, border-color .2s ease;
+    }
+    button:hover{ transform: translateY(-1px); border-color: rgba(118,168,255,.35); background: rgba(18,26,55,.75);}
+    button:active{ transform: translateY(0px) scale(.99);}
+    button[disabled]{ opacity:.45; cursor:not-allowed; transform:none; }
+    .small{
+      font-size: 12px;
+      font-weight: 650;
+      font-family: var(--mono);
+      letter-spacing:.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #buildRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .pill{
+      padding:7px 9px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(16,22,44,.55);
+      cursor:pointer;
+      user-select:none;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      transition: background .2s ease, border-color .2s ease, color .2s ease;
+    }
+    .pill:hover{ border-color: rgba(118,168,255,.35); color: var(--text); }
+    .pill.active{
+      background: rgba(118,168,255,.18);
+      border-color: rgba(118,168,255,.55);
+      color: var(--text);
+    }
+    .pill[aria-disabled="true"]{ opacity:.4; cursor:not-allowed;}
+    #hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    #toast{
+      position:absolute;
+      left:14px;
+      bottom:14px;
+      max-width:min(520px, 70vw);
+      background: rgba(6,10,20,.75);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 12px 12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+      transform: translateY(20px);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    #toast.show{
+      opacity:1;
+      transform: translateY(0px);
+    }
+    #toast .t{
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom:6px;
+    }
+    #toast .b{
+      font-size: 13px;
+      line-height: 1.35;
+      color: var(--text);
+    }
+    #overlay{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      background: radial-gradient(900px 700px at 50% 40%, rgba(14,26,54,.65), rgba(0,0,0,.7));
+      backdrop-filter: blur(7px);
+    }
+    #overlay.hidden{ display:none; }
+    #modal{
+      width:min(760px, 100%);
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(6,10,20,.78);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    #modal h1{
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      letter-spacing:.02em;
+    }
+    #modal p{
+      margin: 0 0 10px 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    #modal .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    #modal .grid > div{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(12,18,35,.35);
+    }
+    #modal .grid .h{
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing:.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom:8px;
+    }
+    #modal ul{
+      margin:0;
+      padding-left: 18px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    #modal .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      margin-top: 14px;
+    }
+    #corner{
+      position:absolute;
+      right:14px;
+      bottom:14px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      opacity:.9;
+      user-select:none;
+    }
+    #corner span{
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(231,238,252,.7);
+      letter-spacing:.05em;
+      text-transform: uppercase;
+    }
+    #corner button{
+      padding:8px 10px;
+      font-size: 12px;
+      border-radius: 12px;
+    }
+    @media (max-width: 920px){
+      body{ overflow:auto; }
+      #app{ flex-direction:column; height:auto; min-height:100%; }
+      #left{ width:100%; max-width:none; min-width:0; border-right:none; border-bottom:1px solid rgba(255,255,255,.06); }
+      #right{ height: 64vh; min-height: 420px; }
+      #storyText{ height: 240px; }
+    }
+    @media (prefers-reduced-motion: reduce){
+      *{ transition:none !important; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside id="left">
+    <div class="card">
+      <div class="title">Prologue — The Cradle</div>
+      <div id="hint">
+        You are <b>the Architect</b>. Keep Earth alive long enough to lay the first bones of the <b>Great Tether</b>.<br/>
+        Click a tile to build. End the turn to watch the future… heat up.
+      </div>
+    </div>
+
+    <div id="story" class="card">
+      <div class="title">Narration</div>
+      <div id="storyText" aria-live="polite"></div>
+      <div class="small" id="objective"></div>
+    </div>
+
+    <div id="stats" class="card">
+      <div class="stat">
+        <div class="k">Turn</div>
+        <div class="v"><span id="sTurn">1</span><span class="small" id="sSeed"></span></div>
+      </div>
+      <div class="stat">
+        <div class="k">Population</div>
+        <div class="v"><span id="sPop">10</span><span class="small">Minds</span></div>
+      </div>
+
+      <div class="stat">
+        <div class="k">Energy</div>
+        <div class="v"><span id="sEnergy">20</span><span class="small">GW</span></div>
+      </div>
+      <div class="stat">
+        <div class="k">Data</div>
+        <div class="v"><span id="sData">0</span><span class="small">PB</span></div>
+      </div>
+
+      <div class="stat">
+        <div class="k">Materials</div>
+        <div class="v"><span id="sMat">20</span><span class="small">Kt</span></div>
+      </div>
+      <div class="stat">
+        <div class="k">Ecology</div>
+        <div class="v"><span id="sEco">100</span><span class="small">%</span></div>
+        <div class="bar good"><i id="bEco"></i></div>
+      </div>
+
+      <div class="stat" style="grid-column: 1 / -1;">
+        <div class="k">Heat (Thermal Limit at 100)</div>
+        <div class="v"><span id="sHeat">12</span><span class="small">ΔT</span></div>
+        <div class="bar warn"><i id="bHeat"></i></div>
+      </div>
+
+      <div class="stat" style="grid-column: 1 / -1;">
+        <div class="k">Great Tether</div>
+        <div class="v"><span id="sTether">0</span><span class="small">%</span></div>
+        <div class="bar"><i id="bTether"></i></div>
+      </div>
+    </div>
+
+    <div id="controls" class="card">
+      <div class="title">Build</div>
+      <div id="buildRow" aria-label="Build options">
+        <div class="pill active" data-build="inspect">Inspect</div>
+        <div class="pill" data-build="city" title="Cost: 15 Materials, 5 Energy">City</div>
+        <div class="pill" data-build="solar" title="Cost: 10 Materials">Solar</div>
+        <div class="pill" data-build="data" title="Cost: 20 Materials, 5 Energy">Data</div>
+        <div class="pill" data-build="rewild" title="Cost: 8 Materials">Rewild</div>
+        <div class="pill" data-build="tether" title="Cost: 30 Materials, 20 Energy, 10 Data">Tether</div>
+      </div>
+
+      <div id="buttons">
+        <button id="endTurn">End Turn</button>
+        <button id="helpBtn">Help / Lore</button>
+      </div>
+
+      <div id="buttons">
+        <button id="bigCrunchBtn" title="Restart the simulation. Keep your Echoes.">Big Crunch</button>
+        <button id="soundBtn" title="Toggle ambient tone">Sound: Off</button>
+      </div>
+
+      <div class="small" id="tileInfo">Click the planet.</div>
+    </div>
+  </aside>
+
+  <main id="right">
+    <canvas id="game"></canvas>
+    <div id="toast" role="status" aria-live="polite">
+      <div class="t" id="toastTitle">Notice</div>
+      <div class="b" id="toastBody">…</div>
+    </div>
+    <div id="corner">
+      <span id="echoesLabel">Echoes: 0</span>
+      <button id="clearMemoryBtn" title="Clear stored Echoes">Clear Memory</button>
+    </div>
+
+    <div id="overlay">
+      <div id="modal">
+        <h1>The Pale Blue Dot</h1>
+        <p>
+          Minimal prototype: a tiny Earth, a rising heat, and a rope to the stars.
+          It’s equal parts hope and funeral hymn.
+        </p>
+        <div class="grid">
+          <div>
+            <div class="h">How to play</div>
+            <ul>
+              <li>Pick a build mode. Click a land tile to place it.</li>
+              <li>End the turn to advance time. Watch <b>Heat</b> and <b>Ecology</b>.</li>
+              <li>Build a <b>Tether Hub</b> and keep it supplied to raise <b>Great Tether</b>.</li>
+              <li>If you melt down… you can always <b>Big Crunch</b> and begin again.</li>
+            </ul>
+          </div>
+          <div>
+            <div class="h">Design notes</div>
+            <ul>
+              <li>Single-file HTML. No libraries. No external assets.</li>
+              <li>Deliberately small system: “Earth Sim / early CIV” vibes.</li>
+              <li>Echoes (tiny prestige) persist in localStorage.</li>
+              <li>This is just the prologue: the story wants to leave the cradle.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="startBtn">Begin</button>
+          <button id="skipBtn" title="Skip the intro narration">Skip Intro</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Utility ----------
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp  = (a,b,t) => a + (b-a)*t;
+  const fmt   = (n, digits=0) => Number(n).toFixed(digits);
+
+  // Seeded RNG for repeatable maps.
+  function mulberry32(seed){
+    return function(){
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+  }
+
+  // ---------- DOM ----------
+  const el = (id) => document.getElementById(id);
+  const storyText = el("storyText");
+  const objective = el("objective");
+  const tileInfo  = el("tileInfo");
+
+  const sTurn   = el("sTurn");
+  const sSeed   = el("sSeed");
+  const sPop    = el("sPop");
+  const sEnergy = el("sEnergy");
+  const sData   = el("sData");
+  const sMat    = el("sMat");
+  const sEco    = el("sEco");
+  const sHeat   = el("sHeat");
+  const sTether = el("sTether");
+
+  const bEco    = el("bEco");
+  const bHeat   = el("bHeat");
+  const bTether = el("bTether");
+
+  const endTurnBtn = el("endTurn");
+  const helpBtn    = el("helpBtn");
+  const bigCrunchBtn = el("bigCrunchBtn");
+  const soundBtn   = el("soundBtn");
+  const clearMemoryBtn = el("clearMemoryBtn");
+  const echoesLabel = el("echoesLabel");
+
+  const overlay   = el("overlay");
+  const startBtn  = el("startBtn");
+  const skipBtn   = el("skipBtn");
+
+  const toast = el("toast");
+  const toastTitle = el("toastTitle");
+  const toastBody = el("toastBody");
+
+  // Build pills
+  const buildPills = [...document.querySelectorAll(".pill[data-build]")];
+
+  // ---------- Audio (optional) ----------
+  let audioOn = false;
+  let audioCtx = null;
+  let droneOsc = null;
+  let droneGain = null;
+
+  function setAudio(on){
+    audioOn = on;
+    soundBtn.textContent = on ? "Sound: On" : "Sound: Off";
+    if(on){
+      try{
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        droneOsc = audioCtx.createOscillator();
+        droneGain = audioCtx.createGain();
+        droneOsc.type = "sine";
+        droneOsc.frequency.value = 55; // A1-ish
+        droneGain.gain.value = 0.0;
+        droneOsc.connect(droneGain).connect(audioCtx.destination);
+        droneOsc.start();
+        // fade in softly
+        const now = audioCtx.currentTime;
+        droneGain.gain.cancelScheduledValues(now);
+        droneGain.gain.setValueAtTime(0.0, now);
+        droneGain.gain.linearRampToValueAtTime(0.03, now + 1.2);
+      }catch(e){
+        // If audio fails (autoplay policy), silently ignore.
+        audioOn = false;
+        soundBtn.textContent = "Sound: Off";
+      }
+    }else{
+      if(droneGain && audioCtx){
+        const now = audioCtx.currentTime;
+        droneGain.gain.cancelScheduledValues(now);
+        droneGain.gain.setValueAtTime(droneGain.gain.value, now);
+        droneGain.gain.linearRampToValueAtTime(0.0, now + 0.4);
+      }
+      if(droneOsc){
+        setTimeout(() => {
+          try{ droneOsc.stop(); }catch(e){}
+          try{ droneOsc.disconnect(); }catch(e){}
+          droneOsc = null;
+          droneGain = null;
+        }, 600);
+      }
+    }
+  }
+
+  // ---------- Game state ----------
+  const W = 14;
+  const H = 10;
+
+  const Structures = {
+    none:   { name:"Empty",    key:"none" },
+    city:   { name:"City",     key:"city" },
+    solar:  { name:"Solar",    key:"solar" },
+    data:   { name:"Data Vault", key:"data" },
+    rewild: { name:"Rewild",   key:"rewild" },
+    tether: { name:"Tether Hub", key:"tether" }
+  };
+
+  const Costs = {
+    city:   { mat:15, energy:5, data:0 },
+    solar:  { mat:10, energy:0, data:0 },
+    data:   { mat:20, energy:5, data:0 },
+    rewild: { mat: 8, energy:0, data:0 },
+    tether: { mat:30, energy:20, data:10 }
+  };
+
+  // Persistent prestige
+  const LS_ECHOES = "pbd_echoes_v1";
+  const LS_RUNS   = "pbd_runs_v1";
+
+  function loadEchoes(){
+    const n = Number(localStorage.getItem(LS_ECHOES) || "0");
+    return isFinite(n) ? n : 0;
+  }
+  function saveEchoes(n){
+    localStorage.setItem(LS_ECHOES, String(Math.floor(n)));
+    echoesLabel.textContent = `Echoes: ${Math.floor(n)}`;
+  }
+  function addRun(){
+    const r = Number(localStorage.getItem(LS_RUNS) || "0");
+    localStorage.setItem(LS_RUNS, String(r+1));
+  }
+
+  let rng = null;
+  let seed = 0;
+
+  // Tile: { ocean:boolean, biome:"forest|desert|ice|plains", s:"none|city|..." }
+  let grid = [];
+  let selected = null; // {x,y} or null
+  let buildMode = "inspect";
+
+  let state = {
+    turn: 1,
+    pop: 10,
+    energy: 20,
+    data: 0,
+    mat: 20,
+    heat: 12,
+    eco: 100,
+    tether: 0,
+    // derived
+    cities:0,
+    solars:0,
+    datas:0,
+    rewilds:0,
+    tethers:0,
+    // flags
+    introDone:false,
+    gameOver:false,
+    win:false,
+    milestones: new Set(),
+  };
+
+  // Narration lines (written to blend hope + sadness; based on your prologue text)
+  const IntroLines = [
+    { t:"Prologue", b:"We began as wanderers under a vast, indifferent sky. Then we stopped. We made a deal with the Earth: we would tend to it, and it would feed us." },
+    { t:"Millennia", b:"Stone to steam. Steam to silicon. Then we stopped building with atoms and started building with information." },
+    { t:"The Price", b:"Processing thought makes heat. By 2150 the planet wasn’t dying from war or plague — it was dying from computation." },
+    { t:"Truth", b:"The Earth is a cradle… but one cannot live in the cradle forever." },
+    { t:"Your Role", b:"You are the Architect. Balance a tired ecology while you raise the first bones of a space elevator: the Great Tether." },
+  ];
+
+  const TipLines = [
+    "Cities grow materials and population, but bruise the biosphere.",
+    "Data Vaults turn energy into data… and heat into trouble.",
+    "Rewilding is slow kindness. It cools. It heals.",
+    "A Tether Hub needs a steady diet of energy, data, and materials."
+  ];
+
+  function pushStory(title, body, tone=""){
+    const p = document.createElement("div");
+    p.style.marginBottom = "10px";
+    p.innerHTML = `<div style="font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px;">${escapeHtml(title)}</div>
+                   <div style="color:var(--text);">${escapeHtml(body)}</div>`;
+    storyText.appendChild(p);
+    storyText.scrollTop = storyText.scrollHeight;
+    if(tone) toastMsg(title, body, tone);
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  let toastTimer = null;
+  function toastMsg(title, body, tone="neutral"){
+    toastTitle.textContent = title;
+    toastBody.textContent  = body;
+    toast.classList.add("show");
+    // subtle tone border
+    toast.style.borderColor = tone==="bad" ? "rgba(255,125,125,.35)" :
+                              tone==="good"? "rgba(125,255,178,.30)" :
+                              tone==="warn"? "rgba(255,211,125,.30)" :
+                                             "rgba(255,255,255,.10)";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toast.classList.remove("show"), 2800);
+  }
+
+  function setObjective(){
+    if(state.win){
+      objective.textContent = "Objective complete: the first Tether Hub is alive.";
+      return;
+    }
+    if(state.gameOver){
+      objective.textContent = "Simulation ended. Big Crunch to begin again.";
+      return;
+    }
+    if(state.tethers === 0){
+      objective.textContent = "Objective: Place a Tether Hub (and keep Earth under the Thermal Limit).";
+    }else{
+      objective.textContent = "Objective: Reach 100% Great Tether without melting down or ecocide.";
+    }
+  }
+
+  function recomputeCounts(){
+    state.cities = state.solars = state.datas = state.rewilds = state.tethers = 0;
+    for(const row of grid){
+      for(const tile of row){
+        if(tile.s==="city") state.cities++;
+        if(tile.s==="solar") state.solars++;
+        if(tile.s==="data") state.datas++;
+        if(tile.s==="rewild") state.rewilds++;
+        if(tile.s==="tether") state.tethers++;
+      }
+    }
+  }
+
+  function initGame(newSeed=null){
+    seed = newSeed ?? (Date.now() % 1000000000);
+    rng = mulberry32(seed);
+
+    const echoes = loadEchoes();
+    const legacy = Math.floor(echoes / 25); // tiny bonus per 25 echoes
+
+    grid = [];
+    for(let y=0;y<H;y++){
+      const row = [];
+      for(let x=0;x<W;x++){
+        // circular world mask later; still generate a full grid
+        const r = rng();
+        const ocean = r < 0.43;
+        let biome = "plains";
+        if(!ocean){
+          const b = rng();
+          biome = b < 0.45 ? "forest" : (b < 0.7 ? "plains" : (b < 0.86 ? "desert" : "ice"));
+        }else{
+          biome = rng() < 0.12 ? "ice" : "ocean";
+        }
+        row.push({ ocean, biome, s:"none" });
+      }
+      grid.push(row);
+    }
+
+    selected = null;
+    buildMode = "inspect";
+    buildPills.forEach(p => p.classList.toggle("active", p.dataset.build==="inspect"));
+
+    state = {
+      turn: 1,
+      pop: 10 + legacy,
+      energy: 20 + legacy*2,
+      data: 0,
+      mat: 20 + legacy*3,
+      heat: 12,
+      eco: 100,
+      tether: 0,
+      cities:0, solars:0, datas:0, rewilds:0, tethers:0,
+      introDone:false,
+      gameOver:false,
+      win:false,
+      milestones: new Set(),
+    };
+
+    storyText.innerHTML = "";
+    pushStory("Boot Sequence", `Seed ${seed}. Echoes remembered: ${Math.floor(echoes)}.`, "neutral");
+    setObjective();
+    updateUI();
+    refreshBuildAvailability();
+    toastMsg("Simulation", "Click Begin to enter the prologue.", "neutral");
+  }
+
+  // ---------- Economy / Turn ----------
+  function canAfford(kind){
+    if(kind==="inspect") return true;
+    const c = Costs[kind];
+    if(!c) return false;
+    return (state.mat >= c.mat) && (state.energy >= c.energy) && (state.data >= c.data);
+  }
+
+  function payCost(kind){
+    const c = Costs[kind];
+    state.mat -= c.mat;
+    state.energy -= c.energy;
+    state.data -= c.data;
+  }
+
+  function isTileBuildable(x,y){
+    const tile = grid[y][x];
+    if(tile.ocean) return false;
+    if(tile.s !== "none") return false;
+    // keep tether from being on ice biomes for taste
+    if(buildMode==="tether" && tile.biome==="ice") return false;
+    return true;
+  }
+
+  function buildOn(x,y, kind){
+    if(state.gameOver || state.win) return;
+    if(kind==="inspect") return;
+    if(!canAfford(kind)){
+      toastMsg("Insufficient", "Not enough resources for that build.", "warn");
+      return;
+    }
+    if(!isTileBuildable(x,y)){
+      toastMsg("Cannot Build", "That tile won’t take the structure.", "warn");
+      return;
+    }
+    payCost(kind);
+    grid[y][x].s = kind;
+    recomputeCounts();
+    pushStory("Construction", `${Structures[kind].name} placed.`, "good");
+    refreshBuildAvailability();
+    setObjective();
+  }
+
+  function endTurn(){
+    if(state.gameOver || state.win) return;
+
+    // Baselines
+    let matGain = 1;
+    let energyGain = 0;
+    let dataGain = 0;
+
+    let heatDelta = -1; // natural cooling
+    let ecoDelta = 0;
+
+    // Structures effects
+    // Cities: produce materials + pop, but harm ecology and increase heat.
+    matGain += state.cities * 2;
+    state.pop += state.cities * 0.6;
+
+    ecoDelta -= state.cities * 0.7;
+    heatDelta += state.cities * 2.2;
+
+    // Solar: energy, small heat
+    energyGain += state.solars * 5;
+    heatDelta += state.solars * 0.3;
+
+    // Data: consume energy to create data, lots of heat
+    const dataPossible = Math.min(state.datas, Math.floor(state.energy / 2));
+    state.energy -= dataPossible * 2;
+    dataGain += dataPossible * 3.2;
+    heatDelta += dataPossible * 3.1;
+    ecoDelta -= dataPossible * 0.2;
+
+    // Rewild: heals ecology, cools
+    ecoDelta += state.rewilds * 1.3;
+    heatDelta -= state.rewilds * 1.4;
+
+    // Tether: if supplied, advances; if not, it just sits there like a hungry god.
+    if(state.tethers > 0){
+      for(let i=0;i<state.tethers;i++){
+        const needs = { mat:3, energy:5, data:4 };
+        if(state.mat >= needs.mat && state.energy >= needs.energy && state.data >= needs.data){
+          state.mat -= needs.mat;
+          state.energy -= needs.energy;
+          state.data -= needs.data;
+          state.tether += 5.2;
+          heatDelta += 2.0;
+          ecoDelta -= 0.15;
+        }else{
+          // starvation penalty: the project rusts / bureaucracy
+          state.tether -= 0.6;
+        }
+      }
+    }
+
+    // Apply gains
+    state.mat += matGain;
+    state.energy += energyGain;
+    state.data += dataGain;
+
+    // Population drift (depends on ecology; the planet isn’t a magic vending machine)
+    const ecoFactor = clamp(state.eco/100, 0, 1);
+    state.pop += 0.35 * ecoFactor;
+    // If ecology is in freefall, so is society.
+    if(state.eco < 35){
+      state.pop -= (35 - state.eco) * 0.03;
+    }
+
+    // Heat and ecology interaction: hot worlds lose resilience fast.
+    state.heat += heatDelta;
+    state.heat = clamp(state.heat, 0, 120);
+
+    const heatStress = Math.max(0, state.heat - 55);
+    ecoDelta -= heatStress * 0.06;
+
+    state.eco += ecoDelta;
+    state.eco = clamp(state.eco, 0, 100);
+
+    state.tether = clamp(state.tether, 0, 100);
+
+    // Turn tick
+    state.turn += 1;
+
+    // Milestones / narration
+    checkMilestones();
+
+    // Lose / win conditions
+    if(state.heat >= 100){
+      state.gameOver = true;
+      addEchoes(Math.floor(state.tether));
+      pushStory("Thermal Limit", "Computation outpaced cooling. The air became an exhaust. The cradle overheated.", "bad");
+      toastMsg("Thermal Limit Reached", "Earth can’t pay this heat bill. Big Crunch to restart.", "bad");
+    }else if(state.eco <= 0){
+      state.gameOver = true;
+      addEchoes(Math.floor(state.tether));
+      pushStory("Ecocide", "The biosphere fell quiet. No birds. No insects. Just servers and silence.", "bad");
+      toastMsg("Ecology Collapsed", "The planet went mute. Big Crunch to begin again.", "bad");
+    }else if(state.tether >= 100){
+      state.win = true;
+      addEchoes(60 + Math.floor(state.heat/2));
+      pushStory("The Great Tether", "The first spine reaches the sky. A rope from mud to stars.", "good");
+      pushStory("A Doorway", "You feel the future pulling upward. Bodies are heavy. Minds are light.", "good");
+      toastMsg("Objective Complete", "Prologue complete. Big Crunch to replay with Echoes.", "good");
+    }
+
+    recomputeCounts();
+    refreshBuildAvailability();
+    updateUI();
+    setObjective();
+
+    // ambient audio reacts to heat
+    if(audioOn && droneOsc && droneGain && audioCtx){
+      const targetHz = lerp(55, 140, clamp(state.heat/100,0,1));
+      const targetGain = lerp(0.02, 0.06, clamp(state.heat/100,0,1));
+      const now = audioCtx.currentTime;
+      droneOsc.frequency.cancelScheduledValues(now);
+      droneGain.gain.cancelScheduledValues(now);
+      droneOsc.frequency.setValueAtTime(droneOsc.frequency.value, now);
+      droneGain.gain.setValueAtTime(droneGain.gain.value, now);
+      droneOsc.frequency.linearRampToValueAtTime(targetHz, now + 0.5);
+      droneGain.gain.linearRampToValueAtTime(targetGain, now + 0.5);
+    }
+  }
+
+  function addEchoes(n){
+    const cur = loadEchoes();
+    saveEchoes(cur + Math.max(0, n));
+  }
+
+  function checkMilestones(){
+    const m = state.milestones;
+    // story beats
+    if(state.turn===2 && !m.has("first")){
+      m.add("first");
+      pushStory("Breath", "Your instruments blink awake. The planet looks sturdy… until you zoom in.", "neutral");
+    }
+    if(state.datas>=1 && !m.has("data")){
+      m.add("data");
+      pushStory("Information", "You built a Data Vault. Thought begins to hum in steel.", "neutral");
+    }
+    if(state.heat>=50 && !m.has("heat50")){
+      m.add("heat50");
+      pushStory("Heat", "Cooling systems strain. The sky remembers every watt.", "warn");
+    }
+    if(state.heat>=75 && !m.has("heat75")){
+      m.add("heat75");
+      pushStory("Thermal Limit", "You are approaching the hard ceiling. Physics does not negotiate.", "warn");
+    }
+    if(state.tethers>=1 && !m.has("tether1")){
+      m.add("tether1");
+      pushStory("The Tether", "A vertical ambition. A quiet heresy against gravity.", "good");
+    }
+    if(state.tether>=50 && !m.has("tether50")){
+      m.add("tether50");
+      pushStory("Halfway", "The rope is real now. You can almost hear the station’s shadow passing.", "good");
+    }
+    // periodic tip
+    if(state.turn % 5 === 0 && !state.win && !state.gameOver){
+      const tip = TipLines[Math.floor(rng()*TipLines.length)];
+      toastMsg("Tip", tip, "neutral");
+    }
+  }
+
+  function updateUI(){
+    sTurn.textContent = state.turn;
+    sSeed.textContent = `Seed ${seed}`;
+
+    sPop.textContent = fmt(state.pop, 1);
+    sEnergy.textContent = fmt(state.energy, 0);
+    sData.textContent = fmt(state.data, 0);
+    sMat.textContent = fmt(state.mat, 0);
+
+    sEco.textContent = fmt(state.eco, 0);
+    sHeat.textContent = fmt(state.heat, 0);
+    sTether.textContent = fmt(state.tether, 0);
+
+    const ecoP = clamp(state.eco/100,0,1);
+    bEco.style.width = (ecoP*100).toFixed(1) + "%";
+
+    // heat bar tone
+    const heatP = clamp(state.heat/100,0,1);
+    bHeat.style.width = (heatP*100).toFixed(1) + "%";
+    const heatBar = bHeat.parentElement;
+    heatBar.classList.remove("good","warn","bad");
+    if(state.heat < 50) heatBar.classList.add("good");
+    else if(state.heat < 80) heatBar.classList.add("warn");
+    else heatBar.classList.add("bad");
+
+    const tP = clamp(state.tether/100,0,1);
+    bTether.style.width = (tP*100).toFixed(1) + "%";
+
+    // tile info
+    if(selected){
+      const t = grid[selected.y][selected.x];
+      const parts = [];
+      parts.push(`Tile: ${t.ocean ? "Ocean" : "Land"} (${t.biome})`);
+      parts.push(`Structure: ${Structures[t.s]?.name || "Unknown"}`);
+      tileInfo.textContent = parts.join(" • ");
+    }else{
+      tileInfo.textContent = "Click the planet.";
+    }
+
+    // buttons
+    endTurnBtn.disabled = state.gameOver || state.win;
+  }
+
+  function refreshBuildAvailability(){
+    // Update pills disabled state based on costs
+    buildPills.forEach(p => {
+      const kind = p.dataset.build;
+      if(kind==="inspect") { p.setAttribute("aria-disabled","false"); return; }
+      const ok = canAfford(kind);
+      p.setAttribute("aria-disabled", ok ? "false" : "true");
+      p.style.opacity = ok ? "1" : "0.45";
+    });
+  }
+
+  // ---------- Canvas rendering ----------
+  const canvas = el("game");
+  const ctx = canvas.getContext("2d", { alpha:false });
+
+  function resize(){
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(r.width * dpr);
+    canvas.height = Math.floor(r.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener("resize", resize);
+
+  const stars = [];
+  function initStars(){
+    stars.length = 0;
+    for(let i=0;i<140;i++){
+      stars.push({
+        x: Math.random(),
+        y: Math.random(),
+        z: Math.random(),
+        tw: Math.random()
+      });
+    }
+  }
+
+  function draw(){
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    // Space background
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = "#05070f";
+    ctx.fillRect(0,0,w,h);
+
+    // Stars
+    for(const s of stars){
+      const tw = 0.6 + 0.4*Math.sin((performance.now()/1000) * (0.6 + s.z*1.8) + s.tw*6.28);
+      const px = s.x * w;
+      const py = s.y * h;
+      const r = 1 + s.z*1.4;
+      ctx.globalAlpha = 0.35 + 0.45*tw;
+      ctx.fillStyle = "#dfe8ff";
+      ctx.fillRect(px, py, r, r);
+    }
+    ctx.globalAlpha = 1;
+
+    // Planet geometry
+    const cx = w*0.57;
+    const cy = h*0.52;
+    const radius = Math.min(w,h) * 0.37;
+
+    // Planet shadow + atmosphere glow
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx,cy,radius+10,0,Math.PI*2);
+    ctx.closePath();
+    const grad = ctx.createRadialGradient(cx-radius*0.25, cy-radius*0.15, radius*0.2, cx,cy,radius+18);
+    grad.addColorStop(0, "rgba(118,168,255,.22)");
+    grad.addColorStop(0.55, "rgba(118,168,255,.06)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+
+    // Planet disk
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx,cy,radius,0,Math.PI*2);
+    ctx.clip();
+
+    // slight lighting
+    const oceanGrad = ctx.createLinearGradient(cx-radius, cy-radius, cx+radius, cy+radius);
+    oceanGrad.addColorStop(0, "#0b2a57");
+    oceanGrad.addColorStop(1, "#081a34");
+    ctx.fillStyle = oceanGrad;
+    ctx.fillRect(cx-radius, cy-radius, radius*2, radius*2);
+
+    // Heat haze overlay (subtle)
+    const heatP = clamp(state.heat/100,0,1);
+    if(heatP>0.02){
+      ctx.globalAlpha = 0.10 + heatP*0.18;
+      ctx.fillStyle = "#ff7d7d";
+      ctx.fillRect(cx-radius, cy-radius, radius*2, radius*2);
+      ctx.globalAlpha = 1;
+    }
+
+    // Map tiles inside the circle
+    const gridW = radius*1.55;
+    const gridH = radius*1.18;
+    const ox = cx - gridW/2;
+    const oy = cy - gridH/2;
+    const ts = Math.min(gridW/W, gridH/H);
+
+    // draw tiles
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const tile = grid[y][x];
+
+        const tx = ox + x*ts;
+        const ty = oy + y*ts;
+        const tcx = tx + ts/2;
+        const tcy = ty + ts/2;
+        // Only draw tiles whose center is inside circle, to imply a globe.
+        const dx = tcx - cx;
+        const dy = tcy - cy;
+        if(dx*dx + dy*dy > radius*radius) continue;
+
+        // base color by biome
+        let col = "#145a3a";
+        if(tile.ocean) col = (tile.biome==="ice") ? "#5f7ea8" : "#0b2a57";
+        else{
+          if(tile.biome==="forest") col = "#0f5b2f";
+          if(tile.biome==="desert") col = "#6a5b2e";
+          if(tile.biome==="ice") col = "#4c6f96";
+        }
+
+        ctx.fillStyle = col;
+        ctx.fillRect(tx, ty, ts, ts);
+
+        // structure
+        if(tile.s !== "none"){
+          drawStructure(tile.s, tx, ty, ts);
+        }
+
+        // grid lines (faint)
+        ctx.globalAlpha = 0.20;
+        ctx.strokeStyle = "#203057";
+        ctx.strokeRect(tx+0.5, ty+0.5, ts-1, ts-1);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // selection highlight
+    if(selected){
+      const {x,y} = selected;
+      const tx = ox + x*ts;
+      const ty = oy + y*ts;
+      const tcx = tx + ts/2;
+      const tcy = ty + ts/2;
+      const dx = tcx - cx, dy = tcy - cy;
+      if(dx*dx + dy*dy <= radius*radius){
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = "#76a8ff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tx+2, ty+2, ts-4, ts-4);
+        ctx.restore();
+      }
+    }
+
+    // Ecology fade: if eco low, planet desaturates / darkens.
+    const ecoP = clamp(state.eco/100,0,1);
+    if(ecoP < 0.95){
+      ctx.globalAlpha = (1-ecoP) * 0.55;
+      ctx.fillStyle = "#0a0a10";
+      ctx.fillRect(cx-radius, cy-radius, radius*2, radius*2);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Planet outline
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx,cy,radius,0,Math.PI*2);
+    ctx.strokeStyle = "rgba(200,240,255,.22)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Tiny orbital marker if tether exists
+    if(state.tethers>0){
+      const a = (performance.now()/1000) * 0.22;
+      const rx = radius * 1.16;
+      const ry = radius * 0.92;
+      const px = cx + Math.cos(a) * rx;
+      const py = cy + Math.sin(a) * ry;
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = "#c8f0ff";
+      ctx.fillRect(px-2, py-2, 4, 4);
+      ctx.globalAlpha = 0.25;
+      ctx.strokeStyle = "#c8f0ff";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  function drawStructure(kind, x, y, ts){
+    // minimalist iconography
+    ctx.save();
+
+    if(kind==="city"){
+      ctx.fillStyle = "#d9d3c3";
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(x+ts*0.22, y+ts*0.48, ts*0.18, ts*0.30);
+      ctx.fillRect(x+ts*0.43, y+ts*0.35, ts*0.20, ts*0.43);
+      ctx.fillRect(x+ts*0.66, y+ts*0.52, ts*0.12, ts*0.26);
+      ctx.globalAlpha = 1;
+    }
+
+    if(kind==="solar"){
+      ctx.strokeStyle = "#ffe8a6";
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
+      ctx.strokeRect(x+ts*0.22, y+ts*0.35, ts*0.56, ts*0.38);
+      // panel lines
+      ctx.globalAlpha = 0.6;
+      for(let i=1;i<4;i++){
+        const px = x+ts*0.22 + (ts*0.56)*(i/4);
+        ctx.beginPath();
+        ctx.moveTo(px, y+ts*0.35);
+        ctx.lineTo(px, y+ts*0.73);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(x+ts*0.22, y+ts*0.54);
+      ctx.lineTo(x+ts*0.78, y+ts*0.54);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    if(kind==="data"){
+      ctx.fillStyle = "#c7c9ff";
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(x+ts*0.30, y+ts*0.30, ts*0.45, ts*0.14);
+      ctx.fillRect(x+ts*0.26, y+ts*0.48, ts*0.52, ts*0.14);
+      ctx.fillRect(x+ts*0.30, y+ts*0.66, ts*0.45, ts*0.14);
+      ctx.globalAlpha = 1;
+    }
+
+    if(kind==="rewild"){
+      ctx.strokeStyle = "#6cff9c";
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
+      // simple "leaf"
+      ctx.beginPath();
+      ctx.moveTo(x+ts*0.52, y+ts*0.26);
+      ctx.quadraticCurveTo(x+ts*0.76, y+ts*0.46, x+ts*0.52, y+ts*0.74);
+      ctx.quadraticCurveTo(x+ts*0.28, y+ts*0.46, x+ts*0.52, y+ts*0.26);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x+ts*0.52, y+ts*0.30);
+      ctx.lineTo(x+ts*0.52, y+ts*0.70);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    if(kind==="tether"){
+      ctx.strokeStyle = "#c8f0ff";
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.95;
+      // base
+      ctx.strokeRect(x+ts*0.30, y+ts*0.62, ts*0.40, ts*0.22);
+      // cable
+      ctx.beginPath();
+      ctx.moveTo(x+ts*0.50, y+ts*0.62);
+      ctx.lineTo(x+ts*0.50, y+ts*0.18);
+      ctx.stroke();
+      // star
+      ctx.fillStyle = "#c8f0ff";
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(x+ts*0.47, y+ts*0.14, ts*0.06, ts*0.06);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function screenToTile(mx, my){
+    // inverse of draw mapping
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const cx = w*0.57;
+    const cy = h*0.52;
+    const radius = Math.min(w,h) * 0.37;
+
+    const gridW = radius*1.55;
+    const gridH = radius*1.18;
+    const ox = cx - gridW/2;
+    const oy = cy - gridH/2;
+    const ts = Math.min(gridW/W, gridH/H);
+
+    const x = Math.floor((mx - ox) / ts);
+    const y = Math.floor((my - oy) / ts);
+
+    if(x<0 || x>=W || y<0 || y>=H) return null;
+
+    // ensure click is in circle
+    const tcx = ox + x*ts + ts/2;
+    const tcy = oy + y*ts + ts/2;
+    const dx = tcx - cx;
+    const dy = tcy - cy;
+    if(dx*dx + dy*dy > radius*radius) return null;
+
+    return {x,y};
+  }
+
+  canvas.addEventListener("pointerdown", (ev) => {
+    const r = canvas.getBoundingClientRect();
+    const mx = ev.clientX - r.left;
+    const my = ev.clientY - r.top;
+    const t = screenToTile(mx,my);
+    if(!t) return;
+    selected = t;
+    updateUI();
+
+    if(buildMode !== "inspect"){
+      const tile = grid[t.y][t.x];
+      if(tile.ocean){
+        toastMsg("Ocean", "You can’t build that here.", "warn");
+        return;
+      }
+      if(tile.s !== "none"){
+        toastMsg("Occupied", "That tile already hosts something.", "warn");
+        return;
+      }
+      if(buildMode==="tether" && tile.biome==="ice"){
+        toastMsg("Unstable", "Ice can’t bear the anchor.", "warn");
+        return;
+      }
+      buildOn(t.x, t.y, buildMode);
+    }else{
+      const tile = grid[t.y][t.x];
+      const desc = tile.ocean ? "A cold ocean tile." : `A ${tile.biome} land tile.`;
+      toastMsg("Inspect", `${desc} ${tile.s==="none" ? "Empty." : "Contains " + Structures[tile.s].name + "."}`, "neutral");
+    }
+  });
+
+  buildPills.forEach(p => {
+    p.addEventListener("click", () => {
+      const kind = p.dataset.build;
+      if(kind!=="inspect" && !canAfford(kind)) return;
+      buildMode = kind;
+      buildPills.forEach(q => q.classList.toggle("active", q===p));
+      toastMsg("Build Mode", kind==="inspect" ? "Inspect tiles." : `Place: ${Structures[kind].name}`, "neutral");
+    });
+  });
+
+  endTurnBtn.addEventListener("click", endTurn);
+
+  helpBtn.addEventListener("click", () => {
+    overlay.classList.remove("hidden");
+  });
+
+  startBtn.addEventListener("click", () => {
+    overlay.classList.add("hidden");
+    if(!state.introDone){
+      runIntro();
+    }
+  });
+
+  skipBtn.addEventListener("click", () => {
+    overlay.classList.add("hidden");
+    state.introDone = true;
+    pushStory("Skip", "You open your eyes already mid-crisis.", "neutral");
+    setObjective();
+  });
+
+  bigCrunchBtn.addEventListener("click", () => {
+    bigCrunch();
+  });
+
+  soundBtn.addEventListener("click", () => {
+    setAudio(!audioOn);
+  });
+
+  clearMemoryBtn.addEventListener("click", () => {
+    localStorage.removeItem(LS_ECHOES);
+    saveEchoes(0);
+    toastMsg("Memory", "Echoes cleared.", "neutral");
+    initGame(seed);
+  });
+
+  function bigCrunch(){
+    // Save echoes proportional to progress (even if not dead/win)
+    addEchoes(Math.floor(state.tether/2));
+    addRun();
+    pushStory("Big Crunch", "You condense knowledge into a dense point. The universe obliges: it begins again.", "neutral");
+    toastMsg("Big Crunch", "Restarting… but not forgetting.", "neutral");
+    initGame(Date.now() % 1000000000);
+    // keep overlay hidden
+    overlay.classList.add("hidden");
+    // intro is skippable; we treat this as already done
+    state.introDone = true;
+  }
+
+  async function runIntro(){
+    state.introDone = true;
+    for(const line of IntroLines){
+      await typeLine(line.t, line.b);
+      await sleep(220);
+    }
+    pushStory("Objective", "Build a Tether Hub. Keep Heat < 100. Keep Ecology > 0.", "neutral");
+    setObjective();
+  }
+
+  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  async function typeLine(title, body){
+    const container = document.createElement("div");
+    container.style.marginBottom = "10px";
+    const h = document.createElement("div");
+    h.style.fontFamily = "var(--mono)";
+    h.style.fontSize = "11px";
+    h.style.letterSpacing = ".06em";
+    h.style.textTransform = "uppercase";
+    h.style.color = "var(--muted)";
+    h.style.marginBottom = "4px";
+    h.textContent = title;
+
+    const b = document.createElement("div");
+    b.style.color = "var(--text)";
+    b.textContent = "";
+
+    container.appendChild(h);
+    container.appendChild(b);
+    storyText.appendChild(container);
+    storyText.scrollTop = storyText.scrollHeight;
+
+    let i=0;
+    while(i<body.length){
+      b.textContent = body.slice(0, i+1);
+      i += 1;
+      if(i % 3 === 0) storyText.scrollTop = storyText.scrollHeight;
+      await sleep(9);
+    }
+    toastMsg(title, body, "neutral");
+  }
+
+  // ---------- Boot ----------
+  function boot(){
+    initStars();
+    saveEchoes(loadEchoes()); // refresh label
+    initGame();
+    resize();
+    requestAnimationFrame(draw);
+  }
+  boot();
+
+})();
+</script>
+
+</body>
+</html>
