@@ -1,0 +1,1172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sky & Weather Infographic</title>
+  <meta name="color-scheme" content="dark light" />
+  <style>
+    :root{
+      --bg0:#070A12;
+      --bg1:#0B1433;
+      --card: rgba(255,255,255,.08);
+      --card2: rgba(255,255,255,.06);
+      --stroke: rgba(255,255,255,.14);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --faint: rgba(255,255,255,.48);
+      --good: #66e3b4;
+      --warn: #ffd166;
+      --bad:  #ff6b6b;
+      --shadow: 0 24px 70px rgba(0,0,0,.45);
+      --radius: 22px;
+      --radius2: 16px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 900px at 15% 10%, rgba(103, 77, 255, .30), transparent 55%),
+        radial-gradient(1000px 800px at 85% 25%, rgba(0, 205, 255, .22), transparent 60%),
+        radial-gradient(900px 700px at 60% 100%, rgba(255, 179, 71, .18), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    /* Subtle noise (pure CSS) */
+    body:before{
+      content:"";
+      position:fixed;
+      inset:-200px;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,.035) 0 1px, transparent 2px),
+        radial-gradient(circle at 70% 50%, rgba(255,255,255,.030) 0 1px, transparent 2px),
+        radial-gradient(circle at 40% 80%, rgba(255,255,255,.028) 0 1px, transparent 2px);
+      background-size: 90px 90px, 120px 120px, 150px 150px;
+      pointer-events:none;
+      filter: blur(.2px);
+      opacity:.35;
+      transform: rotate(-2deg);
+    }
+
+    .wrap{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 26px 18px 34px;
+      position: relative;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom: 18px;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      min-width: 240px;
+    }
+
+    .titleRow{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .pin{
+      width: 14px; height: 14px;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+      opacity:.95;
+    }
+
+    h1{
+      font-size: 20px;
+      line-height: 1.15;
+      margin:0;
+      letter-spacing: .2px;
+      font-weight: 720;
+    }
+
+    .sub{
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.25;
+      margin:0;
+      letter-spacing:.2px;
+    }
+
+    .controls{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 18px 50px rgba(0,0,0,.25);
+      user-select:none;
+    }
+
+    .pill small{ color: var(--muted); font-size: 12px; }
+    .pill .mono{ font-family: var(--mono); font-size: 12.5px; color: var(--text); }
+    .btn{
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight: 650;
+      letter-spacing:.2px;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .btn:hover{ background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.22); }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.25fr .95fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+      .controls{ justify-content:flex-start; }
+      .brand{ min-width: unset; }
+    }
+
+    .card{
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, var(--card), var(--card2));
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .card .hd{
+      padding: 16px 18px 12px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+    }
+
+    .card .hd .label{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .card .hd h2{
+      margin:0;
+      font-size: 14px;
+      font-weight: 780;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.82);
+    }
+
+    .card .hd p{
+      margin:0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+
+    .content{ padding: 16px 18px 18px; }
+
+    /* Weather hero */
+    .hero{
+      display:flex;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .bigTime{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      flex: 1 1 300px;
+      min-width: 280px;
+    }
+    .bigTime .time{
+      font-size: clamp(32px, 4.5vw, 52px);
+      letter-spacing: -0.02em;
+      font-weight: 820;
+      line-height: 1.05;
+    }
+    .bigTime .date{
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: .2px;
+    }
+
+    .wx{
+      flex: 1 1 320px;
+      min-width: 280px;
+      display:flex;
+      gap: 14px;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .wxIcon{
+      width: 62px; height: 62px;
+      flex: 0 0 auto;
+      filter: drop-shadow(0 18px 35px rgba(0,0,0,.40));
+      opacity:.98;
+    }
+    .wxMain{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap: 5px;
+    }
+    .temp{
+      font-size: 34px;
+      font-weight: 830;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .desc{
+      font-size: 13.5px;
+      color: var(--muted);
+      letter-spacing: .2px;
+      text-align:right;
+      max-width: 360px;
+    }
+    .smallLine{
+      font-family: var(--mono);
+      font-size: 12px;
+      color: rgba(255,255,255,.75);
+      text-align:right;
+    }
+
+    .statGrid{
+      margin-top: 14px;
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    @media (max-width: 740px){
+      .statGrid{ grid-template-columns: repeat(2, 1fr); }
+      .wx{ justify-content:flex-start; }
+      .wxMain{ align-items:flex-start; }
+      .desc, .smallLine{ text-align:left; }
+    }
+
+    .stat{
+      padding: 12px 12px 11px;
+      border-radius: var(--radius2);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.12);
+    }
+    .stat .k{
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.62);
+      margin-bottom: 6px;
+      font-weight: 720;
+    }
+    .stat .v{
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: .1px;
+      line-height: 1.1;
+    }
+    .stat .s{
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+      margin-top: 4px;
+      font-family: var(--mono);
+    }
+
+    /* Tables */
+    .rows{
+      display:grid;
+      gap: 10px;
+    }
+
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      padding: 12px 12px;
+      border-radius: var(--radius2);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.12);
+    }
+
+    .left{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .ico{
+      width: 22px; height: 22px;
+      flex: 0 0 auto;
+      opacity:.95;
+      filter: drop-shadow(0 14px 20px rgba(0,0,0,.28));
+    }
+
+    .what{
+      display:flex;
+      flex-direction:column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .what b{
+      font-size: 13px;
+      letter-spacing:.2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .what span{
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing:.2px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+
+    .when{
+      font-family: var(--mono);
+      font-size: 13px;
+      color: rgba(255,255,255,.86);
+      white-space: nowrap;
+    }
+
+    .fine{
+      margin-top: 12px;
+      color: rgba(255,255,255,.60);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .fine a{
+      color: rgba(255,255,255,.70);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(255,255,255,.35);
+    }
+    .fine a:hover{ color: rgba(255,255,255,.88); border-bottom-color: rgba(255,255,255,.55); }
+
+    .err{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius2);
+      border: 1px solid rgba(255, 107, 107, .28);
+      background: rgba(255, 107, 107, .10);
+      color: rgba(255,255,255,.88);
+      font-size: 12.5px;
+      display:none;
+    }
+
+    /* tiny sparkle */
+    .sparkle{
+      position:absolute;
+      top: -110px;
+      right: -120px;
+      width: 260px; height: 260px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.22), transparent 55%),
+                  radial-gradient(circle at 60% 70%, rgba(255,255,255,.12), transparent 55%);
+      border-radius: 50%;
+      filter: blur(1px);
+      opacity:.65;
+      pointer-events:none;
+      transform: rotate(10deg);
+    }
+
+    .location-status {
+      font-size: 11px;
+      color: var(--faint);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="titleRow">
+          <svg class="pin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 22s7-4.6 7-12a7 7 0 1 0-14 0c0 7.4 7 12 7 12Z" stroke="rgba(255,255,255,.92)" stroke-width="1.8"/>
+            <circle cx="12" cy="10" r="2.5" fill="rgba(255,255,255,.92)"/>
+          </svg>
+          <h1 id="locationName">Loading location...</h1>
+        </div>
+        <p class="sub">Local dashboard: weather + sun, twilight & moon times.</p>
+        <p class="location-status" id="locationStatus"></p>
+      </div>
+
+      <div class="controls">
+        <div class="pill" title="Local time zone and current offset (handles daylight saving automatically)">
+          <small>Time zone</small>
+          <span class="mono" id="tzLine">Detecting...</span>
+        </div>
+        <div class="pill" title="Last successful refresh">
+          <small>Updated</small>
+          <span class="mono" id="updatedLine">-</span>
+        </div>
+        <button class="btn" id="refreshBtn" type="button">Refresh</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: Weather + Sun/Twilight -->
+      <div class="card">
+        <div class="sparkle" aria-hidden="true"></div>
+        <div class="hd">
+          <div class="label">
+            <h2>Now</h2>
+            <p id="nowSub">Local time + current conditions</p>
+          </div>
+        </div>
+        <div class="content">
+          <div class="hero">
+            <div class="bigTime">
+              <div class="time" id="clock">-</div>
+              <div class="date" id="dateLine">-</div>
+            </div>
+
+            <div class="wx">
+              <svg class="wxIcon" id="wxIcon" viewBox="0 0 64 64" aria-hidden="true"></svg>
+              <div class="wxMain">
+                <div class="temp" id="temp">-</div>
+                <div class="desc" id="wxDesc">Loading weather...</div>
+                <div class="smallLine" id="wxSmall">-</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="statGrid">
+            <div class="stat">
+              <div class="k">Feels like</div>
+              <div class="v" id="feels">-</div>
+              <div class="s" id="cloud">Clouds: -</div>
+            </div>
+            <div class="stat">
+              <div class="k">Humidity</div>
+              <div class="v" id="hum">-</div>
+              <div class="s" id="precip">Precip: -</div>
+            </div>
+            <div class="stat">
+              <div class="k">Wind</div>
+              <div class="v" id="wind">-</div>
+              <div class="s" id="windDir">Dir: -</div>
+            </div>
+            <div class="stat">
+              <div class="k">Coords</div>
+              <div class="v" id="coords">-</div>
+              <div class="s" id="elev">TZ offset: -</div>
+            </div>
+          </div>
+
+          <div class="err" id="errWeather"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Moon -->
+      <div class="card">
+        <div class="hd">
+          <div class="label">
+            <h2>Moon</h2>
+            <p>Rise & set for today</p>
+          </div>
+        </div>
+        <div class="content">
+          <div class="rows" id="moonRows">
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 17c3.2-3.8 6-5.7 9-5.7S17.8 13.2 21 17" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M12 3v12" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M8.7 6.4 12 3l3.3 3.4" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="what">
+                  <b>Moonrise</b>
+                  <span>Next rise time</span>
+                </div>
+              </div>
+              <div class="when" id="moonrise">-</div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 17c3.2-3.8 6-5.7 9-5.7S17.8 13.2 21 17" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M12 21V9" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M8.7 17.6 12 21l3.3-3.4" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="what">
+                  <b>Moonset</b>
+                  <span>Next set time</span>
+                </div>
+              </div>
+              <div class="when" id="moonset">-</div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M16.9 14.2A7.5 7.5 0 0 1 9.8 4.9 7.6 7.6 0 1 0 19 16.1c-.7-.1-1.4-.3-2.1-.6Z" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linejoin="round"/>
+                </svg>
+                <div class="what">
+                  <b>Phase</b>
+                  <span id="moonPhaseSub">-</span>
+                </div>
+              </div>
+              <div class="when" id="moonIllum">-</div>
+            </div>
+          </div>
+
+          <div class="err" id="errMoon"></div>
+
+          <div class="fine">
+            Moon data: U.S. Naval Observatory Astronomical Applications "rstt/oneday" API.
+          </div>
+        </div>
+      </div>
+
+      <!-- LEFT (full width row): Sun & Twilight -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="hd">
+          <div class="label">
+            <h2>Sun + Twilight</h2>
+            <p>Morning begin & evening end times for twilight phases</p>
+          </div>
+        </div>
+        <div class="content">
+          <div class="rows">
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 17c3.2-3.8 6-5.7 9-5.7S17.8 13.2 21 17" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M12 3v6" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M8.7 6.4 12 3l3.3 3.4" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="12" r="3" fill="rgba(255,255,255,.20)"/>
+                </svg>
+                <div class="what">
+                  <b>Sunrise</b>
+                  <span>Sun's upper limb appears</span>
+                </div>
+              </div>
+              <div class="when" id="sunrise">-</div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 17c3.2-3.8 6-5.7 9-5.7S17.8 13.2 21 17" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M12 21v-6" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M8.7 17.6 12 21l3.3-3.4" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="12" r="3" fill="rgba(255,255,255,.20)"/>
+                </svg>
+                <div class="what">
+                  <b>Sunset</b>
+                  <span>Sun disappears below horizon</span>
+                </div>
+              </div>
+              <div class="when" id="sunset">-</div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3a8 8 0 0 0 0 16" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M12 5a6 6 0 0 0 0 12" stroke="rgba(255,255,255,.55)" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <div class="what">
+                  <b>Civil twilight</b>
+                  <span>Morning begin / evening end</span>
+                </div>
+              </div>
+              <div class="when"><span id="civilBegin">-</span> / <span id="civilEnd">-</span></div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3a8 8 0 0 0 0 16" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M12 7a4 4 0 0 0 0 8" stroke="rgba(255,255,255,.55)" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <div class="what">
+                  <b>Nautical twilight</b>
+                  <span>Morning begin / evening end</span>
+                </div>
+              </div>
+              <div class="when"><span id="nauticalBegin">-</span> / <span id="nauticalEnd">-</span></div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3a8 8 0 0 0 0 16" stroke="rgba(255,255,255,.82)" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="12" cy="12" r="2.2" fill="rgba(255,255,255,.18)"/>
+                </svg>
+                <div class="what">
+                  <b>Astronomical twilight</b>
+                  <span>Morning begin / evening end</span>
+                </div>
+              </div>
+              <div class="when"><span id="astroBegin">-</span> / <span id="astroEnd">-</span></div>
+            </div>
+          </div>
+
+          <div class="err" id="errSun"></div>
+
+          <div class="fine">
+            Sun & twilight times: sunrise-sunset.org API (includes civil/nautical/astronomical twilight).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fine" style="margin-top: 14px;">
+      Weather: Open-Meteo (no API key). &nbsp;·&nbsp;
+      Tip: if you're offline, astronomy blocks still show the last loaded values - but weather will fail fast.
+    </div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Default location: Atlanta, GA (used when geolocation fails)
+  const DEFAULT_LOCATION = { name: 'Atlanta, GA', lat: 33.749, lon: -84.388 };
+
+  // Current location state (will be updated by geolocation)
+  let LOCATION = { name: 'Loading...', lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon, tz: null };
+
+  const $ = (id) => document.getElementById(id);
+
+  // Get browser's timezone
+  function getBrowserTimezone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (e) {
+      return 'America/New_York'; // fallback
+    }
+  }
+
+  // Get standard timezone offset in hours for USNO API
+  function getStandardTzOffsetHours(tz) {
+    // Create a date in January (standard time) to get the standard offset
+    const jan = new Date(new Date().getFullYear(), 0, 1);
+    const janOffset = getOffsetMinutesForDate(jan, tz);
+    return Math.round(janOffset / 60);
+  }
+
+  function getOffsetMinutesForDate(date, tz) {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const parts = dtf.formatToParts(date);
+    const map = {};
+    for (const p of parts) map[p.type] = p.value;
+    const asUTC = Date.UTC(+map.year, +map.month - 1, +map.day, +map.hour, +map.minute, +map.second);
+    return (asUTC - date.getTime()) / 60000;
+  }
+
+  function createDateFormatters() {
+    const tz = LOCATION.tz;
+    return {
+      dtfTime: new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      dtfDate: new Intl.DateTimeFormat(undefined, { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      dtfYMD: new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' })
+    };
+  }
+
+  let formatters = null;
+
+  function partsForTZ(date) {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: LOCATION.tz,
+      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const parts = dtf.formatToParts(date);
+    const map = {};
+    for (const p of parts) map[p.type] = p.value;
+    return map;
+  }
+
+  // Returns offset minutes: local(timeZone) - UTC
+  function tzOffsetMinutes(date) {
+    return getOffsetMinutesForDate(date, LOCATION.tz);
+  }
+
+  function offsetToStr(mins) {
+    const sign = mins >= 0 ? '+' : '-';
+    const abs = Math.abs(mins);
+    const hh = String(Math.floor(abs / 60)).padStart(2,'0');
+    const mm = String(abs % 60).padStart(2,'0');
+    return `UTC${sign}${hh}:${mm}`;
+  }
+
+  function ymdString(date) {
+    // en-CA gives YYYY-MM-DD in most modern browsers; fallback to parts if needed.
+    const s = formatters.dtfYMD.format(date);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const p = partsForTZ(date);
+    return `${p.year}-${p.month}-${p.day}`;
+  }
+
+  function fmtClock(date) { return formatters.dtfTime.format(date); }
+  function fmtDate(date) { return formatters.dtfDate.format(date); }
+
+  function setText(id, value) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = value;
+  }
+
+  function showErr(id, msg) {
+    const el = $(id);
+    if (!el) return;
+    el.style.display = msg ? 'block' : 'none';
+    el.textContent = msg || '';
+  }
+
+  function degToCompass(deg) {
+    if (deg == null || Number.isNaN(deg)) return '-';
+    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    const i = Math.round(((deg % 360) / 22.5)) % 16;
+    return `${dirs[i]} (${Math.round(deg)}deg)`;
+  }
+
+  function round1(x) { return (x == null || Number.isNaN(x)) ? null : Math.round(x*10)/10; }
+
+  const WX_CODE = {
+    0:  { t:'Clear sky', i:'clear' },
+    1:  { t:'Mainly clear', i:'partly' },
+    2:  { t:'Partly cloudy', i:'partly' },
+    3:  { t:'Overcast', i:'cloud' },
+    45: { t:'Fog', i:'fog' },
+    48: { t:'Rime fog', i:'fog' },
+    51: { t:'Light drizzle', i:'drizzle' },
+    53: { t:'Moderate drizzle', i:'drizzle' },
+    55: { t:'Dense drizzle', i:'drizzle' },
+    56: { t:'Freezing drizzle (light)', i:'sleet' },
+    57: { t:'Freezing drizzle (dense)', i:'sleet' },
+    61: { t:'Rain (slight)', i:'rain' },
+    63: { t:'Rain (moderate)', i:'rain' },
+    65: { t:'Rain (heavy)', i:'rain' },
+    66: { t:'Freezing rain (light)', i:'sleet' },
+    67: { t:'Freezing rain (heavy)', i:'sleet' },
+    71: { t:'Snow fall (slight)', i:'snow' },
+    73: { t:'Snow fall (moderate)', i:'snow' },
+    75: { t:'Snow fall (heavy)', i:'snow' },
+    77: { t:'Snow grains', i:'snow' },
+    80: { t:'Rain showers (slight)', i:'showers' },
+    81: { t:'Rain showers (moderate)', i:'showers' },
+    82: { t:'Rain showers (violent)', i:'showers' },
+    85: { t:'Snow showers (slight)', i:'snow' },
+    86: { t:'Snow showers (heavy)', i:'snow' },
+    95: { t:'Thunderstorm', i:'storm' },
+    96: { t:'Thunderstorm w/ hail (slight)', i:'storm' },
+    99: { t:'Thunderstorm w/ hail (heavy)', i:'storm' }
+  };
+
+  // Open-Meteo weather codes table (WMO interpretation)
+  function wxLabel(code) {
+    return (WX_CODE[code] && WX_CODE[code].t) ? WX_CODE[code].t : `Weather code ${code}`;
+  }
+
+  function svgIcon(kind, isNight) {
+    // Inline icons (simple, pretty, no external assets)
+    const stroke = 'rgba(255,255,255,.88)';
+    const faint = 'rgba(255,255,255,.18)';
+    const accent = isNight ? 'rgba(169, 144, 255, .55)' : 'rgba(255, 196, 117, .58)';
+
+    const common = (inner) => `
+      <defs>
+        <linearGradient id="g1" x1="0" x2="1">
+          <stop offset="0" stop-color="${accent}"/>
+          <stop offset="1" stop-color="rgba(0, 205, 255, .40)"/>
+        </linearGradient>
+      </defs>
+      ${inner}
+    `;
+
+    if (kind === 'clear') return common(isNight
+      ? `<path d="M40 17a16 16 0 1 1-14 23.7A14 14 0 1 0 40 17Z" fill="url(#g1)"/><circle cx="18" cy="19" r="2" fill="${faint}"/><circle cx="24" cy="13" r="1.4" fill="${faint}"/><circle cx="14" cy="30" r="1.2" fill="${faint}"/>`
+      : `<circle cx="32" cy="30" r="12" fill="url(#g1)"/><g stroke="${stroke}" stroke-width="2" stroke-linecap="round"><path d="M32 8v6"/><path d="M32 46v6"/><path d="M10 30h6"/><path d="M48 30h6"/><path d="M16.5 14.5l4.2 4.2"/><path d="M43.3 41.3l4.2 4.2"/><path d="M47.5 14.5l-4.2 4.2"/><path d="M20.7 41.3l-4.2 4.2"/></g>`
+    );
+
+    if (kind === 'partly') return common(isNight
+      ? `<path d="M42 18a13 13 0 1 1-11.4 19.2A11 11 0 1 0 42 18Z" fill="url(#g1)"/>
+         <path d="M20 45c-6 0-10-3.8-10-8.6 0-4 3-7.4 7.3-8.2A11 11 0 0 1 38 30.5c4.7.3 8.7 3.8 8.7 8.4 0 4.9-4.3 6.1-7.7 6.1H20Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>`
+      : `<circle cx="24" cy="24" r="10" fill="url(#g1)"/>
+         <path d="M20 46c-6.4 0-11-4-11-9.2 0-4.2 3.2-7.9 7.8-8.7A12 12 0 0 1 40 30.7c5 .3 9.2 4.1 9.2 9 0 5.2-4.7 6.3-8.1 6.3H20Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>`
+    );
+
+    if (kind === 'cloud') return common(
+      `<path d="M18 46c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 30.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>`
+    );
+
+    if (kind === 'fog') return common(
+      `<path d="M18 40c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 24.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <g stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round">
+         <path d="M12 48h40"/>
+         <path d="M18 54h28"/>
+       </g>`
+    );
+
+    if (kind === 'drizzle') return common(
+      `<path d="M18 36c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 20.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <g stroke="rgba(0,205,255,.65)" stroke-width="2" stroke-linecap="round">
+         <path d="M22 42l-2 6"/><path d="M32 42l-2 6"/><path d="M42 42l-2 6"/>
+       </g>`
+    );
+
+    if (kind === 'rain') return common(
+      `<path d="M18 34c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 18.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <g stroke="rgba(0,205,255,.70)" stroke-width="2.4" stroke-linecap="round">
+         <path d="M22 40l-3 10"/><path d="M32 40l-3 10"/><path d="M42 40l-3 10"/>
+       </g>`
+    );
+
+    if (kind === 'showers') return common(
+      `<path d="M18 34c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 18.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <g stroke="rgba(0,205,255,.75)" stroke-width="2.4" stroke-linecap="round">
+         <path d="M20 40l-2 7"/><path d="M28 42l-2 8"/><path d="M38 40l-2 7"/><path d="M46 42l-2 8"/>
+       </g>`
+    );
+
+    if (kind === 'snow') return common(
+      `<path d="M18 34c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 18.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <g stroke="rgba(255,255,255,.75)" stroke-width="2" stroke-linecap="round">
+         <path d="M22 42v10"/><path d="M17 47h10"/><path d="M18.5 44.5l7 7"/><path d="M25.5 44.5l-7 7"/>
+         <path d="M40 42v10"/><path d="M35 47h10"/><path d="M36.5 44.5l7 7"/><path d="M43.5 44.5l-7 7"/>
+       </g>`
+    );
+
+    if (kind === 'sleet') return common(
+      `<path d="M18 34c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 18.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <g stroke="rgba(0,205,255,.70)" stroke-width="2.4" stroke-linecap="round">
+         <path d="M24 40l-3 10"/><path d="M40 40l-3 10"/>
+       </g>
+       <g stroke="rgba(255,255,255,.75)" stroke-width="2" stroke-linecap="round">
+         <path d="M32 43v8"/><path d="M28 47h8"/><path d="M29.5 44.5l5 5"/><path d="M34.5 44.5l-5 5"/>
+       </g>`
+    );
+
+    if (kind === 'storm') return common(
+      `<path d="M18 34c-6.8 0-12-4.2-12-9.8 0-4.8 3.6-8.9 8.7-9.8A14 14 0 0 1 42 18.2c5.6.4 10.3 4.5 10.3 9.8 0 5.7-5 6-8.7 6H18Z" fill="rgba(255,255,255,.16)" stroke="rgba(255,255,255,.26)"/>
+       <path d="M30 40l-6 11h6l-2 9 9-14h-6l2-6z" fill="rgba(255, 209, 102, .85)"/>
+       <g stroke="rgba(0,205,255,.70)" stroke-width="2.4" stroke-linecap="round">
+         <path d="M44 42l-2 8"/>
+       </g>`
+    );
+
+    return common(`<circle cx="32" cy="32" r="12" fill="url(#g1)"/>`);
+  }
+
+  function isNightLocal(now, sunriseDate, sunsetDate) {
+    if (!(sunriseDate instanceof Date) || !(sunsetDate instanceof Date)) return false;
+    const t = now.getTime();
+    return (t < sunriseDate.getTime()) || (t > sunsetDate.getTime());
+  }
+
+  async function fetchWeather(now) {
+    showErr('errWeather', '');
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(LOCATION.lat)}&longitude=${encodeURIComponent(LOCATION.lon)}` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m` +
+      `&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=${encodeURIComponent(LOCATION.tz)}`;
+
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
+    const data = await res.json();
+    const c = data.current || {};
+
+    const code = c.weather_code;
+    const label = wxLabel(code);
+
+    setText('temp', (c.temperature_2m == null) ? '-' : `${Math.round(c.temperature_2m)}F`);
+    setText('wxDesc', label);
+    setText('wxSmall', (c.time ? `Observed @ ${c.time.replace('T',' ')}` : ''));
+    setText('feels', (c.apparent_temperature == null) ? '-' : `${Math.round(c.apparent_temperature)}F`);
+    setText('hum', (c.relative_humidity_2m == null) ? '-' : `${Math.round(c.relative_humidity_2m)}%`);
+    setText('wind', (c.wind_speed_10m == null) ? '-' : `${Math.round(c.wind_speed_10m)} mph`);
+    setText('windDir', `Dir: ${degToCompass(c.wind_direction_10m)}`);
+    setText('cloud', (c.cloud_cover == null) ? 'Clouds: -' : `Clouds: ${Math.round(c.cloud_cover)}%`);
+    setText('precip', (c.precipitation == null) ? 'Precip: -' : `Precip: ${round1(c.precipitation)} in`);
+
+    return { code, label };
+  }
+
+  async function fetchSunAndTwilight(now) {
+    showErr('errSun', '');
+    const dateStr = ymdString(now);
+    const url = `https://api.sunrise-sunset.org/json?lat=${encodeURIComponent(LOCATION.lat)}&lng=${encodeURIComponent(LOCATION.lon)}&date=${encodeURIComponent(dateStr)}&formatted=0`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`sunrise-sunset.org HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.status && data.status !== 'OK') throw new Error(`sunrise-sunset.org status: ${data.status}`);
+
+    const r = data.results || {};
+    const sunrise = r.sunrise ? new Date(r.sunrise) : null;
+    const sunset  = r.sunset  ? new Date(r.sunset)  : null;
+
+    const fmt = (d) => {
+      if (!d || isNaN(d.getTime())) return '-';
+      return new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour: '2-digit', minute:'2-digit' }).format(d);
+    };
+
+    setText('sunrise', fmt(sunrise));
+    setText('sunset', fmt(sunset));
+    setText('civilBegin', fmt(r.civil_twilight_begin ? new Date(r.civil_twilight_begin) : null));
+    setText('civilEnd', fmt(r.civil_twilight_end ? new Date(r.civil_twilight_end) : null));
+    setText('nauticalBegin', fmt(r.nautical_twilight_begin ? new Date(r.nautical_twilight_begin) : null));
+    setText('nauticalEnd', fmt(r.nautical_twilight_end ? new Date(r.nautical_twilight_end) : null));
+    setText('astroBegin', fmt(r.astronomical_twilight_begin ? new Date(r.astronomical_twilight_begin) : null));
+    setText('astroEnd', fmt(r.astronomical_twilight_end ? new Date(r.astronomical_twilight_end) : null));
+
+    return { sunrise, sunset };
+  }
+
+  async function fetchMoon(now, isDst) {
+    showErr('errMoon', '');
+    const dateStr = ymdString(now);
+
+    // USNO expects tz = standard time zone offset, with DST passed separately.
+    const tz = getStandardTzOffsetHours(LOCATION.tz);
+    const url = `https://aa.usno.navy.mil/api/rstt/oneday?date=${encodeURIComponent(dateStr)}&coords=${encodeURIComponent(`${LOCATION.lat},${LOCATION.lon}`)}&tz=${encodeURIComponent(tz)}&dst=${encodeURIComponent(isDst)}`;
+
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`USNO HTTP ${res.status}`);
+    const data = await res.json();
+
+    const d = data?.properties?.data || {};
+    const moondata = d.moondata || [];
+    const curphase = d.curphase || null;
+    const fracillum = d.fracillum || null;
+
+    const pick = (arr, needle) => {
+      const it = arr.find(x => (x.phen || '').toLowerCase().includes(needle));
+      return it ? it.time : null;
+    };
+
+    // Phenomenon labels vary; "rise"/"set" matching is robust enough.
+    const rise = pick(moondata, 'rise');
+    const set = pick(moondata, 'set');
+
+    setText('moonrise', rise || '-');
+    setText('moonset', set || '-');
+    setText('moonPhaseSub', curphase ? `Current: ${curphase}` : '-');
+    setText('moonIllum', fracillum ? fracillum : '-');
+  }
+
+  function updateClock() {
+    if (!formatters) return;
+    const now = new Date();
+    setText('clock', fmtClock(now));
+    setText('dateLine', fmtDate(now));
+  }
+
+  function setTZLine(now) {
+    const off = tzOffsetMinutes(now);
+    const offStr = offsetToStr(off);
+    const standardOff = getStandardTzOffsetHours(LOCATION.tz) * 60;
+    const dst = (off !== standardOff) ? 'Daylight' : 'Standard';
+    setText('tzLine', `${LOCATION.tz} - ${offStr} - ${dst}`);
+    setText('elev', `TZ offset: ${offStr}`);
+    return { off, isDst: (dst === 'Daylight') };
+  }
+
+  function stampUpdated(now) {
+    const t = new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(now);
+    setText('updatedLine', t);
+  }
+
+  async function refreshAll() {
+    const now = new Date();
+    const tzInfo = setTZLine(now);
+    setText('coords', `${LOCATION.lat.toFixed(4)}, ${LOCATION.lon.toFixed(4)}`);
+
+    setText('nowSub', `Local time + current conditions - ${ymdString(now)}`);
+
+    let sun = { sunrise: null, sunset: null };
+    try {
+      sun = await fetchSunAndTwilight(now);
+    } catch (e) {
+      showErr('errSun', `Sun/twilight failed: ${e.message}`);
+    }
+
+    try {
+      const wx = await fetchWeather(now);
+      const iconKind = (WX_CODE[wx.code]?.i) || 'cloud';
+      const night = isNightLocal(now, sun.sunrise, sun.sunset);
+      $('wxIcon').innerHTML = svgIcon(iconKind, night);
+    } catch (e) {
+      showErr('errWeather', `Weather failed: ${e.message} (check internet)`);
+      // Still render an icon
+      $('wxIcon').innerHTML = svgIcon('cloud', true);
+      setText('wxDesc', 'Weather unavailable');
+      setText('wxSmall', '');
+    }
+
+    try {
+      await fetchMoon(now, tzInfo.isDst);
+    } catch (e) {
+      showErr('errMoon', `Moon data failed: ${e.message}`);
+    }
+
+    stampUpdated(new Date());
+  }
+
+  // Reverse geocode to get location name
+  async function reverseGeocode(lat, lon) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'SkyWeatherInfographic/1.0' }
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+
+      const addr = data.address || {};
+      const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
+      const state = addr.state || addr.region || '';
+
+      if (city && state) {
+        // Try to get state abbreviation for US states
+        const stateAbbr = getStateAbbreviation(state);
+        return `${city}, ${stateAbbr || state}`;
+      } else if (city) {
+        return city;
+      } else if (data.display_name) {
+        // Use first two parts of display name
+        const parts = data.display_name.split(',').slice(0, 2).map(s => s.trim());
+        return parts.join(', ');
+      }
+      return null;
+    } catch (e) {
+      console.warn('Reverse geocoding failed:', e);
+      return null;
+    }
+  }
+
+  // US state abbreviations
+  function getStateAbbreviation(stateName) {
+    const states = {
+      'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+      'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+      'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+      'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+      'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+      'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+      'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+      'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+      'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+      'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+      'District of Columbia': 'DC'
+    };
+    return states[stateName] || null;
+  }
+
+  // Get user's location
+  async function initLocation() {
+    setText('locationStatus', 'Detecting your location...');
+
+    // Use browser timezone
+    LOCATION.tz = getBrowserTimezone();
+
+    if ('geolocation' in navigator) {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000 // 5 minutes cache
+          });
+        });
+
+        LOCATION.lat = position.coords.latitude;
+        LOCATION.lon = position.coords.longitude;
+
+        // Try to get location name via reverse geocoding
+        const name = await reverseGeocode(LOCATION.lat, LOCATION.lon);
+        LOCATION.name = name || `${LOCATION.lat.toFixed(2)}, ${LOCATION.lon.toFixed(2)}`;
+
+        setText('locationStatus', 'Location detected from browser');
+
+      } catch (err) {
+        console.warn('Geolocation failed:', err.message);
+        // Use default location (Atlanta, GA)
+        LOCATION.lat = DEFAULT_LOCATION.lat;
+        LOCATION.lon = DEFAULT_LOCATION.lon;
+        LOCATION.name = DEFAULT_LOCATION.name;
+        setText('locationStatus', 'Using default location (geolocation unavailable)');
+      }
+    } else {
+      // Geolocation not supported
+      LOCATION.lat = DEFAULT_LOCATION.lat;
+      LOCATION.lon = DEFAULT_LOCATION.lon;
+      LOCATION.name = DEFAULT_LOCATION.name;
+      setText('locationStatus', 'Using default location (geolocation not supported)');
+    }
+
+    // Update UI with location name
+    setText('locationName', LOCATION.name);
+    document.title = `${LOCATION.name} - Sky & Weather`;
+
+    // Initialize formatters after timezone is set
+    formatters = createDateFormatters();
+  }
+
+  // Initialize
+  async function init() {
+    await initLocation();
+    updateClock();
+    setInterval(updateClock, 1000);
+    $('refreshBtn').addEventListener('click', () => refreshAll());
+    refreshAll();
+  }
+
+  init();
+
+})();
+</script>
+</body>
+</html>
