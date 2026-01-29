@@ -415,6 +415,67 @@
       color: var(--faint);
       margin-top: 2px;
     }
+
+    /* Sky Clock Styles */
+    .clock-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sky-clock {
+      width: 100%;
+      max-width: 360px;
+      height: auto;
+      filter: drop-shadow(0 20px 40px rgba(0,0,0,.4));
+    }
+
+    .clock-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 140px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend-swatch {
+      width: 20px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.2);
+      flex-shrink: 0;
+    }
+
+    .moon-swatch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      background: transparent !important;
+      border: none !important;
+      color: #f0e68c;
+    }
+
+    @media (max-width: 600px) {
+      .clock-legend {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        min-width: unset;
+      }
+      .legend-item {
+        font-size: 11px;
+      }
+    }
   </style>
 </head>
 
@@ -562,6 +623,31 @@
         </div>
       </div>
 
+      <!-- CLOCK VISUALIZATION -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="hd">
+          <div class="label">
+            <h2>24-Hour Sky Clock</h2>
+            <p>Visual timeline of daylight, twilight phases, and moon position</p>
+          </div>
+        </div>
+        <div class="content">
+          <div class="clock-container">
+            <svg id="skyClock" viewBox="-20 -20 440 440" class="sky-clock">
+              <!-- Clock will be drawn by JS -->
+            </svg>
+            <div class="clock-legend">
+              <div class="legend-item"><span class="legend-swatch" style="background: #1a1a2e;"></span> Night</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: #2d2d5a;"></span> Astronomical</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: #4a4a8a;"></span> Nautical</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: #7a6aa0;"></span> Civil</div>
+              <div class="legend-item"><span class="legend-swatch" style="background: linear-gradient(90deg, #ffb347, #87ceeb);"></span> Day</div>
+              <div class="legend-item"><span class="legend-swatch moon-swatch">☽</span> Moon</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- LEFT (full width row): Sun & Twilight -->
       <div class="card" style="grid-column: 1 / -1;">
         <div class="hd">
@@ -671,6 +757,22 @@
 
   // Current location state (will be updated by geolocation)
   let LOCATION = { name: 'Loading...', lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon, tz: null };
+
+  // Store astronomical data for clock visualization
+  let clockData = {
+    sunrise: null,
+    sunset: null,
+    civilBegin: null,
+    civilEnd: null,
+    nauticalBegin: null,
+    nauticalEnd: null,
+    astroBegin: null,
+    astroEnd: null,
+    moonrise: null,
+    moonset: null,
+    moonPhase: null,
+    moonIllum: null
+  };
 
   const $ = (id) => document.getElementById(id);
 
@@ -962,6 +1064,16 @@
     setText('astroBegin', fmt(r.astronomical_twilight_begin ? new Date(r.astronomical_twilight_begin) : null));
     setText('astroEnd', fmt(r.astronomical_twilight_end ? new Date(r.astronomical_twilight_end) : null));
 
+    // Store for clock visualization
+    clockData.sunrise = sunrise;
+    clockData.sunset = sunset;
+    clockData.civilBegin = r.civil_twilight_begin ? new Date(r.civil_twilight_begin) : null;
+    clockData.civilEnd = r.civil_twilight_end ? new Date(r.civil_twilight_end) : null;
+    clockData.nauticalBegin = r.nautical_twilight_begin ? new Date(r.nautical_twilight_begin) : null;
+    clockData.nauticalEnd = r.nautical_twilight_end ? new Date(r.nautical_twilight_end) : null;
+    clockData.astroBegin = r.astronomical_twilight_begin ? new Date(r.astronomical_twilight_begin) : null;
+    clockData.astroEnd = r.astronomical_twilight_end ? new Date(r.astronomical_twilight_end) : null;
+
     return { sunrise, sunset };
   }
 
@@ -995,13 +1107,505 @@
     setText('moonset', set || '-');
     setText('moonPhaseSub', curphase ? `Current: ${curphase}` : '-');
     setText('moonIllum', fracillum ? fracillum : '-');
+
+    // Store for clock visualization - parse time strings like "6:35 AM" to Date objects
+    clockData.moonrise = parseUSNOTime(rise, now);
+    clockData.moonset = parseUSNOTime(set, now);
+    clockData.moonPhase = curphase;
+    clockData.moonIllum = fracillum;
   }
+
+  // Parse USNO time string like "14:29" (24h) or "6:35 AM" (12h) to a Date object for today
+  function parseUSNOTime(timeStr, referenceDate) {
+    if (!timeStr || timeStr === '-') return null;
+
+    let hours, minutes;
+
+    // Try 12-hour format with AM/PM first
+    const match12 = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (match12) {
+      hours = parseInt(match12[1], 10);
+      minutes = parseInt(match12[2], 10);
+      const period = match12[3].toUpperCase();
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+    } else {
+      // Try 24-hour format (e.g., "14:29")
+      const match24 = timeStr.match(/(\d{1,2}):(\d{2})/);
+      if (!match24) return null;
+      hours = parseInt(match24[1], 10);
+      minutes = parseInt(match24[2], 10);
+    }
+
+    const d = new Date(referenceDate);
+    // Set time in local timezone
+    const parts = partsForTZ(referenceDate);
+    d.setFullYear(+parts.year, +parts.month - 1, +parts.day);
+    d.setHours(hours, minutes, 0, 0);
+    return d;
+  }
+
+  let lastClockDrawSecond = -1;
 
   function updateClock() {
     if (!formatters) return;
     const now = new Date();
     setText('clock', fmtClock(now));
     setText('dateLine', fmtDate(now));
+
+    // Redraw sky clock every 10 seconds to update current time marker
+    const currentSecond = Math.floor(now.getTime() / 10000);
+    if (currentSecond !== lastClockDrawSecond) {
+      lastClockDrawSecond = currentSecond;
+      drawSkyClock();
+    }
+  }
+
+  // ===== SKY CLOCK VISUALIZATION =====
+
+  // Convert a Date to angle on 24-hour clock (0° = midnight at top, clockwise)
+  function timeToAngle(date) {
+    if (!date || isNaN(date.getTime())) return null;
+    const parts = partsForTZ(date);
+    const hours = +parts.hour + (+parts.minute / 60) + (+parts.second / 3600);
+    // 24 hours = 360°, so 1 hour = 15°
+    // Midnight (0:00) is at top (0°/360°)
+    return (hours / 24) * 360;
+  }
+
+  // Create SVG arc path for a band between two angles
+  function describeArc(cx, cy, innerR, outerR, startAngle, endAngle) {
+    // Convert angles to radians, adjust so 0° is at top
+    const toRad = (deg) => (deg - 90) * Math.PI / 180;
+
+    // Handle wrap-around (e.g., 350° to 10°)
+    let sweep = endAngle - startAngle;
+    if (sweep < 0) sweep += 360;
+
+    const largeArc = sweep > 180 ? 1 : 0;
+
+    const startRad = toRad(startAngle);
+    const endRad = toRad(endAngle);
+
+    const x1Outer = cx + outerR * Math.cos(startRad);
+    const y1Outer = cy + outerR * Math.sin(startRad);
+    const x2Outer = cx + outerR * Math.cos(endRad);
+    const y2Outer = cy + outerR * Math.sin(endRad);
+
+    const x1Inner = cx + innerR * Math.cos(startRad);
+    const y1Inner = cy + innerR * Math.sin(startRad);
+    const x2Inner = cx + innerR * Math.cos(endRad);
+    const y2Inner = cy + innerR * Math.sin(endRad);
+
+    // Path: outer arc, line to inner, inner arc (reverse), close
+    return [
+      `M ${x1Outer} ${y1Outer}`,
+      `A ${outerR} ${outerR} 0 ${largeArc} 1 ${x2Outer} ${y2Outer}`,
+      `L ${x2Inner} ${y2Inner}`,
+      `A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1Inner} ${y1Inner}`,
+      'Z'
+    ].join(' ');
+  }
+
+  // Get point on circle at given angle and radius
+  function pointOnCircle(cx, cy, r, angle) {
+    const rad = (angle - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  // Draw moon phase icon - accurate representation
+  function getMoonPhaseSVG(phase, illum, size) {
+    // Parse illumination like "45%" to number
+    let illumPct = 50;
+    if (illum) {
+      const match = illum.match(/(\d+)/);
+      if (match) illumPct = parseInt(match[1], 10);
+    }
+
+    const r = size / 2;
+    const cx = r, cy = r;
+
+    // Determine phase from name
+    const phaseLower = (phase || '').toLowerCase();
+    const isNew = phaseLower.includes('new');
+    const isFull = phaseLower.includes('full');
+    const isFirstQuarter = phaseLower.includes('first quarter');
+    const isLastQuarter = phaseLower.includes('last quarter') || phaseLower.includes('third quarter');
+    const isWaxingCrescent = phaseLower.includes('waxing crescent');
+    const isWaxingGibbous = phaseLower.includes('waxing gibbous');
+    const isWaningGibbous = phaseLower.includes('waning gibbous');
+    const isWaningCrescent = phaseLower.includes('waning crescent');
+
+    // Fallback detection if specific phase not found
+    const isWaxing = phaseLower.includes('waxing') || phaseLower.includes('first');
+    const isWaning = phaseLower.includes('waning') || phaseLower.includes('last') || phaseLower.includes('third');
+
+    const darkFill = 'rgba(30,30,50,.85)';
+    const lightFill = '#f5f0d0';
+    const strokeColor = 'rgba(255,255,255,.35)';
+
+    if (isNew) {
+      // New moon - dark with subtle outline
+      return `<circle cx="${cx}" cy="${cy}" r="${r-1}" fill="${darkFill}" stroke="${strokeColor}" stroke-width="1.5"/>`;
+    }
+
+    if (isFull) {
+      // Full moon - fully illuminated
+      return `<circle cx="${cx}" cy="${cy}" r="${r-1}" fill="${lightFill}" stroke="${strokeColor}" stroke-width="1"/>`;
+    }
+
+    // For partial phases, we draw the moon using a path
+    // The terminator (shadow line) is drawn as an ellipse arc
+    // illumPct determines how much is lit: 0% = new, 50% = quarter, 100% = full
+
+    const rad = r - 1;
+
+    // Calculate the terminator curve
+    // At 50% (quarter), terminator is a straight line (ellipse rx = 0)
+    // At 0% or 100%, terminator matches the outer edge
+    // The curve bulges left or right depending on crescent vs gibbous
+
+    let terminatorRx;
+    let isGibbous = illumPct > 50;
+
+    if (isGibbous) {
+      // Gibbous: more than half lit, terminator curves inward on dark side
+      terminatorRx = ((illumPct - 50) / 50) * rad;
+    } else {
+      // Crescent: less than half lit, terminator curves inward on lit side
+      terminatorRx = ((50 - illumPct) / 50) * rad;
+    }
+
+    // Determine which side is illuminated based on phase
+    // Northern hemisphere convention:
+    // - Waxing (growing): right side illuminated
+    // - Waning (shrinking): left side illuminated
+    const rightSideLit = isWaxing || isWaxingCrescent || isWaxingGibbous || isFirstQuarter;
+    const leftSideLit = isWaning || isWaningCrescent || isWaningGibbous || isLastQuarter;
+
+    // Default to right side lit if we can't determine (early waxing)
+    const litOnRight = rightSideLit || (!leftSideLit && illumPct < 50);
+
+    // Build the moon path
+    // We draw the full circle, then overlay the shadow portion
+
+    if (litOnRight) {
+      // Right side is illuminated
+      if (isGibbous || illumPct >= 50) {
+        // Gibbous or quarter: draw dark crescent on left
+        // Dark area: left arc of circle + terminator curve
+        return `
+          <circle cx="${cx}" cy="${cy}" r="${rad}" fill="${lightFill}" stroke="${strokeColor}" stroke-width="1"/>
+          <path d="M ${cx} ${cy - rad}
+                   A ${rad} ${rad} 0 0 0 ${cx} ${cy + rad}
+                   A ${terminatorRx} ${rad} 0 0 1 ${cx} ${cy - rad} Z"
+                fill="${darkFill}"/>
+        `;
+      } else {
+        // Crescent: draw light crescent on right
+        // Light area: right arc of circle + terminator curve
+        return `
+          <circle cx="${cx}" cy="${cy}" r="${rad}" fill="${darkFill}" stroke="${strokeColor}" stroke-width="1"/>
+          <path d="M ${cx} ${cy - rad}
+                   A ${rad} ${rad} 0 0 1 ${cx} ${cy + rad}
+                   A ${terminatorRx} ${rad} 0 0 1 ${cx} ${cy - rad} Z"
+                fill="${lightFill}"/>
+        `;
+      }
+    } else {
+      // Left side is illuminated (waning)
+      if (isGibbous || illumPct >= 50) {
+        // Gibbous or quarter: draw dark crescent on right
+        return `
+          <circle cx="${cx}" cy="${cy}" r="${rad}" fill="${lightFill}" stroke="${strokeColor}" stroke-width="1"/>
+          <path d="M ${cx} ${cy - rad}
+                   A ${rad} ${rad} 0 0 1 ${cx} ${cy + rad}
+                   A ${terminatorRx} ${rad} 0 0 0 ${cx} ${cy - rad} Z"
+                fill="${darkFill}"/>
+        `;
+      } else {
+        // Crescent: draw light crescent on left
+        return `
+          <circle cx="${cx}" cy="${cy}" r="${rad}" fill="${darkFill}" stroke="${strokeColor}" stroke-width="1"/>
+          <path d="M ${cx} ${cy - rad}
+                   A ${rad} ${rad} 0 0 0 ${cx} ${cy + rad}
+                   A ${terminatorRx} ${rad} 0 0 0 ${cx} ${cy - rad} Z"
+                fill="${lightFill}"/>
+        `;
+      }
+    }
+  }
+
+  // Main function to draw the sky clock
+  function drawSkyClock() {
+    const svg = $('skyClock');
+    if (!svg) return;
+
+    const cx = 200, cy = 200;
+    const outerR = 180;
+
+    // Colors for each band (wedge-style from center)
+    const colors = {
+      night: '#1a1a2e',
+      astro: '#2d2d5a',
+      nautical: '#4a4a8a',
+      civil: '#7a6aa0',
+      day: 'url(#dayGradient)'
+    };
+
+    let paths = [];
+    let currentTimeMarker = '';
+    let moonMarker = '';
+    let hourMarkers = '';
+
+    // Gradient definition for day
+    const defs = `
+      <defs>
+        <linearGradient id="dayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#87ceeb"/>
+          <stop offset="50%" stop-color="#fffacd"/>
+          <stop offset="100%" stop-color="#ffb347"/>
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+    `;
+
+    // Get angles for all times
+    const angles = {
+      astroBegin: timeToAngle(clockData.astroBegin),
+      nauticalBegin: timeToAngle(clockData.nauticalBegin),
+      civilBegin: timeToAngle(clockData.civilBegin),
+      sunrise: timeToAngle(clockData.sunrise),
+      sunset: timeToAngle(clockData.sunset),
+      civilEnd: timeToAngle(clockData.civilEnd),
+      nauticalEnd: timeToAngle(clockData.nauticalEnd),
+      astroEnd: timeToAngle(clockData.astroEnd),
+      moonrise: timeToAngle(clockData.moonrise),
+      moonset: timeToAngle(clockData.moonset)
+    };
+
+    // Check if we have valid data
+    const hasData = angles.sunrise !== null && angles.sunset !== null;
+
+    if (hasData) {
+      // Draw wedges from center outward for each time period
+      // Each wedge represents a time period colored by what type of light exists
+
+      // 1. NIGHT - from astronomical twilight end (evening) to astronomical twilight begin (morning)
+      // This wraps around midnight
+      if (angles.astroEnd !== null && angles.astroBegin !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.astroEnd, angles.astroBegin)}" fill="${colors.night}" opacity="0.95"/>`);
+      }
+
+      // 2. ASTRONOMICAL TWILIGHT - morning (astro begin to nautical begin)
+      if (angles.astroBegin !== null && angles.nauticalBegin !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.astroBegin, angles.nauticalBegin)}" fill="${colors.astro}" opacity="0.95"/>`);
+      }
+
+      // 3. NAUTICAL TWILIGHT - morning (nautical begin to civil begin)
+      if (angles.nauticalBegin !== null && angles.civilBegin !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.nauticalBegin, angles.civilBegin)}" fill="${colors.nautical}" opacity="0.95"/>`);
+      }
+
+      // 4. CIVIL TWILIGHT - morning (civil begin to sunrise)
+      if (angles.civilBegin !== null && angles.sunrise !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.civilBegin, angles.sunrise)}" fill="${colors.civil}" opacity="0.95"/>`);
+      }
+
+      // 5. DAY - sunrise to sunset
+      paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.sunrise, angles.sunset)}" fill="${colors.day}" opacity="0.95"/>`);
+
+      // 6. CIVIL TWILIGHT - evening (sunset to civil end)
+      if (angles.sunset !== null && angles.civilEnd !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.sunset, angles.civilEnd)}" fill="${colors.civil}" opacity="0.95"/>`);
+      }
+
+      // 7. NAUTICAL TWILIGHT - evening (civil end to nautical end)
+      if (angles.civilEnd !== null && angles.nauticalEnd !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.civilEnd, angles.nauticalEnd)}" fill="${colors.nautical}" opacity="0.95"/>`);
+      }
+
+      // 8. ASTRONOMICAL TWILIGHT - evening (nautical end to astro end)
+      if (angles.nauticalEnd !== null && angles.astroEnd !== null) {
+        paths.push(`<path d="${describeArc(cx, cy, 0, outerR, angles.nauticalEnd, angles.astroEnd)}" fill="${colors.astro}" opacity="0.95"/>`);
+      }
+
+      // Add subtle dividing lines at key transitions
+      const dividerAngles = [
+        { angle: angles.astroBegin, label: null },
+        { angle: angles.nauticalBegin, label: null },
+        { angle: angles.civilBegin, label: null },
+        { angle: angles.sunrise, label: 'Sunrise' },
+        { angle: angles.sunset, label: 'Sunset' },
+        { angle: angles.civilEnd, label: null },
+        { angle: angles.nauticalEnd, label: null },
+        { angle: angles.astroEnd, label: null }
+      ];
+
+      dividerAngles.forEach(({ angle, label }) => {
+        if (angle !== null) {
+          const p1 = pointOnCircle(cx, cy, 0, angle);
+          const p2 = pointOnCircle(cx, cy, outerR, angle);
+          paths.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"
+            stroke="rgba(255,255,255,.15)" stroke-width="1"/>`);
+        }
+      });
+
+    } else {
+      // No data yet - draw placeholder
+      paths.push(`<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${colors.night}" opacity="0.6"/>`);
+      paths.push(`<text x="${cx}" y="${cy}" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="14">Loading...</text>`);
+    }
+
+    // Hour markers around the edge
+    for (let h = 0; h < 24; h++) {
+      const angle = (h / 24) * 360;
+      const isMainHour = h % 6 === 0;
+      const markerR1 = outerR + 5;
+      const markerR2 = isMainHour ? outerR + 18 : outerR + 12;
+      const p1 = pointOnCircle(cx, cy, markerR1, angle);
+      const p2 = pointOnCircle(cx, cy, markerR2, angle);
+
+      hourMarkers += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"
+        stroke="rgba(255,255,255,${isMainHour ? '.6' : '.3'})" stroke-width="${isMainHour ? '2' : '1'}"/>`;
+
+      // Labels for main hours
+      if (isMainHour) {
+        const labelR = outerR + 28;
+        const p = pointOnCircle(cx, cy, labelR, angle);
+        const label = h === 0 ? '12AM' : h === 6 ? '6AM' : h === 12 ? '12PM' : '6PM';
+        hourMarkers += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="middle"
+          fill="rgba(255,255,255,.7)" font-size="11" font-weight="600">${label}</text>`;
+      }
+    }
+
+    // Current time marker
+    const now = new Date();
+    const nowAngle = timeToAngle(now);
+    if (nowAngle !== null) {
+      const p1 = pointOnCircle(cx, cy, 0, nowAngle);
+      const p2 = pointOnCircle(cx, cy, outerR + 3, nowAngle);
+      currentTimeMarker = `
+        <line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"
+          stroke="rgba(255,255,255,.9)" stroke-width="2" filter="url(#glow)"/>
+        <circle cx="${p2.x}" cy="${p2.y}" r="4" fill="#fff" filter="url(#glow)"/>
+      `;
+    }
+
+    // Moon visibility arc - shows when moon is above horizon
+    let moonArc = '';
+    if (angles.moonrise !== null && angles.moonset !== null) {
+      // Draw arc from moonrise to moonset
+      moonArc = `<path d="${describeArc(cx, cy, outerR + 8, outerR + 14, angles.moonrise, angles.moonset)}"
+        fill="rgba(240, 230, 140, .35)" stroke="rgba(240, 230, 140, .6)" stroke-width="1"/>`;
+    }
+
+    // Moon marker - position based on current time relative to rise/set
+    if (clockData.moonrise || clockData.moonset) {
+      // Calculate moon's current position
+      // If moon is up (between rise and set), interpolate position
+      // Otherwise show at rise or set location with dimmed appearance
+
+      let moonAngle = null;
+      let moonVisible = false;
+
+      const nowMs = now.getTime();
+      const riseMs = clockData.moonrise ? clockData.moonrise.getTime() : null;
+      const setMs = clockData.moonset ? clockData.moonset.getTime() : null;
+
+      if (riseMs && setMs) {
+        if (riseMs < setMs) {
+          // Normal case: rise before set
+          if (nowMs >= riseMs && nowMs <= setMs) {
+            // Moon is up - interpolate
+            const progress = (nowMs - riseMs) / (setMs - riseMs);
+            const riseAngle = angles.moonrise;
+            const setAngle = angles.moonset;
+            let angleDiff = setAngle - riseAngle;
+            if (angleDiff < 0) angleDiff += 360;
+            moonAngle = riseAngle + progress * angleDiff;
+            moonVisible = true;
+          } else {
+            moonAngle = nowMs < riseMs ? angles.moonrise : angles.moonset;
+          }
+        } else {
+          // Rise after set (moon visible overnight, wrapping)
+          if (nowMs >= riseMs || nowMs <= setMs) {
+            moonVisible = true;
+            if (nowMs >= riseMs) {
+              // After rise, before midnight
+              const msToMidnight = new Date(now).setHours(24,0,0,0) - nowMs;
+              const riseToMidnight = new Date(clockData.moonrise).setHours(24,0,0,0) - riseMs;
+              const progress = 1 - (msToMidnight / riseToMidnight);
+              const angleDiff = (360 - angles.moonrise + angles.moonset);
+              moonAngle = (angles.moonrise + progress * angleDiff * 0.5) % 360;
+            } else {
+              // After midnight, before set
+              const progress = nowMs / setMs;
+              moonAngle = progress * angles.moonset;
+            }
+          } else {
+            moonAngle = angles.moonrise;
+          }
+        }
+      } else if (riseMs) {
+        moonAngle = angles.moonrise;
+        moonVisible = nowMs >= riseMs;
+      } else if (setMs) {
+        moonAngle = angles.moonset;
+        moonVisible = nowMs <= setMs;
+      }
+
+      if (moonAngle !== null) {
+        const moonR = outerR * 0.5; // Position moon in middle area of clock
+        const mp = pointOnCircle(cx, cy, moonR, moonAngle);
+        const moonSize = 42;
+
+        moonMarker = `
+          <g transform="translate(${mp.x - moonSize/2}, ${mp.y - moonSize/2})"
+             opacity="${moonVisible ? '1' : '0.5'}" filter="${moonVisible ? 'url(#glow)' : ''}">
+            ${getMoonPhaseSVG(clockData.moonPhase, clockData.moonIllum, moonSize)}
+          </g>
+        `;
+      }
+    }
+
+    // Add clock border and center
+    const border = `
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2"/>
+      <circle cx="${cx}" cy="${cy}" r="6" fill="rgba(255,255,255,.3)"/>
+    `;
+
+    // Add sunrise/sunset icons on the edge
+    let sunMarkers = '';
+    if (hasData) {
+      const sunriseP = pointOnCircle(cx, cy, outerR - 15, angles.sunrise);
+      const sunsetP = pointOnCircle(cx, cy, outerR - 15, angles.sunset);
+      sunMarkers = `
+        <circle cx="${sunriseP.x}" cy="${sunriseP.y}" r="8" fill="#ffb347" opacity="0.9" filter="url(#glow)"/>
+        <circle cx="${sunsetP.x}" cy="${sunsetP.y}" r="8" fill="#ff7b54" opacity="0.9" filter="url(#glow)"/>
+      `;
+    }
+
+    // Assemble final SVG
+    svg.innerHTML = `
+      ${defs}
+      <g>
+        ${paths.join('\n')}
+      </g>
+      ${border}
+      ${moonArc}
+      ${hourMarkers}
+      ${sunMarkers}
+      ${moonMarker}
+      ${currentTimeMarker}
+    `;
   }
 
   function setTZLine(now) {
@@ -1051,6 +1655,9 @@
     } catch (e) {
       showErr('errMoon', `Moon data failed: ${e.message}`);
     }
+
+    // Draw the sky clock visualization
+    drawSkyClock();
 
     stampUpdated(new Date());
   }
