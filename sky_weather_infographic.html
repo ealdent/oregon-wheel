@@ -157,6 +157,119 @@
       .brand{ min-width: unset; }
     }
 
+    /* Mobile responsive - sky clock first */
+    @media (max-width: 680px){
+      .grid{
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .card-skyclock { order: -10; }
+      .card-weather { order: -5; }
+      .card-moon { order: 0; }
+      .card-sun { order: 5; }
+
+      .topbar {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .pill {
+        padding: 8px 10px;
+      }
+      .pill small { font-size: 11px; }
+      .pill .mono { font-size: 11px; }
+
+      .sky-clock {
+        max-width: 100%;
+      }
+      .clock-container {
+        flex-direction: column;
+      }
+      .clock-legend {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px 16px;
+      }
+
+      .hero {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .wx {
+        justify-content: flex-start;
+        width: 100%;
+      }
+      .wxMain {
+        align-items: flex-start;
+      }
+      .desc, .smallLine {
+        text-align: left;
+      }
+      .bigTime .time {
+        font-size: 28px;
+      }
+
+      .statGrid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      h1 { font-size: 18px; }
+      .card .hd h2 { font-size: 12px; }
+
+      /* Fix twilight rows on mobile */
+      .row {
+        padding: 10px;
+        gap: 8px;
+      }
+      .left {
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+      }
+      .ico {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .what {
+        min-width: 0;
+        flex: 1;
+      }
+      .what b {
+        font-size: 12px;
+        white-space: normal;
+        overflow: visible;
+      }
+      .what span {
+        font-size: 11px;
+        white-space: normal;
+        overflow: visible;
+        display: none; /* Hide subtitle on mobile */
+      }
+      .when {
+        font-size: 11px;
+        flex-shrink: 0;
+        text-align: right;
+      }
+
+      /* Content padding */
+      .content {
+        padding: 12px 14px 14px;
+      }
+      .card .hd {
+        padding: 12px 14px 10px;
+      }
+
+      .wrap {
+        padding: 16px 12px 24px;
+      }
+    }
+
     .card{
       border-radius: var(--radius);
       background: linear-gradient(180deg, var(--card), var(--card2));
@@ -509,7 +622,7 @@
 
     <div class="grid">
       <!-- LEFT: Weather + Sun/Twilight -->
-      <div class="card">
+      <div class="card card-weather">
         <div class="sparkle" aria-hidden="true"></div>
         <div class="hd">
           <div class="label">
@@ -562,7 +675,7 @@
       </div>
 
       <!-- RIGHT: Moon -->
-      <div class="card">
+      <div class="card card-moon">
         <div class="hd">
           <div class="label">
             <h2>Moon</h2>
@@ -624,7 +737,7 @@
       </div>
 
       <!-- CLOCK VISUALIZATION -->
-      <div class="card" style="grid-column: 1 / -1;">
+      <div class="card card-skyclock" style="grid-column: 1 / -1;">
         <div class="hd">
           <div class="label">
             <h2>24-Hour Sky Clock</h2>
@@ -649,7 +762,7 @@
       </div>
 
       <!-- LEFT (full width row): Sun & Twilight -->
-      <div class="card" style="grid-column: 1 / -1;">
+      <div class="card card-sun" style="grid-column: 1 / -1;">
         <div class="hd">
           <div class="label">
             <h2>Sun + Twilight</h2>
@@ -837,10 +950,11 @@
   }
 
   function offsetToStr(mins) {
-    const sign = mins >= 0 ? '+' : '-';
-    const abs = Math.abs(mins);
+    const rounded = Math.round(mins);
+    const sign = rounded >= 0 ? '+' : '-';
+    const abs = Math.abs(rounded);
     const hh = String(Math.floor(abs / 60)).padStart(2,'0');
-    const mm = String(abs % 60).padStart(2,'0');
+    const mm = String(Math.round(abs % 60)).padStart(2,'0');
     return `UTC${sign}${hh}:${mm}`;
   }
 
