@@ -1,5 +1,41 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, RotateCcw, Shield, DollarSign, Crosshair, Trophy, AlertTriangle, Zap, Target, Wifi } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Defense</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        html, body { margin: 0; padding: 0; background: #09090b; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// --- Inline SVG Icon Components (replacing lucide-react) ---
+const SvgIcon = ({ children, size = 24, className = '', style = {}, ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+         strokeLinejoin="round" className={className} style={style} {...props}>
+        {children}
+    </svg>
+);
+
+const Play = (props) => <SvgIcon {...props}><polygon points="5 3 19 12 5 21 5 3"/></SvgIcon>;
+const RotateCcw = (props) => <SvgIcon {...props}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></SvgIcon>;
+const Shield = (props) => <SvgIcon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></SvgIcon>;
+const DollarSign = (props) => <SvgIcon {...props}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></SvgIcon>;
+const Crosshair = (props) => <SvgIcon {...props}><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></SvgIcon>;
+const Trophy = (props) => <SvgIcon {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></SvgIcon>;
+const AlertTriangle = (props) => <SvgIcon {...props}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></SvgIcon>;
+const Zap = (props) => <SvgIcon {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></SvgIcon>;
+const Target = (props) => <SvgIcon {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></SvgIcon>;
+const Wifi = (props) => <SvgIcon {...props}><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></SvgIcon>;
 
 // --- Constants ---
 const GAME_WIDTH = 800;
@@ -34,7 +70,7 @@ const TURRET_TYPES = {
     fireRate: 20,
     explosionRadius: 35,
     projectileColor: '#0f0',
-    damage: 10, // Direct hit damage (plus explosion DoT)
+    damage: 10,
     cost: FLAK_COST,
     icon: Crosshair
   },
@@ -46,7 +82,7 @@ const TURRET_TYPES = {
     fireRate: 45,
     explosionRadius: 20,
     projectileColor: '#0ff',
-    damage: 40, // High single target damage
+    damage: 40,
     cost: SAM_COST,
     icon: Target
   },
@@ -55,10 +91,10 @@ const TURRET_TYPES = {
     desc: 'Massive Area',
     color: '#ff00ff',
     range: 350,
-    fireRate: 70, 
-    explosionRadius: 100, 
+    fireRate: 70,
+    explosionRadius: 100,
     projectileColor: '#f0f',
-    damage: 20, 
+    damage: 20,
     cost: HEAVY_COST,
     icon: Shield
   },
@@ -67,10 +103,10 @@ const TURRET_TYPES = {
     desc: 'Rapid Fire',
     color: '#ffff00',
     range: 500,
-    fireRate: 15, // Fires often
+    fireRate: 15,
     explosionRadius: 10,
     projectileColor: '#ff0',
-    damage: 25, // Good DPS, but not instakill
+    damage: 25,
     cost: LASER_COST,
     icon: Zap
   }
@@ -82,32 +118,32 @@ const distance = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 const App = () => {
   const canvasRef = useRef(null);
   const requestRef = useRef();
-  
+
   // Game State
-  const [gameState, setGameState] = useState('START'); 
-  const [money, setMoney] = useState(3500); 
+  const [gameState, setGameState] = useState('START');
+  const [money, setMoney] = useState(3500);
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [message, setMessage] = useState('');
-  const [bonusReport, setBonusReport] = useState(null); 
-  
+  const [bonusReport, setBonusReport] = useState(null);
+
   // Entities
   const [cities, setCities] = useState([]);
-  const turrets = useRef([]); 
-  
+  const turrets = useRef([]);
+
   // Refs
   const enemyMissiles = useRef([]);
   const bombers = useRef([]);
   const playerMissiles = useRef([]);
-  const lasers = useRef([]); 
+  const lasers = useRef([]);
   const explosions = useRef([]);
   const particles = useRef([]);
-  const terrain = useRef([]); 
+  const terrain = useRef([]);
   const mousePos = useRef({ x: 0, y: 0 });
   const blinkTimer = useRef(0);
-  
+
   // Placement State
-  const [selectedAction, setSelectedAction] = useState(null); 
+  const [selectedAction, setSelectedAction] = useState(null);
   const [hoveredTurret, setHoveredTurret] = useState(null);
 
   // Level Config
@@ -127,12 +163,12 @@ const App = () => {
     const padding = 80;
     const availableWidth = GAME_WIDTH - (padding * 2);
     const spacing = availableWidth / (numCities - 1 || 1);
-    
+
     for (let i = 0; i < numCities; i++) {
         const jitter = (Math.random() - 0.5) * 60;
         let cx = padding + (i * spacing) + jitter;
         cx = Math.max(50, Math.min(GAME_WIDTH - 50, cx));
-        citySlots.push({ x: cx, w: 40 }); 
+        citySlots.push({ x: cx, w: 40 });
     }
 
     for(let i=0; i<=segments; i++) {
@@ -145,7 +181,7 @@ const App = () => {
 
         let height = 0;
         if (distToCity < 25) {
-            height = 20; 
+            height = 20;
         } else {
             const blend = Math.min(1, (distToCity - 25) / 60);
             const noise = Math.random() * 40;
@@ -170,7 +206,7 @@ const App = () => {
         return { x: slot.x, y: cy, active: true, buildings };
     });
     setCities(newCities);
-    return points; 
+    return points;
   }, []);
 
   const getTerrainHeight = (x, terrainPoints) => {
@@ -195,7 +231,7 @@ const App = () => {
     setMessage('Commander, hostile forces inbound.');
     turrets.current = [];
     resetEntities();
-    generateMap(3); 
+    generateMap(3);
     setupLevel(1);
   }, [generateMap]);
 
@@ -252,7 +288,7 @@ const App = () => {
             turret.lastFired++;
             let target = null;
             let minDist = turret.stats.range;
-            
+
             const allTargets = [...bombers.current, ...enemyMissiles.current];
 
             allTargets.forEach(m => {
@@ -294,7 +330,7 @@ const App = () => {
   const handleWaveComplete = () => {
       const cityBonus = cities.filter(c => c.active).length * 500;
       const totalBonus = WAVE_COMPLETE_BONUS + cityBonus;
-      
+
       setBonusReport({
           wave: level,
           base: WAVE_COMPLETE_BONUS,
@@ -312,7 +348,7 @@ const App = () => {
       setLevel(nextLvl);
       const nextCities = Math.min(5, 3 + Math.floor((nextLvl + 1) / 3));
       const newTerrainPoints = generateMap(nextCities);
-      
+
       turrets.current.forEach(t => {
           const newY = getTerrainHeight(t.x, newTerrainPoints);
           t.y = newY - 10;
@@ -321,7 +357,7 @@ const App = () => {
 
       resetEntities();
       setupLevel(nextLvl);
-      
+
       setGameState('LEVEL_START');
       setTimeout(() => {
           setGameState('PLACEMENT');
@@ -334,27 +370,25 @@ const App = () => {
       enemy.hp -= damage;
       if (enemy.hp <= 0) {
           enemy.active = false;
-          // Rewards based on enemy type
           let reward = 50;
           let scoreReward = 100;
           if (enemy.type === 'BOSS') { reward = 800; scoreReward = 2000; }
           if (enemy.type === 'ARMORED') { reward = 100; scoreReward = 300; }
-          
+
           setMoney(m => m + reward);
           setScore(s => s + scoreReward);
-          
+
           createExplosion(enemy.x, enemy.y, true, enemy.type === 'BOSS' ? 80 : 30);
           createParticles(enemy.x, enemy.y, enemy.color);
       } else {
-          // Hit flash or debris
-          createParticles(enemy.x, enemy.y, '#fff', 2); 
+          createParticles(enemy.x, enemy.y, '#fff', 2);
       }
   };
 
   const fireTurret = (turret, target) => {
       if (turret.type === 'LASER') {
           lasers.current.push({
-              x1: turret.x, y1: turret.y, 
+              x1: turret.x, y1: turret.y,
               x2: target.x, y2: target.y,
               color: turret.stats.projectileColor,
               life: 5
@@ -368,7 +402,7 @@ const App = () => {
            playerMissiles.current.push({
               x: turret.x,
               y: turret.y,
-              vx: 0, 
+              vx: 0,
               vy: -SAM_SPEED,
               targetId: target.id,
               active: true,
@@ -385,7 +419,7 @@ const App = () => {
       const predX = target.x + (target.vx * timeToHit);
       const predY = target.y + (target.vy * timeToHit);
       const angle = Math.atan2(predY - turret.y, predX - turret.x);
-      
+
       playerMissiles.current.push({
           x: turret.x,
           y: turret.y,
@@ -394,7 +428,7 @@ const App = () => {
           targetX: predX,
           targetY: predY,
           active: true,
-          type: turret.type, 
+          type: turret.type,
           color: turret.stats.projectileColor,
           damage: turret.stats.damage,
           explosionRadius: turret.stats.explosionRadius
@@ -404,47 +438,46 @@ const App = () => {
   const spawnEnemyMissile = (originX = null, originY = null, isBomblet = false) => {
     const startX = originX ?? Math.random() * GAME_WIDTH;
     const startY = originY ?? 0;
-    
+
     const validCities = cities.filter(c => c.active);
     if (validCities.length === 0) return;
     const targetCity = validCities[Math.floor(Math.random() * validCities.length)];
 
     const angle = Math.atan2(targetCity.y - startY, targetCity.x - startX);
-    
+
     let type = 'NORMAL';
-    let speed = 0.8 + (level * 0.08); // Base speed
-    let color = '#ff0000'; 
+    let speed = 0.8 + (level * 0.08);
+    let color = '#ff0000';
     let maxHp = HP_NORMAL;
     let size = 4;
     let canSplit = false;
 
     if (!isBomblet) {
         const rand = Math.random();
-        
-        // Mini Boss Logic
+
         if (level >= 5 && rand < 0.05) {
             type = 'BOSS';
             speed = 0.4;
             maxHp = HP_BOSS_BASE + (level * 50);
-            size = 15; // Big
+            size = 15;
             color = '#ff0000';
-        } 
+        }
         else if (level >= 7 && rand < 0.2) {
             type = 'MIRV'; canSplit = true; color = '#ffaa00'; maxHp = HP_NORMAL * 2;
-        } 
+        }
         else if (level >= 4 && rand < 0.3) {
-            type = 'ARMORED'; // Replaces Stealth
-            speed *= 1.1; 
+            type = 'ARMORED';
+            speed *= 1.1;
             maxHp = HP_ARMORED;
             size = 6;
-            color = '#ffffff'; // White/Bright
-        } 
+            color = '#ffffff';
+        }
         else if (level >= 3 && rand < 0.45) {
-            type = 'FAST'; 
-            speed = 2.2 + (level * 0.1); 
-            color = '#bd00ff'; 
+            type = 'FAST';
+            speed = 2.2 + (level * 0.1);
+            color = '#bd00ff';
             maxHp = HP_FAST;
-        } 
+        }
     }
 
     enemyMissiles.current.push({
@@ -492,10 +525,9 @@ const App = () => {
           }
           if (b.x < -100 || b.x > GAME_WIDTH + 100) b.active = false;
 
-          // Check Explosion DoT (Damage over Time)
           for (let ex of explosions.current) {
             if (distance(b.x, b.y, ex.x, ex.y) < ex.radius) {
-                applyDamage(b, 2); // 2 dmg per frame inside explosion
+                applyDamage(b, 2);
             }
           }
       });
@@ -510,7 +542,7 @@ const App = () => {
 
         if (m.type === 'MIRV' && m.canSplit && m.y > 150 && Math.random() < 0.02) {
             m.active = false;
-            createExplosion(m.x, m.y); 
+            createExplosion(m.x, m.y);
             spawnEnemyMissile(m.x, m.y, true);
             spawnEnemyMissile(m.x, m.y, true);
             spawnEnemyMissile(m.x, m.y, true);
@@ -524,10 +556,9 @@ const App = () => {
             checkCityDamage(m.x, m.y);
         }
 
-        // Check Explosion DoT
         for (let ex of explosions.current) {
             if (distance(m.x, m.y, ex.x, ex.y) < ex.radius) {
-                applyDamage(m, 2); // Explosion deals continuous damage
+                applyDamage(m, 2);
             }
         }
     });
@@ -538,7 +569,6 @@ const App = () => {
     playerMissiles.current.forEach(m => {
         if (!m.active) return;
 
-        // SAM Guidance
         if (m.type === 'SAM' && m.targetId) {
              const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
              if (target && target.active) {
@@ -551,17 +581,14 @@ const App = () => {
         m.x += m.vx;
         m.y += m.vy;
 
-        // Collision Logic
         let detonated = false;
-        
-        // SAM Proximity
+
         if (m.type === 'SAM') {
              const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
              if (target && target.active && distance(m.x, m.y, target.x, target.y) < 15) {
                  detonated = true;
              }
-        } 
-        // Standard Flak Detonation at Target
+        }
         else {
             const dist = distance(m.x, m.y, m.targetX, m.targetY);
             if (dist < PLAYER_PROJECTILE_SPEED) {
@@ -569,7 +596,6 @@ const App = () => {
             }
         }
 
-        // Ground/Wall Collision
         const groundY = getTerrainHeight(m.x, terrain.current);
         if (m.y > groundY || m.y < 0 || m.x < 0 || m.x > GAME_WIDTH) {
             detonated = true;
@@ -578,12 +604,11 @@ const App = () => {
         if (detonated) {
             m.active = false;
             createExplosion(m.x, m.y, false, m.explosionRadius, m.color);
-            
-            // Apply impact damage immediately to nearby enemies
+
             const targets = [...enemyMissiles.current, ...bombers.current];
             targets.forEach(t => {
                 if (distance(m.x, m.y, t.x, t.y) < m.explosionRadius) {
-                    applyDamage(t, m.damage); // Initial impact damage
+                    applyDamage(t, m.damage);
                 }
             });
         }
@@ -606,7 +631,7 @@ const App = () => {
           }
           return c;
       });
-      
+
       if (damageDealt) {
           setCities(newCities);
           setMoney(m => Math.max(0, m - CITY_REPAIR_PENALTY));
@@ -639,11 +664,11 @@ const App = () => {
 
   const createExplosion = (x, y, isChain = false, maxRadius = 30, color = null) => {
       explosions.current.push({
-          x, y, 
-          radius: 1, 
+          x, y,
+          radius: 1,
           maxRadius: isChain ? 25 : maxRadius,
-          growing: true, 
-          active: true, 
+          growing: true,
+          active: true,
           color: color || (isChain ? '#ffaa00' : '#fff')
       });
   };
@@ -673,9 +698,9 @@ const App = () => {
     if (clickedTurret) {
         if (money >= UPGRADE_COST) {
             setMoney(m => m - UPGRADE_COST);
-            clickedTurret.stats.fireRate = Math.max(2, clickedTurret.stats.fireRate * 0.85); 
+            clickedTurret.stats.fireRate = Math.max(2, clickedTurret.stats.fireRate * 0.85);
             clickedTurret.stats.range += 40;
-            clickedTurret.stats.damage *= 1.2; // 20% dmg increase
+            clickedTurret.stats.damage *= 1.2;
             clickedTurret.level++;
             createParticles(clickedTurret.x, clickedTurret.y, '#0f0');
             setMessage(`SYSTEM UPGRADED TO MK ${clickedTurret.level}`);
@@ -692,10 +717,10 @@ const App = () => {
             setMoney(m => m - typeData.cost);
             turrets.current.push({
                 id: Date.now(),
-                x, 
+                x,
                 y: y - 10,
                 type: selectedAction,
-                stats: { ...typeData }, 
+                stats: { ...typeData },
                 lastFired: 0,
                 level: 1
             });
@@ -716,13 +741,13 @@ const App = () => {
                const deadCity = cities.find(c => !c.active);
                if (deadCity) {
                    deadCity.active = true;
-                   deadCity.buildings = []; 
+                   deadCity.buildings = [];
                    createParticles(deadCity.x, deadCity.y, '#0ff');
                    setMessage("CITY RECONSTRUCTED");
                    setCities([...cities]);
                } else {
                    setMessage("ALL CITIES OPERATIONAL");
-                   setMoney(m => m + REPAIR_COST); 
+                   setMoney(m => m + REPAIR_COST);
                }
           } else {
               setMessage("MAX CITIES REACHED");
@@ -738,8 +763,8 @@ const App = () => {
       const x = (e.clientX - rect.left) * scaleX;
       const terrainY = getTerrainHeight(x, terrain.current);
       const y = (e.clientY - rect.top) * (GAME_HEIGHT / rect.height);
-      
-      mousePos.current = { x, y }; 
+
+      mousePos.current = { x, y };
 
       if (gameState === 'PLACEMENT') {
           const hovered = turrets.current.find(t => distance(x, terrainY, t.x, t.y) < 30);
@@ -753,17 +778,14 @@ const App = () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Draw Dark Background
-    ctx.fillStyle = '#050510'; 
+    ctx.fillStyle = '#050510';
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Scanline Effect
     ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     for (let i = 0; i < GAME_HEIGHT; i += 4) {
         ctx.fillRect(0, i, GAME_WIDTH, 1);
     }
 
-    // Grid
     ctx.strokeStyle = '#111';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -771,7 +793,6 @@ const App = () => {
     for(let i=0; i<GAME_HEIGHT; i+=50) { ctx.moveTo(0, i); ctx.lineTo(GAME_WIDTH, i); }
     ctx.stroke();
 
-    // Terrain
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -786,7 +807,6 @@ const App = () => {
     ctx.fillStyle = '#001a00';
     ctx.fill();
 
-    // Cities
     cities.forEach(c => {
         if (!c.active) return;
         ctx.fillStyle = '#00ffff';
@@ -800,13 +820,12 @@ const App = () => {
         });
     });
 
-    // Turrets
     turrets.current.forEach(t => {
         const isHovered = hoveredTurret && hoveredTurret.id === t.id;
         ctx.strokeStyle = isHovered ? '#ffff00' : t.stats.color;
         ctx.fillStyle = '#000';
         ctx.lineWidth = 2;
-        
+
         ctx.beginPath();
         if (t.type === 'HEAVY') {
             ctx.rect(t.x - 12, t.y - 8, 24, 16);
@@ -821,7 +840,6 @@ const App = () => {
         ctx.fill();
         ctx.stroke();
 
-        // Level Indicators
         ctx.fillStyle = t.stats.color;
         for(let i=0; i<t.level; i++) {
             ctx.fillRect(t.x - 6 + (i*4), t.y + 12, 3, 3);
@@ -837,19 +855,18 @@ const App = () => {
         }
     });
 
-    // Ghost Turret
     if (gameState === 'PLACEMENT' && selectedAction && selectedAction !== 'REPAIR') {
         const mx = mousePos.current.x;
         const my = getTerrainHeight(mx, terrain.current);
         const typeData = TURRET_TYPES[selectedAction];
-        
+
         ctx.strokeStyle = typeData.color;
         ctx.globalAlpha = 0.5;
         ctx.beginPath();
         ctx.arc(mx, my - 10, 10, 0, Math.PI * 2);
         ctx.stroke();
         ctx.globalAlpha = 1.0;
-        
+
         ctx.strokeStyle = '#333';
         ctx.setLineDash([5, 5]);
         ctx.beginPath();
@@ -858,7 +875,6 @@ const App = () => {
         ctx.setLineDash([]);
     }
 
-    // Bombers
     ctx.fillStyle = '#ffff00';
     bombers.current.forEach(b => {
         ctx.beginPath();
@@ -866,7 +882,6 @@ const App = () => {
         ctx.lineTo(b.x - (b.vx * 10), b.y - 8);
         ctx.lineTo(b.x - (b.vx * 10), b.y + 8);
         ctx.fill();
-        // HP Bar
         if (b.hp < b.maxHp) {
             ctx.fillStyle = '#f00';
             ctx.fillRect(b.x - 10, b.y - 15, 20, 2);
@@ -875,24 +890,20 @@ const App = () => {
         }
     });
 
-    // Missiles
     enemyMissiles.current.forEach(m => {
         const isBoss = m.type === 'BOSS';
-        
-        // Draw Projectile
+
         ctx.strokeStyle = m.color;
         ctx.lineWidth = isBoss ? 4 : 2;
-        ctx.globalAlpha = 1.0; 
-        
+        ctx.globalAlpha = 1.0;
+
         ctx.beginPath();
         ctx.moveTo(m.x - m.vx * (isBoss ? 10 : 6), m.y - m.vy * (isBoss ? 10 : 6));
         ctx.lineTo(m.x, m.y);
         ctx.stroke();
-        
-        // Head
+
         ctx.fillStyle = m.color;
         if (m.type === 'ARMORED') {
-             // Diamond shape
              ctx.beginPath();
              ctx.moveTo(m.x, m.y - 4);
              ctx.lineTo(m.x + 4, m.y);
@@ -904,7 +915,6 @@ const App = () => {
              ctx.fillRect(m.x - s/2, m.y - s/2, s, s);
         }
 
-        // HP Bar (if damaged or Boss)
         if (m.hp < m.maxHp || isBoss) {
             const barW = isBoss ? 40 : 16;
             const barOff = isBoss ? 20 : 10;
@@ -915,7 +925,6 @@ const App = () => {
         }
     });
 
-    // Player Projectiles
     playerMissiles.current.forEach(m => {
         ctx.fillStyle = m.color;
         if (m.type === 'SAM') {
@@ -931,10 +940,9 @@ const App = () => {
         }
     });
 
-    // Lasers
     lasers.current.forEach(l => {
         ctx.strokeStyle = l.color;
-        ctx.lineWidth = l.life; 
+        ctx.lineWidth = l.life;
         ctx.shadowBlur = 10;
         ctx.shadowColor = l.color;
         ctx.beginPath();
@@ -944,7 +952,6 @@ const App = () => {
         ctx.shadowBlur = 0;
     });
 
-    // Explosions
     explosions.current.forEach(ex => {
         ctx.strokeStyle = ex.color;
         ctx.lineWidth = 2;
@@ -953,7 +960,6 @@ const App = () => {
         ctx.stroke();
     });
 
-    // Particles
     particles.current.forEach(p => {
         ctx.fillStyle = p.color;
         ctx.fillRect(p.x, p.y, 2, 2);
@@ -975,7 +981,7 @@ const App = () => {
   // --- UI ---
   return (
     <div className="w-full h-full min-h-screen bg-zinc-950 flex flex-col items-center p-2 font-mono text-green-500 select-none overflow-y-auto">
-      
+
       {/* HUD */}
       <div className="w-full max-w-[800px] bg-black border border-green-900 p-2 mb-2 flex justify-between items-center shadow-lg rounded">
         <div className="flex gap-4 md:gap-8">
@@ -1030,7 +1036,7 @@ const App = () => {
         {gameState === 'LEVEL_COMPLETE' && bonusReport && (
              <div className="absolute inset-0 bg-black flex flex-col items-center justify-center font-mono">
                 <h2 className="text-4xl text-green-500 font-bold mb-8 blink">WAVE {bonusReport.wave} CLEARED</h2>
-                
+
                 <div className="w-64 space-y-4 mb-8 text-green-400">
                     <div className="flex justify-between border-b border-green-900 pb-1">
                         <span>BASE BONUS</span>
@@ -1046,7 +1052,7 @@ const App = () => {
                     </div>
                 </div>
 
-                <button 
+                <button
                     onClick={advanceLevel}
                     className="px-8 py-3 bg-green-900 text-white font-bold hover:bg-green-700 animate-pulse border border-green-500"
                 >
@@ -1082,14 +1088,14 @@ const App = () => {
       {/* Armory */}
       <div className={`w-full max-w-[800px] transition-all duration-300 ${gameState === 'PLACEMENT' ? 'opacity-100 translate-y-0' : 'opacity-30 grayscale pointer-events-none'}`}>
           <div className="grid grid-cols-2 md:grid-cols-[1fr_auto] gap-2">
-              
+
               <div className="bg-black border border-green-900 p-2 rounded flex flex-wrap gap-2 justify-center md:justify-start">
-                  
+
                   {Object.keys(TURRET_TYPES).map(key => {
                       const t = TURRET_TYPES[key];
                       const Icon = t.icon;
                       return (
-                        <button 
+                        <button
                             key={key}
                             onClick={() => setSelectedAction(key)}
                             className={`flex flex-col items-center justify-center w-20 h-20 border rounded transition-all ${selectedAction === key ? 'bg-green-900/40 border-green-400' : 'border-zinc-800 hover:border-zinc-600'}`}
@@ -1103,7 +1109,7 @@ const App = () => {
 
                   <div className="w-px bg-zinc-800 mx-1"></div>
 
-                   <button 
+                   <button
                         onClick={buyRepair}
                         className="flex flex-col items-center justify-center w-20 h-20 border border-zinc-800 rounded hover:border-blue-500 group transition-all"
                     >
@@ -1113,7 +1119,7 @@ const App = () => {
                     </button>
               </div>
 
-              <button 
+              <button
                 onClick={startWave}
                 className="col-span-2 md:col-span-1 bg-green-900/20 border border-green-600 text-green-400 hover:bg-green-500 hover:text-black transition-all px-6 rounded font-bold text-lg flex items-center justify-center uppercase tracking-wider"
               >
@@ -1124,7 +1130,7 @@ const App = () => {
             Click Unit to Upgrade (${UPGRADE_COST})
           </div>
       </div>
-      
+
       <style>{`
         @keyframes blink { 50% { opacity: 0; } }
         .blink { animation: blink 1s step-end infinite; }
@@ -1133,4 +1139,7 @@ const App = () => {
   );
 };
 
-export default App;
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
