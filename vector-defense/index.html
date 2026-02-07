@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Defense</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2.5rem;
+            text-shadow: 0 0 15px #0f0;
+            margin-bottom: 0.5rem;
+        }
+        .intro {
+            color: #88cc88;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+        .play-link {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+            transition: all 0.2s;
+        }
+        .play-link:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        h2 {
+            font-size: 1.2rem;
+            color: #00ff00;
+            border-bottom: 1px solid #003300;
+            padding-bottom: 0.3rem;
+            margin: 1.5rem 0 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        ol, ul {
+            padding-left: 1.5rem;
+            color: #88cc88;
+            line-height: 1.8;
+        }
+        li { margin-bottom: 0.25rem; }
+        strong { color: #00ff00; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0.75rem;
+        }
+        th {
+            text-align: left;
+            color: #00ff00;
+            border-bottom: 1px solid #003300;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+        }
+        td {
+            color: #88cc88;
+            padding: 0.4rem 0.75rem;
+            border-bottom: 1px solid #111;
+        }
+        .note {
+            color: #668866;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vector Defense</h1>
+        <p class="intro">A retro tactical missile command game with a CRT military aesthetic. Defend your cities from waves of incoming missiles, bombers, and increasingly dangerous enemies by building and upgrading turrets on mountainous terrain.</p>
+        <a href="vector-defense.html" class="play-link">Play Now</a>
+
+        <h2>How to Play</h2>
+        <ol>
+            <li><strong>Placement Phase</strong> &mdash; Before each wave, spend funds to place turrets on the terrain and upgrade existing ones. Click a turret type from the armory, then click the map to place it. Click an existing turret to upgrade it.</li>
+            <li><strong>Combat Phase</strong> &mdash; Press <strong>ENGAGE</strong> to start the wave. Turrets fire automatically at enemies within range.</li>
+            <li><strong>Survive</strong> &mdash; Protect your cities. If all cities are destroyed, it's game over.</li>
+        </ol>
+
+        <h2>Turrets</h2>
+        <table>
+            <tr><th>Type</th><th>Cost</th><th>Description</th></tr>
+            <tr><td><strong>FLAK</strong></td><td>$800</td><td>Dual-barrel area damage with medium range</td></tr>
+            <tr><td><strong>SAM</strong></td><td>$1,800</td><td>Homing missiles with high single-target impact</td></tr>
+            <tr><td><strong>ARTILLERY</strong></td><td>$2,800</td><td>Massive explosion radius</td></tr>
+            <tr><td><strong>LASER</strong></td><td>$4,500</td><td>Long-range focused beam that grows stronger the longer it dwells on a target</td></tr>
+        </table>
+        <p class="note">Turrets can be upgraded by clicking them during the placement phase. Each upgrade improves fire rate, range, and damage (cost doubles per level).</p>
+
+        <h2>Enemies</h2>
+        <ul>
+            <li><strong>Normal</strong> (red) &mdash; Standard missiles</li>
+            <li><strong>Fast</strong> (purple) &mdash; High speed, appears from wave 3</li>
+            <li><strong>Armored</strong> (white) &mdash; Heavy HP with a partial shield, appears from wave 4</li>
+            <li><strong>Boss</strong> (red, large) &mdash; Massive HP pool with ember trail, appears from wave 5</li>
+            <li><strong>MIRV</strong> (orange) &mdash; Splits into 3 bomblets mid-flight, appears from wave 7</li>
+            <li><strong>Bomber</strong> (yellow) &mdash; Flies across the screen dropping ordnance, appears from wave 3</li>
+        </ul>
+
+        <h2>Economy</h2>
+        <ul>
+            <li>Destroying enemies earns funds and score</li>
+            <li>Completing a wave awards a base bonus plus a per-city survival bonus</li>
+            <li>Losing a city costs $300</li>
+            <li>Cities can be rebuilt for $2,000 during the placement phase</li>
+        </ul>
+    </div>
+</body>
+</html>
