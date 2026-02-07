@@ -1,0 +1,1136 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Play, RotateCcw, Shield, DollarSign, Crosshair, Trophy, AlertTriangle, Zap, Target, Wifi } from 'lucide-react';
+
+// --- Constants ---
+const GAME_WIDTH = 800;
+const GAME_HEIGHT = 600;
+const PLAYER_PROJECTILE_SPEED = 15;
+const SAM_SPEED = 7;
+const EXPLOSION_GROWTH = 1.5;
+
+// Balance Constants
+const FLAK_COST = 800;
+const SAM_COST = 1800;
+const HEAVY_COST = 2800;
+const LASER_COST = 4500;
+const UPGRADE_COST = 600;
+const REPAIR_COST = 2000;
+const CITY_REPAIR_PENALTY = 300;
+const WAVE_COMPLETE_BONUS = 2500;
+
+// Enemy Stats (HP values)
+const HP_NORMAL = 10;
+const HP_FAST = 15;
+const HP_ARMORED = 40;
+const HP_BOSS_BASE = 200;
+
+// Turret Stats
+const TURRET_TYPES = {
+  FLAK: {
+    name: 'FLAK',
+    desc: 'Area Damage',
+    color: '#00ff00',
+    range: 280,
+    fireRate: 20,
+    explosionRadius: 35,
+    projectileColor: '#0f0',
+    damage: 10, // Direct hit damage (plus explosion DoT)
+    cost: FLAK_COST,
+    icon: Crosshair
+  },
+  SAM: {
+    name: 'SAM',
+    desc: 'High Impact',
+    color: '#00ffff',
+    range: 400,
+    fireRate: 45,
+    explosionRadius: 20,
+    projectileColor: '#0ff',
+    damage: 40, // High single target damage
+    cost: SAM_COST,
+    icon: Target
+  },
+  HEAVY: {
+    name: 'HEAVY',
+    desc: 'Massive Area',
+    color: '#ff00ff',
+    range: 350,
+    fireRate: 70, 
+    explosionRadius: 100, 
+    projectileColor: '#f0f',
+    damage: 20, 
+    cost: HEAVY_COST,
+    icon: Shield
+  },
+  LASER: {
+    name: 'LASER',
+    desc: 'Rapid Fire',
+    color: '#ffff00',
+    range: 500,
+    fireRate: 15, // Fires often
+    explosionRadius: 10,
+    projectileColor: '#ff0',
+    damage: 25, // Good DPS, but not instakill
+    cost: LASER_COST,
+    icon: Zap
+  }
+};
+
+// --- Helper Functions ---
+const distance = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+const App = () => {
+  const canvasRef = useRef(null);
+  const requestRef = useRef();
+  
+  // Game State
+  const [gameState, setGameState] = useState('START'); 
+  const [money, setMoney] = useState(3500); 
+  const [score, setScore] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [message, setMessage] = useState('');
+  const [bonusReport, setBonusReport] = useState(null); 
+  
+  // Entities
+  const [cities, setCities] = useState([]);
+  const turrets = useRef([]); 
+  
+  // Refs
+  const enemyMissiles = useRef([]);
+  const bombers = useRef([]);
+  const playerMissiles = useRef([]);
+  const lasers = useRef([]); 
+  const explosions = useRef([]);
+  const particles = useRef([]);
+  const terrain = useRef([]); 
+  const mousePos = useRef({ x: 0, y: 0 });
+  const blinkTimer = useRef(0);
+  
+  // Placement State
+  const [selectedAction, setSelectedAction] = useState(null); 
+  const [hoveredTurret, setHoveredTurret] = useState(null);
+
+  // Level Config
+  const levelConfig = useRef({
+    spawnTimer: 0,
+    spawnInterval: 100,
+    totalToSpawn: 0,
+    bomberTimer: 0
+  });
+
+  // --- Map Generation ---
+  const generateMap = useCallback((numCities) => {
+    const points = [];
+    const segments = 80;
+    const segmentWidth = GAME_WIDTH / segments;
+    const citySlots = [];
+    const padding = 80;
+    const availableWidth = GAME_WIDTH - (padding * 2);
+    const spacing = availableWidth / (numCities - 1 || 1);
+    
+    for (let i = 0; i < numCities; i++) {
+        const jitter = (Math.random() - 0.5) * 60;
+        let cx = padding + (i * spacing) + jitter;
+        cx = Math.max(50, Math.min(GAME_WIDTH - 50, cx));
+        citySlots.push({ x: cx, w: 40 }); 
+    }
+
+    for(let i=0; i<=segments; i++) {
+        const x = i * segmentWidth;
+        let distToCity = Infinity;
+        citySlots.forEach(slot => {
+            const d = Math.abs(x - slot.x);
+            if (d < distToCity) distToCity = d;
+        });
+
+        let height = 0;
+        if (distToCity < 25) {
+            height = 20; 
+        } else {
+            const blend = Math.min(1, (distToCity - 25) / 60);
+            const noise = Math.random() * 40;
+            const mountainHeight = 120 + (Math.sin(i * 0.3) * 80) + (Math.cos(i * 1.5) * 20) + noise;
+            height = 20 + (mountainHeight * blend);
+        }
+        points.push({ x: x, y: GAME_HEIGHT - height });
+    }
+    terrain.current = points;
+
+    const newCities = citySlots.map(slot => {
+        const cy = getTerrainHeight(slot.x, points);
+        const buildings = [];
+        const count = 4 + Math.floor(Math.random() * 4);
+        for(let b=0; b<count; b++) {
+            buildings.push({
+                w: 6 + Math.random() * 12,
+                h: 15 + Math.random() * 25,
+                xOffset: (Math.random() - 0.5) * 35
+            });
+        }
+        return { x: slot.x, y: cy, active: true, buildings };
+    });
+    setCities(newCities);
+    return points; 
+  }, []);
+
+  const getTerrainHeight = (x, terrainPoints) => {
+      if (!terrainPoints || terrainPoints.length === 0) return GAME_HEIGHT;
+      if (typeof x !== 'number' || isNaN(x)) return GAME_HEIGHT;
+      const segmentWidth = GAME_WIDTH / (terrainPoints.length - 1);
+      const index = Math.floor(x / segmentWidth);
+      if (index < 0 || index >= terrainPoints.length - 1) return GAME_HEIGHT;
+      const p1 = terrainPoints[index];
+      const p2 = terrainPoints[index+1];
+      if (!p1 || !p2) return GAME_HEIGHT;
+      const ratio = (x - p1.x) / (p2.x - p1.x);
+      return p1.y + (p2.y - p1.y) * ratio;
+  };
+
+  // --- Initialization ---
+  const initGame = useCallback(() => {
+    setMoney(3500);
+    setScore(0);
+    setLevel(1);
+    setGameState('PLACEMENT');
+    setMessage('Commander, hostile forces inbound.');
+    turrets.current = [];
+    resetEntities();
+    generateMap(3); 
+    setupLevel(1);
+  }, [generateMap]);
+
+  const setupLevel = (lvl) => {
+    levelConfig.current = {
+        spawnTimer: 0,
+        spawnInterval: Math.max(15, 90 - (lvl * 3)),
+        totalToSpawn: 12 + (lvl * 4),
+        bomberTimer: 0
+    };
+  };
+
+  const resetEntities = () => {
+    enemyMissiles.current = [];
+    bombers.current = [];
+    playerMissiles.current = [];
+    lasers.current = [];
+    explosions.current = [];
+    particles.current = [];
+  };
+
+  const startWave = () => {
+      if (turrets.current.length === 0) {
+          setMessage("WARNING: NO DEFENSES PLACED");
+          setTimeout(() => setMessage(`WAVE ${level} INBOUND`), 2000);
+      } else {
+          setMessage(`WAVE ${level} ENGAGING`);
+      }
+      setGameState('PLAYING');
+      setSelectedAction(null);
+  };
+
+  // --- Game Loop ---
+  const update = useCallback(() => {
+    if (gameState === 'PLAYING') {
+        const cfg = levelConfig.current;
+        cfg.spawnTimer++;
+        cfg.bomberTimer++;
+
+        // Spawn Logic
+        if (cfg.totalToSpawn > 0 && cfg.spawnTimer > cfg.spawnInterval) {
+            spawnEnemyMissile();
+            cfg.spawnTimer = 0;
+            cfg.totalToSpawn--;
+        }
+
+        if (level >= 3 && cfg.bomberTimer > 500 && Math.random() < 0.25) {
+            spawnBomber();
+            cfg.bomberTimer = 0;
+        }
+
+        // Turret Logic
+        turrets.current.forEach(turret => {
+            turret.lastFired++;
+            let target = null;
+            let minDist = turret.stats.range;
+            
+            const allTargets = [...bombers.current, ...enemyMissiles.current];
+
+            allTargets.forEach(m => {
+                if (!m.active) return;
+                let d = distance(turret.x, turret.y, m.x, m.y);
+                if (d < minDist) {
+                    minDist = d;
+                    target = m;
+                }
+            });
+
+            if (target && turret.lastFired >= turret.stats.fireRate) {
+                fireTurret(turret, target);
+                turret.lastFired = 0;
+            }
+        });
+
+        updateEnemyMissiles();
+        updateBombers();
+        updatePlayerMissiles();
+        updateLasers();
+        updateExplosions();
+        updateParticles();
+
+        if (cfg.totalToSpawn === 0 && enemyMissiles.current.length === 0 && bombers.current.length === 0 && explosions.current.length === 0) {
+            handleWaveComplete();
+        }
+
+        if (cities.filter(c => c.active).length === 0) {
+            setGameState('GAME_OVER');
+        }
+    } else {
+        updateParticles();
+        updateExplosions();
+        blinkTimer.current++;
+    }
+  }, [gameState, cities, level]);
+
+  const handleWaveComplete = () => {
+      const cityBonus = cities.filter(c => c.active).length * 500;
+      const totalBonus = WAVE_COMPLETE_BONUS + cityBonus;
+      
+      setBonusReport({
+          wave: level,
+          base: WAVE_COMPLETE_BONUS,
+          cityCount: cities.filter(c => c.active).length,
+          cityBonus: cityBonus,
+          total: totalBonus
+      });
+
+      setMoney(prev => prev + totalBonus);
+      setGameState('LEVEL_COMPLETE');
+  };
+
+  const advanceLevel = () => {
+      const nextLvl = level + 1;
+      setLevel(nextLvl);
+      const nextCities = Math.min(5, 3 + Math.floor((nextLvl + 1) / 3));
+      const newTerrainPoints = generateMap(nextCities);
+      
+      turrets.current.forEach(t => {
+          const newY = getTerrainHeight(t.x, newTerrainPoints);
+          t.y = newY - 10;
+          createParticles(t.x, t.y, '#00ff00');
+      });
+
+      resetEntities();
+      setupLevel(nextLvl);
+      
+      setGameState('LEVEL_START');
+      setTimeout(() => {
+          setGameState('PLACEMENT');
+          setMessage('DEFENSES RELOCATED. PREPARE FOR BATTLE.');
+      }, 3000);
+  };
+
+  // --- Logic Helpers ---
+  const applyDamage = (enemy, damage) => {
+      enemy.hp -= damage;
+      if (enemy.hp <= 0) {
+          enemy.active = false;
+          // Rewards based on enemy type
+          let reward = 50;
+          let scoreReward = 100;
+          if (enemy.type === 'BOSS') { reward = 800; scoreReward = 2000; }
+          if (enemy.type === 'ARMORED') { reward = 100; scoreReward = 300; }
+          
+          setMoney(m => m + reward);
+          setScore(s => s + scoreReward);
+          
+          createExplosion(enemy.x, enemy.y, true, enemy.type === 'BOSS' ? 80 : 30);
+          createParticles(enemy.x, enemy.y, enemy.color);
+      } else {
+          // Hit flash or debris
+          createParticles(enemy.x, enemy.y, '#fff', 2); 
+      }
+  };
+
+  const fireTurret = (turret, target) => {
+      if (turret.type === 'LASER') {
+          lasers.current.push({
+              x1: turret.x, y1: turret.y, 
+              x2: target.x, y2: target.y,
+              color: turret.stats.projectileColor,
+              life: 5
+          });
+          createParticles(target.x, target.y, '#ff00ff', 2);
+          applyDamage(target, turret.stats.damage);
+          return;
+      }
+
+      if (turret.type === 'SAM') {
+           playerMissiles.current.push({
+              x: turret.x,
+              y: turret.y,
+              vx: 0, 
+              vy: -SAM_SPEED,
+              targetId: target.id,
+              active: true,
+              type: 'SAM',
+              color: turret.stats.projectileColor,
+              damage: turret.stats.damage,
+              explosionRadius: turret.stats.explosionRadius
+          });
+          return;
+      }
+
+      const dist = distance(turret.x, turret.y, target.x, target.y);
+      const timeToHit = dist / PLAYER_PROJECTILE_SPEED;
+      const predX = target.x + (target.vx * timeToHit);
+      const predY = target.y + (target.vy * timeToHit);
+      const angle = Math.atan2(predY - turret.y, predX - turret.x);
+      
+      playerMissiles.current.push({
+          x: turret.x,
+          y: turret.y,
+          vx: Math.cos(angle) * PLAYER_PROJECTILE_SPEED,
+          vy: Math.sin(angle) * PLAYER_PROJECTILE_SPEED,
+          targetX: predX,
+          targetY: predY,
+          active: true,
+          type: turret.type, 
+          color: turret.stats.projectileColor,
+          damage: turret.stats.damage,
+          explosionRadius: turret.stats.explosionRadius
+      });
+  };
+
+  const spawnEnemyMissile = (originX = null, originY = null, isBomblet = false) => {
+    const startX = originX ?? Math.random() * GAME_WIDTH;
+    const startY = originY ?? 0;
+    
+    const validCities = cities.filter(c => c.active);
+    if (validCities.length === 0) return;
+    const targetCity = validCities[Math.floor(Math.random() * validCities.length)];
+
+    const angle = Math.atan2(targetCity.y - startY, targetCity.x - startX);
+    
+    let type = 'NORMAL';
+    let speed = 0.8 + (level * 0.08); // Base speed
+    let color = '#ff0000'; 
+    let maxHp = HP_NORMAL;
+    let size = 4;
+    let canSplit = false;
+
+    if (!isBomblet) {
+        const rand = Math.random();
+        
+        // Mini Boss Logic
+        if (level >= 5 && rand < 0.05) {
+            type = 'BOSS';
+            speed = 0.4;
+            maxHp = HP_BOSS_BASE + (level * 50);
+            size = 15; // Big
+            color = '#ff0000';
+        } 
+        else if (level >= 7 && rand < 0.2) {
+            type = 'MIRV'; canSplit = true; color = '#ffaa00'; maxHp = HP_NORMAL * 2;
+        } 
+        else if (level >= 4 && rand < 0.3) {
+            type = 'ARMORED'; // Replaces Stealth
+            speed *= 1.1; 
+            maxHp = HP_ARMORED;
+            size = 6;
+            color = '#ffffff'; // White/Bright
+        } 
+        else if (level >= 3 && rand < 0.45) {
+            type = 'FAST'; 
+            speed = 2.2 + (level * 0.1); 
+            color = '#bd00ff'; 
+            maxHp = HP_FAST;
+        } 
+    }
+
+    enemyMissiles.current.push({
+        id: Math.random().toString(36),
+        x: startX,
+        y: startY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        active: true,
+        type,
+        color,
+        maxHp,
+        hp: maxHp,
+        size,
+        canSplit
+    });
+  };
+
+  const spawnBomber = () => {
+      const fromLeft = Math.random() > 0.5;
+      const y = 50 + Math.random() * 80;
+      bombers.current.push({
+          id: Math.random().toString(36),
+          x: fromLeft ? -50 : GAME_WIDTH + 50,
+          y: y,
+          vx: fromLeft ? 1.2 : -1.2,
+          active: true,
+          type: 'BOMBER',
+          maxHp: 60,
+          hp: 60,
+          color: '#ffff00',
+          size: 10,
+          lastDrop: 0
+      });
+  };
+
+  const updateBombers = () => {
+      bombers.current.forEach(b => {
+          if (!b.active) return;
+          b.x += b.vx;
+          b.lastDrop++;
+          if (b.lastDrop > 50 && Math.random() < 0.03) {
+              spawnEnemyMissile(b.x, b.y, true);
+              b.lastDrop = 0;
+          }
+          if (b.x < -100 || b.x > GAME_WIDTH + 100) b.active = false;
+
+          // Check Explosion DoT (Damage over Time)
+          for (let ex of explosions.current) {
+            if (distance(b.x, b.y, ex.x, ex.y) < ex.radius) {
+                applyDamage(b, 2); // 2 dmg per frame inside explosion
+            }
+          }
+      });
+      bombers.current = bombers.current.filter(b => b.active);
+  };
+
+  const updateEnemyMissiles = () => {
+    enemyMissiles.current.forEach(m => {
+        if (!m.active) return;
+        m.x += m.vx;
+        m.y += m.vy;
+
+        if (m.type === 'MIRV' && m.canSplit && m.y > 150 && Math.random() < 0.02) {
+            m.active = false;
+            createExplosion(m.x, m.y); 
+            spawnEnemyMissile(m.x, m.y, true);
+            spawnEnemyMissile(m.x, m.y, true);
+            spawnEnemyMissile(m.x, m.y, true);
+            return;
+        }
+
+        const groundY = getTerrainHeight(m.x, terrain.current);
+        if (m.y >= groundY) {
+            m.active = false;
+            createExplosion(m.x, m.y);
+            checkCityDamage(m.x, m.y);
+        }
+
+        // Check Explosion DoT
+        for (let ex of explosions.current) {
+            if (distance(m.x, m.y, ex.x, ex.y) < ex.radius) {
+                applyDamage(m, 2); // Explosion deals continuous damage
+            }
+        }
+    });
+    enemyMissiles.current = enemyMissiles.current.filter(m => m.active);
+  };
+
+  const updatePlayerMissiles = () => {
+    playerMissiles.current.forEach(m => {
+        if (!m.active) return;
+
+        // SAM Guidance
+        if (m.type === 'SAM' && m.targetId) {
+             const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
+             if (target && target.active) {
+                 const angle = Math.atan2(target.y - m.y, target.x - m.x);
+                 m.vx = Math.cos(angle) * SAM_SPEED;
+                 m.vy = Math.sin(angle) * SAM_SPEED;
+             }
+        }
+
+        m.x += m.vx;
+        m.y += m.vy;
+
+        // Collision Logic
+        let detonated = false;
+        
+        // SAM Proximity
+        if (m.type === 'SAM') {
+             const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
+             if (target && target.active && distance(m.x, m.y, target.x, target.y) < 15) {
+                 detonated = true;
+             }
+        } 
+        // Standard Flak Detonation at Target
+        else {
+            const dist = distance(m.x, m.y, m.targetX, m.targetY);
+            if (dist < PLAYER_PROJECTILE_SPEED) {
+                detonated = true;
+            }
+        }
+
+        // Ground/Wall Collision
+        const groundY = getTerrainHeight(m.x, terrain.current);
+        if (m.y > groundY || m.y < 0 || m.x < 0 || m.x > GAME_WIDTH) {
+            detonated = true;
+        }
+
+        if (detonated) {
+            m.active = false;
+            createExplosion(m.x, m.y, false, m.explosionRadius, m.color);
+            
+            // Apply impact damage immediately to nearby enemies
+            const targets = [...enemyMissiles.current, ...bombers.current];
+            targets.forEach(t => {
+                if (distance(m.x, m.y, t.x, t.y) < m.explosionRadius) {
+                    applyDamage(t, m.damage); // Initial impact damage
+                }
+            });
+        }
+    });
+    playerMissiles.current = playerMissiles.current.filter(m => m.active);
+  };
+
+  const updateLasers = () => {
+      lasers.current.forEach(l => l.life--);
+      lasers.current = lasers.current.filter(l => l.life > 0);
+  };
+
+  const checkCityDamage = (x, y) => {
+      let damageDealt = false;
+      const newCities = cities.map(c => {
+          if (c.active && distance(x, y, c.x, c.y) < 55) {
+              createParticles(c.x, c.y, '#f00');
+              damageDealt = true;
+              return { ...c, active: false };
+          }
+          return c;
+      });
+      
+      if (damageDealt) {
+          setCities(newCities);
+          setMoney(m => Math.max(0, m - CITY_REPAIR_PENALTY));
+          setMessage('CRITICAL: CITY LOST.');
+      }
+  };
+
+  const updateExplosions = () => {
+    explosions.current.forEach(ex => {
+        if (!ex.active) return;
+        if (ex.growing) {
+            ex.radius += EXPLOSION_GROWTH;
+            if (ex.radius >= ex.maxRadius) ex.growing = false;
+        } else {
+            ex.radius -= EXPLOSION_GROWTH * 0.5;
+            if (ex.radius <= 0) ex.active = false;
+        }
+    });
+    explosions.current = explosions.current.filter(ex => ex.active);
+  };
+
+  const updateParticles = () => {
+      particles.current.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life--;
+      });
+      particles.current = particles.current.filter(p => p.life > 0);
+  };
+
+  const createExplosion = (x, y, isChain = false, maxRadius = 30, color = null) => {
+      explosions.current.push({
+          x, y, 
+          radius: 1, 
+          maxRadius: isChain ? 25 : maxRadius,
+          growing: true, 
+          active: true, 
+          color: color || (isChain ? '#ffaa00' : '#fff')
+      });
+  };
+
+  const createParticles = (x, y, color, count = 8) => {
+      for(let i=0; i<count; i++) {
+          particles.current.push({
+              x, y,
+              vx: (Math.random() - 0.5) * 5,
+              vy: (Math.random() - 0.5) * 5,
+              color: color,
+              life: 20 + Math.random() * 20
+          });
+      }
+  };
+
+  // --- Input Handling ---
+  const handleCanvasClick = (e) => {
+    if (gameState !== 'PLACEMENT') return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = GAME_WIDTH / rect.width;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = getTerrainHeight(x, terrain.current);
+
+    const clickedTurret = turrets.current.find(t => distance(x, y, t.x, t.y) < 30);
+    if (clickedTurret) {
+        if (money >= UPGRADE_COST) {
+            setMoney(m => m - UPGRADE_COST);
+            clickedTurret.stats.fireRate = Math.max(2, clickedTurret.stats.fireRate * 0.85); 
+            clickedTurret.stats.range += 40;
+            clickedTurret.stats.damage *= 1.2; // 20% dmg increase
+            clickedTurret.level++;
+            createParticles(clickedTurret.x, clickedTurret.y, '#0f0');
+            setMessage(`SYSTEM UPGRADED TO MK ${clickedTurret.level}`);
+        } else {
+            setMessage('INSUFFICIENT FUNDS');
+        }
+        return;
+    }
+
+    if (selectedAction) {
+        if (selectedAction === 'REPAIR') return;
+        const typeData = TURRET_TYPES[selectedAction];
+        if (money >= typeData.cost) {
+            setMoney(m => m - typeData.cost);
+            turrets.current.push({
+                id: Date.now(),
+                x, 
+                y: y - 10,
+                type: selectedAction,
+                stats: { ...typeData }, 
+                lastFired: 0,
+                level: 1
+            });
+            createParticles(x, y, typeData.color);
+            setSelectedAction(null);
+            setMessage(`${typeData.name} ONLINE`);
+        } else {
+            setMessage('INSUFFICIENT FUNDS');
+            setSelectedAction(null);
+        }
+    }
+  };
+
+  const buyRepair = () => {
+      if (money >= REPAIR_COST) {
+          if (cities.length < 5) {
+               setMoney(m => m - REPAIR_COST);
+               const deadCity = cities.find(c => !c.active);
+               if (deadCity) {
+                   deadCity.active = true;
+                   deadCity.buildings = []; 
+                   createParticles(deadCity.x, deadCity.y, '#0ff');
+                   setMessage("CITY RECONSTRUCTED");
+                   setCities([...cities]);
+               } else {
+                   setMessage("ALL CITIES OPERATIONAL");
+                   setMoney(m => m + REPAIR_COST); 
+               }
+          } else {
+              setMessage("MAX CITIES REACHED");
+          }
+      } else {
+          setMessage("INSUFFICIENT FUNDS");
+      }
+  };
+
+  const handleMouseMove = (e) => {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const scaleX = GAME_WIDTH / rect.width;
+      const x = (e.clientX - rect.left) * scaleX;
+      const terrainY = getTerrainHeight(x, terrain.current);
+      const y = (e.clientY - rect.top) * (GAME_HEIGHT / rect.height);
+      
+      mousePos.current = { x, y }; 
+
+      if (gameState === 'PLACEMENT') {
+          const hovered = turrets.current.find(t => distance(x, terrainY, t.x, t.y) < 30);
+          setHoveredTurret(hovered || null);
+      }
+  };
+
+  // --- Rendering ---
+  const draw = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Draw Dark Background
+    ctx.fillStyle = '#050510'; 
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Scanline Effect
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    for (let i = 0; i < GAME_HEIGHT; i += 4) {
+        ctx.fillRect(0, i, GAME_WIDTH, 1);
+    }
+
+    // Grid
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let i=0; i<GAME_WIDTH; i+=50) { ctx.moveTo(i, 0); ctx.lineTo(i, GAME_HEIGHT); }
+    for(let i=0; i<GAME_HEIGHT; i+=50) { ctx.moveTo(0, i); ctx.lineTo(GAME_WIDTH, i); }
+    ctx.stroke();
+
+    // Terrain
+    ctx.strokeStyle = '#00ff00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (terrain.current.length > 0) {
+        ctx.moveTo(0, GAME_HEIGHT);
+        ctx.lineTo(0, terrain.current[0].y);
+        terrain.current.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.lineTo(GAME_WIDTH, terrain.current[terrain.current.length-1].y);
+        ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#001a00';
+    ctx.fill();
+
+    // Cities
+    cities.forEach(c => {
+        if (!c.active) return;
+        ctx.fillStyle = '#00ffff';
+        c.buildings.forEach(b => {
+             ctx.fillRect(c.x + b.xOffset - (b.w/2), c.y - b.h, b.w, b.h);
+             ctx.strokeStyle = '#0088aa';
+             ctx.strokeRect(c.x + b.xOffset - (b.w/2), c.y - b.h, b.w, b.h);
+             ctx.fillStyle = '#fff';
+             if (Math.random() > 0.9) ctx.fillRect(c.x + b.xOffset, c.y - b.h + 5, 2, 2);
+             ctx.fillStyle = '#00ffff';
+        });
+    });
+
+    // Turrets
+    turrets.current.forEach(t => {
+        const isHovered = hoveredTurret && hoveredTurret.id === t.id;
+        ctx.strokeStyle = isHovered ? '#ffff00' : t.stats.color;
+        ctx.fillStyle = '#000';
+        ctx.lineWidth = 2;
+        
+        ctx.beginPath();
+        if (t.type === 'HEAVY') {
+            ctx.rect(t.x - 12, t.y - 8, 24, 16);
+        } else if (t.type === 'SAM') {
+            ctx.moveTo(t.x - 10, t.y); ctx.lineTo(t.x, t.y - 15); ctx.lineTo(t.x + 10, t.y);
+        } else if (t.type === 'LASER') {
+            ctx.arc(t.x, t.y, 8, 0, Math.PI * 2);
+            ctx.moveTo(t.x, t.y-8); ctx.lineTo(t.x, t.y-18);
+        } else {
+            ctx.arc(t.x, t.y, 10, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Level Indicators
+        ctx.fillStyle = t.stats.color;
+        for(let i=0; i<t.level; i++) {
+            ctx.fillRect(t.x - 6 + (i*4), t.y + 12, 3, 3);
+        }
+
+        if (gameState === 'PLACEMENT' && isHovered) {
+            ctx.strokeStyle = '#333';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, t.stats.range, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    });
+
+    // Ghost Turret
+    if (gameState === 'PLACEMENT' && selectedAction && selectedAction !== 'REPAIR') {
+        const mx = mousePos.current.x;
+        const my = getTerrainHeight(mx, terrain.current);
+        const typeData = TURRET_TYPES[selectedAction];
+        
+        ctx.strokeStyle = typeData.color;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.arc(mx, my - 10, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+        
+        ctx.strokeStyle = '#333';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(mx, my - 10, typeData.range, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // Bombers
+    ctx.fillStyle = '#ffff00';
+    bombers.current.forEach(b => {
+        ctx.beginPath();
+        ctx.moveTo(b.x + (b.vx * 15), b.y);
+        ctx.lineTo(b.x - (b.vx * 10), b.y - 8);
+        ctx.lineTo(b.x - (b.vx * 10), b.y + 8);
+        ctx.fill();
+        // HP Bar
+        if (b.hp < b.maxHp) {
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(b.x - 10, b.y - 15, 20, 2);
+            ctx.fillStyle = '#0f0';
+            ctx.fillRect(b.x - 10, b.y - 15, 20 * (b.hp / b.maxHp), 2);
+        }
+    });
+
+    // Missiles
+    enemyMissiles.current.forEach(m => {
+        const isBoss = m.type === 'BOSS';
+        
+        // Draw Projectile
+        ctx.strokeStyle = m.color;
+        ctx.lineWidth = isBoss ? 4 : 2;
+        ctx.globalAlpha = 1.0; 
+        
+        ctx.beginPath();
+        ctx.moveTo(m.x - m.vx * (isBoss ? 10 : 6), m.y - m.vy * (isBoss ? 10 : 6));
+        ctx.lineTo(m.x, m.y);
+        ctx.stroke();
+        
+        // Head
+        ctx.fillStyle = m.color;
+        if (m.type === 'ARMORED') {
+             // Diamond shape
+             ctx.beginPath();
+             ctx.moveTo(m.x, m.y - 4);
+             ctx.lineTo(m.x + 4, m.y);
+             ctx.lineTo(m.x, m.y + 4);
+             ctx.lineTo(m.x - 4, m.y);
+             ctx.fill();
+        } else {
+             const s = m.size || 4;
+             ctx.fillRect(m.x - s/2, m.y - s/2, s, s);
+        }
+
+        // HP Bar (if damaged or Boss)
+        if (m.hp < m.maxHp || isBoss) {
+            const barW = isBoss ? 40 : 16;
+            const barOff = isBoss ? 20 : 10;
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(m.x - barW/2, m.y - barOff, barW, isBoss ? 4 : 2);
+            ctx.fillStyle = '#0f0';
+            ctx.fillRect(m.x - barW/2, m.y - barOff, barW * (m.hp / m.maxHp), isBoss ? 4 : 2);
+        }
+    });
+
+    // Player Projectiles
+    playerMissiles.current.forEach(m => {
+        ctx.fillStyle = m.color;
+        if (m.type === 'SAM') {
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(m.x - m.vx*2, m.y - m.vy*2, 2, 2);
+        } else {
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
+    // Lasers
+    lasers.current.forEach(l => {
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = l.life; 
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = l.color;
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    });
+
+    // Explosions
+    explosions.current.forEach(ex => {
+        ctx.strokeStyle = ex.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(ex.x, ex.y, ex.radius, 0, Math.PI * 2);
+        ctx.stroke();
+    });
+
+    // Particles
+    particles.current.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 2, 2);
+    });
+  };
+
+  const loop = useCallback(() => {
+    update();
+    draw();
+    requestRef.current = requestAnimationFrame(loop);
+  }, [update]);
+
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(requestRef.current);
+  }, [loop]);
+
+
+  // --- UI ---
+  return (
+    <div className="w-full h-full min-h-screen bg-zinc-950 flex flex-col items-center p-2 font-mono text-green-500 select-none overflow-y-auto">
+      
+      {/* HUD */}
+      <div className="w-full max-w-[800px] bg-black border border-green-900 p-2 mb-2 flex justify-between items-center shadow-lg rounded">
+        <div className="flex gap-4 md:gap-8">
+            <div className="flex flex-col">
+                <span className="text-[10px] text-green-700">FUNDS</span>
+                <div className="flex items-center gap-1 text-lg font-bold text-green-400">
+                    <DollarSign size={16} />{money}
+                </div>
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[10px] text-green-700">SCORE</span>
+                <div className="flex items-center gap-1 text-lg font-bold">
+                    <Trophy size={16} />{score}
+                </div>
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[10px] text-green-700">WAVE</span>
+                <div className="flex items-center gap-1 text-lg font-bold">
+                    <Shield size={16} />{level}
+                </div>
+            </div>
+        </div>
+        <div className="text-green-400 font-bold animate-pulse text-right text-sm">
+            {message}
+        </div>
+      </div>
+
+      {/* Game Viewport */}
+      <div className="relative border-2 border-zinc-800 rounded shadow-2xl bg-black mb-2 overflow-hidden">
+        <canvas
+            ref={canvasRef}
+            width={GAME_WIDTH}
+            height={GAME_HEIGHT}
+            onClick={handleCanvasClick}
+            onMouseMove={handleMouseMove}
+            className="block cursor-crosshair max-w-full h-auto"
+        />
+
+        {/* --- OVERLAYS --- */}
+
+        {gameState === 'START' && (
+            <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center">
+                <h1 className="text-4xl md:text-6xl font-black text-green-500 tracking-tighter mb-4" style={{textShadow: '0 0 15px #0f0'}}>VECTOR DEFENSE</h1>
+                <p className="text-green-700 mb-8 tracking-widest text-center">SECURE THE VALLEYS</p>
+                <button onClick={initGame} className="px-8 py-3 border border-green-500 text-green-500 hover:bg-green-500 hover:text-black font-bold uppercase tracking-widest transition-all">
+                    Initialize
+                </button>
+            </div>
+        )}
+
+        {/* LEVEL COMPLETE */}
+        {gameState === 'LEVEL_COMPLETE' && bonusReport && (
+             <div className="absolute inset-0 bg-black flex flex-col items-center justify-center font-mono">
+                <h2 className="text-4xl text-green-500 font-bold mb-8 blink">WAVE {bonusReport.wave} CLEARED</h2>
+                
+                <div className="w-64 space-y-4 mb-8 text-green-400">
+                    <div className="flex justify-between border-b border-green-900 pb-1">
+                        <span>BASE BONUS</span>
+                        <span>{bonusReport.base}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-green-900 pb-1">
+                        <span>CITIES SECURE ({bonusReport.cityCount})</span>
+                        <span>{bonusReport.cityBonus}</span>
+                    </div>
+                    <div className="flex justify-between text-yellow-400 font-bold pt-2">
+                        <span>TOTAL FUNDS</span>
+                        <span>+{bonusReport.total}</span>
+                    </div>
+                </div>
+
+                <button 
+                    onClick={advanceLevel}
+                    className="px-8 py-3 bg-green-900 text-white font-bold hover:bg-green-700 animate-pulse border border-green-500"
+                >
+                    PROCEED TO NEXT SECTOR
+                </button>
+             </div>
+        )}
+
+        {/* LEVEL START */}
+        {gameState === 'LEVEL_START' && (
+            <div className="absolute inset-0 bg-black flex flex-col items-center justify-center">
+                <h2 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-green-300 to-green-800 animate-pulse">
+                    LEVEL {level}
+                </h2>
+                <div className="mt-4 text-green-600 tracking-[0.5em] text-sm">
+                    GENERATING TERRAIN...
+                </div>
+            </div>
+        )}
+
+        {/* GAME OVER */}
+        {gameState === 'GAME_OVER' && (
+            <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center">
+                <h2 className="text-5xl text-red-500 font-bold mb-2 glitch-effect">SECTOR LOST</h2>
+                <div className="text-2xl mb-8 border border-green-900 px-6 py-2 text-white">FINAL SCORE: {score}</div>
+                <button onClick={initGame} className="flex items-center gap-2 px-6 py-3 border border-red-500 text-red-500 hover:bg-red-900/30 font-bold transition-all">
+                    <RotateCcw size={18} /> REBOOT SYSTEM
+                </button>
+            </div>
+        )}
+      </div>
+
+      {/* Armory */}
+      <div className={`w-full max-w-[800px] transition-all duration-300 ${gameState === 'PLACEMENT' ? 'opacity-100 translate-y-0' : 'opacity-30 grayscale pointer-events-none'}`}>
+          <div className="grid grid-cols-2 md:grid-cols-[1fr_auto] gap-2">
+              
+              <div className="bg-black border border-green-900 p-2 rounded flex flex-wrap gap-2 justify-center md:justify-start">
+                  
+                  {Object.keys(TURRET_TYPES).map(key => {
+                      const t = TURRET_TYPES[key];
+                      const Icon = t.icon;
+                      return (
+                        <button 
+                            key={key}
+                            onClick={() => setSelectedAction(key)}
+                            className={`flex flex-col items-center justify-center w-20 h-20 border rounded transition-all ${selectedAction === key ? 'bg-green-900/40 border-green-400' : 'border-zinc-800 hover:border-zinc-600'}`}
+                        >
+                            <Icon size={20} style={{color: t.color}} className="mb-1" />
+                            <span className="text-[10px] font-bold text-zinc-300">{t.name}</span>
+                            <span className="text-[10px] text-green-600">${t.cost}</span>
+                        </button>
+                      );
+                  })}
+
+                  <div className="w-px bg-zinc-800 mx-1"></div>
+
+                   <button 
+                        onClick={buyRepair}
+                        className="flex flex-col items-center justify-center w-20 h-20 border border-zinc-800 rounded hover:border-blue-500 group transition-all"
+                    >
+                        <Wifi size={20} className="text-blue-500 mb-1 group-hover:animate-pulse" />
+                        <span className="text-[10px] font-bold text-zinc-300">REPAIR</span>
+                        <span className="text-[10px] text-blue-500">${REPAIR_COST}</span>
+                    </button>
+              </div>
+
+              <button 
+                onClick={startWave}
+                className="col-span-2 md:col-span-1 bg-green-900/20 border border-green-600 text-green-400 hover:bg-green-500 hover:text-black transition-all px-6 rounded font-bold text-lg flex items-center justify-center uppercase tracking-wider"
+              >
+                  <Play size={24} className="mr-2" /> ENGAGE
+              </button>
+          </div>
+          <div className="text-center text-xs text-zinc-600 mt-2">
+            Click Unit to Upgrade (${UPGRADE_COST})
+          </div>
+      </div>
+      
+      <style>{`
+        @keyframes blink { 50% { opacity: 0; } }
+        .blink { animation: blink 1s step-end infinite; }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
