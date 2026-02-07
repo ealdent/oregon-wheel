@@ -153,6 +153,7 @@ const App = () => {
     totalToSpawn: 0,
     bomberTimer: 0
   });
+  const waveCompleted = useRef(false);
 
   // --- Map Generation ---
   const generateMap = useCallback((numCities, lvl = 1) => {
@@ -261,6 +262,7 @@ const App = () => {
       } else {
           setMessage(`WAVE ${level} ENGAGING`);
       }
+      waveCompleted.current = false;
       setGameState('PLAYING');
       setSelectedAction(null);
   };
@@ -314,7 +316,8 @@ const App = () => {
         updateExplosions();
         updateParticles();
 
-        if (cfg.totalToSpawn === 0 && enemyMissiles.current.length === 0 && bombers.current.length === 0 && explosions.current.length === 0) {
+        if (!waveCompleted.current && cfg.totalToSpawn === 0 && enemyMissiles.current.length === 0 && bombers.current.length === 0 && explosions.current.length === 0) {
+            waveCompleted.current = true;
             handleWaveComplete();
         }
 
@@ -391,6 +394,7 @@ const App = () => {
 
   // --- Logic Helpers ---
   const applyDamage = (enemy, damage) => {
+      if (!enemy.active || enemy.hp <= 0) return;
       enemy.hp -= damage;
       if (enemy.hp <= 0) {
           enemy.active = false;
@@ -551,6 +555,7 @@ const App = () => {
           if (b.x < -100 || b.x > GAME_WIDTH + 100) b.active = false;
 
           for (let ex of explosions.current) {
+            if (!b.active) break;
             if (distance(b.x, b.y, ex.x, ex.y) < ex.radius) {
                 applyDamage(b, 2);
             }
@@ -582,6 +587,7 @@ const App = () => {
         }
 
         for (let ex of explosions.current) {
+            if (!m.active) break;
             if (distance(m.x, m.y, ex.x, ex.y) < ex.radius) {
                 applyDamage(m, 2);
             }
@@ -632,7 +638,7 @@ const App = () => {
 
             const targets = [...enemyMissiles.current, ...bombers.current];
             targets.forEach(t => {
-                if (distance(m.x, m.y, t.x, t.y) < m.explosionRadius) {
+                if (t.active && distance(m.x, m.y, t.x, t.y) < m.explosionRadius) {
                     applyDamage(t, m.damage);
                 }
             });
@@ -688,6 +694,7 @@ const App = () => {
   };
 
   const createExplosion = (x, y, isChain = false, maxRadius = 30, color = null) => {
+      if (explosions.current.length >= 50) return;
       explosions.current.push({
           x, y,
           radius: 1,
@@ -699,7 +706,9 @@ const App = () => {
   };
 
   const createParticles = (x, y, color, count = 8) => {
-      for(let i=0; i<count; i++) {
+      const room = 500 - particles.current.length;
+      const actual = Math.min(count, room);
+      for(let i=0; i<actual; i++) {
           particles.current.push({
               x, y,
               vx: (Math.random() - 0.5) * 5,
@@ -968,14 +977,17 @@ const App = () => {
 
     lasers.current.forEach(l => {
         ctx.strokeStyle = l.color;
-        ctx.lineWidth = l.life;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = l.color;
+        ctx.lineWidth = l.life + 2;
         ctx.beginPath();
         ctx.moveTo(l.x1, l.y1);
         ctx.lineTo(l.x2, l.y2);
         ctx.stroke();
-        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = Math.max(1, l.life - 2);
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.stroke();
     });
 
     explosions.current.forEach(ex => {
