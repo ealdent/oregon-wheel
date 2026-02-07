@@ -47,7 +47,7 @@ const EXPLOSION_GROWTH = 1.5;
 // Balance Constants
 const FLAK_COST = 800;
 const SAM_COST = 1800;
-const HEAVY_COST = 2800;
+const ARTILLERY_COST = 2800;
 const LASER_COST = 4500;
 const UPGRADE_BASE_COST = 500;
 const REPAIR_COST = 2000;
@@ -86,8 +86,8 @@ const TURRET_TYPES = {
     cost: SAM_COST,
     icon: Target
   },
-  HEAVY: {
-    name: 'HEAVY',
+  ARTILLERY: {
+    name: 'ARTILLERY',
     desc: 'Massive Area',
     color: '#ff00ff',
     range: 350,
@@ -95,18 +95,18 @@ const TURRET_TYPES = {
     explosionRadius: 100,
     projectileColor: '#f0f',
     damage: 20,
-    cost: HEAVY_COST,
+    cost: ARTILLERY_COST,
     icon: Shield
   },
   LASER: {
     name: 'LASER',
-    desc: 'Rapid Fire',
+    desc: 'Focused Beam',
     color: '#ffff00',
     range: 500,
-    fireRate: 45,
+    fireRate: 8,
     explosionRadius: 10,
     projectileColor: '#ff0',
-    damage: 25,
+    damage: 3,
     cost: LASER_COST,
     icon: Zap
   }
@@ -294,16 +294,42 @@ const App = () => {
 
             const allTargets = [...bombers.current, ...enemyMissiles.current];
 
-            allTargets.forEach(m => {
-                if (!m.active) return;
-                let d = distance(turret.x, turret.y, m.x, m.y);
-                if (d < minDist) {
-                    minDist = d;
-                    target = m;
+            // Laser turrets prefer their current target for beam continuity
+            if (turret.type === 'LASER' && turret.laserTarget) {
+                const cur = allTargets.find(m => m.id === turret.laserTarget);
+                if (cur && cur.active && distance(turret.x, turret.y, cur.x, cur.y) < turret.stats.range) {
+                    target = cur;
                 }
-            });
+            }
 
-            if (target && turret.lastFired >= turret.stats.fireRate) {
+            if (!target) {
+                allTargets.forEach(m => {
+                    if (!m.active) return;
+                    let d = distance(turret.x, turret.y, m.x, m.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        target = m;
+                    }
+                });
+            }
+
+            if (turret.type === 'LASER') {
+                if (target) {
+                    if (turret.laserTarget === target.id) {
+                        turret.dwellTime = (turret.dwellTime || 0) + 1;
+                    } else {
+                        turret.laserTarget = target.id;
+                        turret.dwellTime = 0;
+                    }
+                    if (turret.lastFired >= turret.stats.fireRate) {
+                        fireTurret(turret, target);
+                        turret.lastFired = 0;
+                    }
+                } else {
+                    turret.laserTarget = null;
+                    turret.dwellTime = 0;
+                }
+            } else if (target && turret.lastFired >= turret.stats.fireRate) {
                 fireTurret(turret, target);
                 turret.lastFired = 0;
             }
@@ -416,14 +442,22 @@ const App = () => {
 
   const fireTurret = (turret, target) => {
       if (turret.type === 'LASER') {
+          const dist = distance(turret.x, turret.y, target.x, target.y);
+          const distFalloff = Math.max(0.2, 1 - (dist / turret.stats.range) * 0.8);
+          const dwellBonus = 1 + Math.min((turret.dwellTime || 0) / 30, 5);
+          const finalDamage = turret.stats.damage * distFalloff * dwellBonus;
+          const beamWidth = Math.min(1 + (turret.dwellTime || 0) / 15, 6);
           lasers.current.push({
               x1: turret.x, y1: turret.y,
               x2: target.x, y2: target.y,
               color: turret.stats.projectileColor,
-              life: 5
+              life: turret.stats.fireRate,
+              width: beamWidth
           });
-          createParticles(target.x, target.y, '#ff00ff', 2);
-          applyDamage(target, turret.stats.damage);
+          if ((turret.dwellTime || 0) > 10) {
+              createParticles(target.x, target.y, '#ff00ff', 1);
+          }
+          applyDamage(target, finalDamage);
           return;
       }
 
@@ -862,7 +896,7 @@ const App = () => {
         ctx.lineWidth = 2;
 
         ctx.beginPath();
-        if (t.type === 'HEAVY') {
+        if (t.type === 'ARTILLERY') {
             ctx.rect(t.x - 12, t.y - 8, 24, 16);
         } else if (t.type === 'SAM') {
             ctx.moveTo(t.x - 10, t.y); ctx.lineTo(t.x, t.y - 15); ctx.lineTo(t.x + 10, t.y);
@@ -976,18 +1010,21 @@ const App = () => {
     });
 
     lasers.current.forEach(l => {
+        const w = l.width || 2;
         ctx.strokeStyle = l.color;
-        ctx.lineWidth = l.life + 2;
+        ctx.lineWidth = w + 2;
+        ctx.globalAlpha = Math.min(1, l.life / 3);
         ctx.beginPath();
         ctx.moveTo(l.x1, l.y1);
         ctx.lineTo(l.x2, l.y2);
         ctx.stroke();
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = Math.max(1, l.life - 2);
+        ctx.lineWidth = Math.max(1, w - 1);
         ctx.beginPath();
         ctx.moveTo(l.x1, l.y1);
         ctx.lineTo(l.x2, l.y2);
         ctx.stroke();
+        ctx.globalAlpha = 1.0;
     });
 
     explosions.current.forEach(ex => {
