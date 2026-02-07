@@ -49,7 +49,7 @@ const FLAK_COST = 800;
 const SAM_COST = 1800;
 const HEAVY_COST = 2800;
 const LASER_COST = 4500;
-const UPGRADE_COST = 600;
+const UPGRADE_BASE_COST = 500;
 const REPAIR_COST = 2000;
 const CITY_REPAIR_PENALTY = 300;
 const WAVE_COMPLETE_BONUS = 2500;
@@ -103,7 +103,7 @@ const TURRET_TYPES = {
     desc: 'Rapid Fire',
     color: '#ffff00',
     range: 500,
-    fireRate: 15,
+    fireRate: 45,
     explosionRadius: 10,
     projectileColor: '#ff0',
     damage: 25,
@@ -155,7 +155,7 @@ const App = () => {
   });
 
   // --- Map Generation ---
-  const generateMap = useCallback((numCities) => {
+  const generateMap = useCallback((numCities, lvl = 1) => {
     const points = [];
     const segments = 80;
     const segmentWidth = GAME_WIDTH / segments;
@@ -180,10 +180,10 @@ const App = () => {
         });
 
         let height = 0;
-        if (distToCity < 25) {
+        if (distToCity < 50) {
             height = 20;
         } else {
-            const blend = Math.min(1, (distToCity - 25) / 60);
+            const blend = Math.min(1, (distToCity - 50) / 80);
             const noise = Math.random() * 40;
             const mountainHeight = 120 + (Math.sin(i * 0.3) * 80) + (Math.cos(i * 1.5) * 20) + noise;
             height = 20 + (mountainHeight * blend);
@@ -195,12 +195,13 @@ const App = () => {
     const newCities = citySlots.map(slot => {
         const cy = getTerrainHeight(slot.x, points);
         const buildings = [];
-        const count = 4 + Math.floor(Math.random() * 4);
+        const growthFactor = 1 + (lvl - 1) * 0.1;
+        const count = Math.floor((4 + Math.floor(Math.random() * 4)) * growthFactor);
         for(let b=0; b<count; b++) {
             buildings.push({
-                w: 6 + Math.random() * 12,
-                h: 15 + Math.random() * 25,
-                xOffset: (Math.random() - 0.5) * 35
+                w: (6 + Math.random() * 12) * growthFactor,
+                h: (15 + Math.random() * 25) * growthFactor,
+                xOffset: (Math.random() - 0.5) * 35 * growthFactor
             });
         }
         return { x: slot.x, y: cy, active: true, buildings };
@@ -328,12 +329,14 @@ const App = () => {
   }, [gameState, cities, level]);
 
   const handleWaveComplete = () => {
-      const cityBonus = cities.filter(c => c.active).length * 500;
-      const totalBonus = WAVE_COMPLETE_BONUS + cityBonus;
+      const levelMult = 1 + (level - 1) * 0.15;
+      const baseBonus = Math.round(WAVE_COMPLETE_BONUS * levelMult);
+      const cityBonus = cities.filter(c => c.active).length * Math.round(500 * levelMult);
+      const totalBonus = baseBonus + cityBonus;
 
       setBonusReport({
           wave: level,
-          base: WAVE_COMPLETE_BONUS,
+          base: baseBonus,
           cityCount: cities.filter(c => c.active).length,
           cityBonus: cityBonus,
           total: totalBonus
@@ -343,15 +346,36 @@ const App = () => {
       setGameState('LEVEL_COMPLETE');
   };
 
+  const findMountainPeaks = (terrainPoints, count) => {
+      const candidates = terrainPoints
+          .filter((p, i) => i > 5 && i < terrainPoints.length - 5)
+          .map(p => ({ x: p.x, y: p.y }))
+          .sort((a, b) => a.y - b.y);
+      const peaks = [];
+      for (const c of candidates) {
+          if (peaks.every(p => Math.abs(p.x - c.x) > 60)) {
+              peaks.push(c);
+              if (peaks.length >= count) break;
+          }
+      }
+      return peaks;
+  };
+
   const advanceLevel = () => {
       const nextLvl = level + 1;
       setLevel(nextLvl);
-      const nextCities = Math.min(5, 3 + Math.floor((nextLvl + 1) / 3));
-      const newTerrainPoints = generateMap(nextCities);
+      const nextCities = Math.max(1, 3 - Math.floor(nextLvl / 5));
+      const newTerrainPoints = generateMap(nextCities, nextLvl);
 
-      turrets.current.forEach(t => {
-          const newY = getTerrainHeight(t.x, newTerrainPoints);
-          t.y = newY - 10;
+      const peaks = findMountainPeaks(newTerrainPoints, turrets.current.length);
+      turrets.current.forEach((t, i) => {
+          if (peaks[i]) {
+              t.x = peaks[i].x;
+              t.y = peaks[i].y - 10;
+          } else {
+              const newY = getTerrainHeight(t.x, newTerrainPoints);
+              t.y = newY - 10;
+          }
           createParticles(t.x, t.y, '#00ff00');
       });
 
@@ -370,10 +394,11 @@ const App = () => {
       enemy.hp -= damage;
       if (enemy.hp <= 0) {
           enemy.active = false;
-          let reward = 50;
-          let scoreReward = 100;
-          if (enemy.type === 'BOSS') { reward = 800; scoreReward = 2000; }
-          if (enemy.type === 'ARMORED') { reward = 100; scoreReward = 300; }
+          const levelMult = 1 + (level - 1) * 0.15;
+          let reward = Math.round(50 * levelMult);
+          let scoreReward = Math.round(100 * levelMult);
+          if (enemy.type === 'BOSS') { reward = Math.round(800 * levelMult); scoreReward = Math.round(2000 * levelMult); }
+          if (enemy.type === 'ARMORED') { reward = Math.round(100 * levelMult); scoreReward = Math.round(300 * levelMult); }
 
           setMoney(m => m + reward);
           setScore(s => s + scoreReward);
@@ -696,16 +721,17 @@ const App = () => {
 
     const clickedTurret = turrets.current.find(t => distance(x, y, t.x, t.y) < 30);
     if (clickedTurret) {
-        if (money >= UPGRADE_COST) {
-            setMoney(m => m - UPGRADE_COST);
+        const upgradeCost = UPGRADE_BASE_COST * Math.pow(2, clickedTurret.level - 1);
+        if (money >= upgradeCost) {
+            setMoney(m => m - upgradeCost);
             clickedTurret.stats.fireRate = Math.max(2, clickedTurret.stats.fireRate * 0.85);
             clickedTurret.stats.range += 40;
             clickedTurret.stats.damage *= 1.2;
             clickedTurret.level++;
             createParticles(clickedTurret.x, clickedTurret.y, '#0f0');
-            setMessage(`SYSTEM UPGRADED TO MK ${clickedTurret.level}`);
+            setMessage(`SYSTEM UPGRADED TO MK ${clickedTurret.level} (NEXT: $${UPGRADE_BASE_COST * Math.pow(2, clickedTurret.level - 1)})`);
         } else {
-            setMessage('INSUFFICIENT FUNDS');
+            setMessage(`INSUFFICIENT FUNDS (NEED $${upgradeCost})`);
         }
         return;
     }
@@ -1127,7 +1153,7 @@ const App = () => {
               </button>
           </div>
           <div className="text-center text-xs text-zinc-600 mt-2">
-            Click Unit to Upgrade (${UPGRADE_COST})
+            Click Unit to Upgrade (cost scales per level)
           </div>
       </div>
 
