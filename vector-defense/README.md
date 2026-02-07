@@ -1,8 +1,8 @@
 # Vector Defense
 
-A retro-styled missile command game built as a single self-contained HTML file using React and Canvas.
+A retro tactical missile command game with a CRT military aesthetic. Defend your cities from waves of incoming missiles, bombers, and increasingly dangerous enemies by building and upgrading turrets on mountainous terrain.
 
-Defend your cities from waves of incoming missiles, bombers, and increasingly dangerous enemies by building and upgrading turrets on the mountainous terrain.
+**[Play Now](https://ealdent.github.io/oregon-wheel/vector-defense/vector-defense.html)**
 
 ## How to Play
 
@@ -14,10 +14,10 @@ Defend your cities from waves of incoming missiles, bombers, and increasingly da
 
 | Type | Cost | Description |
 |------|------|-------------|
-| FLAK | $800 | Area damage with medium range |
+| FLAK | $800 | Dual-barrel area damage with medium range |
 | SAM | $1,800 | Homing missiles with high single-target impact |
-| HEAVY | $2,800 | Massive explosion radius |
-| LASER | $4,500 | Long-range rapid fire beam |
+| ARTILLERY | $2,800 | Massive explosion radius |
+| LASER | $4,500 | Long-range focused beam that grows stronger the longer it dwells on a target |
 
 Turrets can be upgraded by clicking them during the placement phase. Each upgrade improves fire rate, range, and damage (cost doubles per level).
 
@@ -25,8 +25,8 @@ Turrets can be upgraded by clicking them during the placement phase. Each upgrad
 
 - **Normal** (red) — Standard missiles
 - **Fast** (purple) — High speed, appears from wave 3
-- **Armored** (white) — Heavy HP, appears from wave 4
-- **Boss** (red, large) — Massive HP pool, appears from wave 5
+- **Armored** (white) — Heavy HP with a partial shield, appears from wave 4
+- **Boss** (red, large) — Massive HP pool with ember trail, appears from wave 5
 - **MIRV** (orange) — Splits into 3 bomblets mid-flight, appears from wave 7
 - **Bomber** (yellow) — Flies across the screen dropping ordnance, appears from wave 3
 
