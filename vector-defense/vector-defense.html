@@ -50,7 +50,7 @@ const SAM_COST = 1800;
 const ARTILLERY_COST = 2800;
 const LASER_COST = 4500;
 const UPGRADE_BASE_COST = 500;
-const REPAIR_COST = 2000;
+const FORTIFY_COST = 1500;
 const CITY_REPAIR_PENALTY = 300;
 const WAVE_COMPLETE_BONUS = 2500;
 
@@ -68,9 +68,9 @@ const TURRET_TYPES = {
     color: '#00ff00',
     range: 600,
     fireRate: 12,
-    explosionRadius: 35,
+    explosionRadius: 8,
     projectileColor: '#0f0',
-    damage: 10,
+    damage: 3,
     cost: FLAK_COST,
     icon: Crosshair
   },
@@ -523,26 +523,66 @@ const drawTerrain = (ctx, terrainPoints, mapData) => {
     ctx.fillRect(0, GAME_HEIGHT * 0.7, GAME_WIDTH, GAME_HEIGHT * 0.3);
 };
 
+const TIER_COLORS = [
+    null,
+    { gradTop: '#00cccc', gradBot: '#005566', outline: '#006677', winLit: '#aaffff', winDark: '#003344', antenna: '#006666' },
+    { gradTop: '#00eeff', gradBot: '#006677', outline: '#007788', winLit: '#bbffff', winDark: '#004455', antenna: '#008888' },
+    { gradTop: '#aaddff', gradBot: '#2255aa', outline: '#3366bb', winLit: '#ddeeff', winDark: '#113366', antenna: '#4488cc' },
+    { gradTop: '#cc88ff', gradBot: '#3322aa', outline: '#5533cc', winLit: '#ddaaff', winDark: '#221166', antenna: '#7744dd' },
+    { gradTop: '#ffdd66', gradBot: '#aa6600', outline: '#cc8800', winLit: '#ffeeaa', winDark: '#554400', antenna: '#ddaa44' },
+];
+
 const drawCity = (ctx, city, frameCount) => {
     if (!city.active) return;
+    const tier = city.tier || 1;
+    const tc = TIER_COLORS[Math.min(tier, 5)];
 
-    // Light pollution glow
+    // Light pollution glow — scales with tier
     ctx.save();
-    const glowGrad = ctx.createRadialGradient(city.x, city.y, 5, city.x, city.y, 60);
-    glowGrad.addColorStop(0, 'rgba(0, 180, 180, 0.08)');
-    glowGrad.addColorStop(1, 'rgba(0, 180, 180, 0)');
+    const glowR = 50 + tier * 10;
+    const glowA = 0.06 + tier * 0.02;
+    const gc = TIER_COLORS[Math.min(tier, 5)];
+    const glowGrad = ctx.createRadialGradient(city.x, city.y, 5, city.x, city.y, glowR);
+    glowGrad.addColorStop(0, `rgba(${gc.winLit === '#ffeeaa' ? '255,220,100' : gc.winLit === '#ddaaff' ? '180,120,255' : gc.winLit === '#ddeeff' ? '150,200,255' : '0,200,200'}, ${glowA})`);
+    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glowGrad;
-    ctx.fillRect(city.x - 60, city.y - 60, 120, 60);
+    ctx.fillRect(city.x - glowR, city.y - glowR, glowR * 2, glowR);
     ctx.restore();
+
+    // Shield shimmer for tier 3+
+    if (tier >= 3) {
+        ctx.save();
+        const shimmerAlpha = 0.04 + 0.03 * Math.sin(frameCount * 0.03);
+        const shieldR = 45 + tier * 8;
+        ctx.strokeStyle = tier >= 5
+            ? `rgba(255, 220, 100, ${shimmerAlpha + 0.06 * Math.sin(frameCount * 0.08)})`
+            : tier >= 4
+            ? `rgba(180, 120, 255, ${shimmerAlpha})`
+            : `rgba(100, 200, 255, ${shimmerAlpha})`;
+        ctx.lineWidth = tier >= 5 ? 2 : 1;
+        ctx.beginPath();
+        ctx.arc(city.x, city.y - 10, shieldR, Math.PI, 0);
+        ctx.stroke();
+        // Tier 5: pulsing golden ring
+        if (tier >= 5) {
+            const ringAlpha = 0.08 + 0.06 * Math.sin(frameCount * 0.06);
+            ctx.strokeStyle = `rgba(255, 200, 80, ${ringAlpha})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(city.x, city.y - 5, shieldR + 8, Math.PI * 1.1, Math.PI * -0.1);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
 
     city.buildings.forEach(b => {
         const bx = city.x + b.xOffset - (b.w / 2);
         const by = city.y - b.h;
 
-        // Building gradient fill
+        // Building gradient fill — tier colored
         const bGrad = ctx.createLinearGradient(bx, by, bx, city.y);
-        bGrad.addColorStop(0, '#00cccc');
-        bGrad.addColorStop(1, '#005566');
+        bGrad.addColorStop(0, tc.gradTop);
+        bGrad.addColorStop(1, tc.gradBot);
         ctx.fillStyle = bGrad;
 
         // Building shape
@@ -569,7 +609,7 @@ const drawCity = (ctx, city, frameCount) => {
         }
 
         // Building outline
-        ctx.strokeStyle = '#006677';
+        ctx.strokeStyle = tc.outline;
         ctx.lineWidth = 1;
         ctx.strokeRect(bx, by, b.w, b.h);
 
@@ -577,26 +617,36 @@ const drawCity = (ctx, city, frameCount) => {
         if (b.windows) {
             b.windows.forEach(win => {
                 const lit = ((frameCount >> 6) + win.phase) % 3 !== 0;
-                ctx.fillStyle = lit ? '#aaffff' : '#003344';
+                ctx.fillStyle = lit ? tc.winLit : tc.winDark;
                 ctx.fillRect(bx + win.ox, by + win.oy, 2, 2);
             });
         }
 
         // Antenna
         if (b.hasAntenna) {
-            ctx.strokeStyle = '#006666';
+            ctx.strokeStyle = tc.antenna;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(bx + b.w / 2, by);
             ctx.lineTo(bx + b.w / 2, by - 8);
             ctx.stroke();
-            // Blinking red tip
             if ((frameCount >> 5) % 2 === 0) {
-                ctx.fillStyle = '#ff0000';
+                ctx.fillStyle = tier >= 5 ? '#ffdd00' : tier >= 4 ? '#cc66ff' : '#ff0000';
                 ctx.fillRect(bx + b.w / 2 - 1, by - 9, 2, 2);
             }
         }
     });
+
+    // HP bar above city
+    const barW = 30;
+    const barH = 3;
+    const barX = city.x - barW / 2;
+    const barY = city.y - (tier >= 3 ? 55 + tier * 5 : 45) ;
+    const hpRatio = (city.hp || 1) / (city.maxHp || 1);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+    ctx.fillStyle = hpRatio > 0.5 ? tc.gradTop : hpRatio > 0.25 ? '#ffaa00' : '#ff3333';
+    ctx.fillRect(barX, barY, barW * hpRatio, barH);
 };
 
 const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
@@ -1433,6 +1483,48 @@ const App = () => {
   });
   const waveCompleted = useRef(false);
 
+  // --- City Building Generator ---
+  const TIER_CONFIG = [
+      null, // index 0 unused
+      { buildings: [4, 8], heightScale: 1.0, spread: 35, antennaChance: 0.2, gradTop: '#00cccc', gradBot: '#005566', glowColor: [0, 180, 180], glowRadius: 60, glowAlpha: 0.08, styles: ['flat', 'pointed'] },
+      { buildings: [6, 10], heightScale: 1.3, spread: 40, antennaChance: 0.3, gradTop: '#00eeff', gradBot: '#006677', glowColor: [0, 220, 220], glowRadius: 70, glowAlpha: 0.10, styles: ['flat', 'pointed', 'stepped'] },
+      { buildings: [8, 12], heightScale: 1.6, spread: 45, antennaChance: 0.4, gradTop: '#aaddff', gradBot: '#2255aa', glowColor: [100, 180, 255], glowRadius: 80, glowAlpha: 0.12, styles: ['flat', 'pointed', 'stepped', 'dome'] },
+      { buildings: [10, 14], heightScale: 1.9, spread: 50, antennaChance: 0.5, gradTop: '#cc88ff', gradBot: '#3322aa', glowColor: [160, 100, 255], glowRadius: 90, glowAlpha: 0.14, styles: ['pointed', 'stepped', 'dome'] },
+      { buildings: [12, 16], heightScale: 2.2, spread: 55, antennaChance: 0.6, gradTop: '#ffdd66', gradBot: '#aa6600', glowColor: [255, 200, 80], glowRadius: 100, glowAlpha: 0.16, styles: ['pointed', 'stepped', 'dome'] },
+  ];
+
+  const generateCityBuildings = (tier) => {
+      const cfg = TIER_CONFIG[Math.min(tier, 5)];
+      const buildings = [];
+      const count = cfg.buildings[0] + Math.floor(Math.random() * (cfg.buildings[1] - cfg.buildings[0]));
+      for (let b = 0; b < count; b++) {
+          const bw = (6 + Math.random() * 12) * cfg.heightScale;
+          const bh = (15 + Math.random() * 25) * cfg.heightScale;
+          const style = cfg.styles[Math.floor(Math.random() * cfg.styles.length)];
+          const windows = [];
+          const cols = Math.max(1, Math.floor(bw / 4));
+          const rows = Math.max(1, Math.floor(bh / 6));
+          for (let wy = 0; wy < rows; wy++) {
+              for (let wx = 0; wx < cols; wx++) {
+                  windows.push({
+                      ox: 2 + wx * (bw / cols),
+                      oy: 3 + wy * (bh / rows),
+                      phase: Math.floor(Math.random() * 10)
+                  });
+              }
+          }
+          buildings.push({
+              w: bw,
+              h: bh,
+              xOffset: (Math.random() - 0.5) * cfg.spread,
+              style,
+              windows,
+              hasAntenna: bh > 20 && Math.random() < cfg.antennaChance
+          });
+      }
+      return buildings;
+  };
+
   // --- Map Generation ---
   const generateMap = useCallback((numCities, lvl = 1) => {
     const points = [];
@@ -1518,39 +1610,7 @@ const App = () => {
 
     const newCities = citySlots.map(slot => {
         const cy = getTerrainHeight(slot.x, points);
-        const buildings = [];
-        const growthFactor = 1 + (lvl - 1) * 0.1;
-        const count = Math.floor((4 + Math.floor(Math.random() * 4)) * growthFactor);
-        const styles = ['flat', 'pointed', 'stepped', 'dome'];
-        for(let b=0; b<count; b++) {
-            const bw = (6 + Math.random() * 12) * growthFactor;
-            const bh = (15 + Math.random() * 25) * growthFactor;
-            const style = styles[Math.floor(Math.random() * styles.length)];
-
-            // Pre-compute windows
-            const windows = [];
-            const cols = Math.max(1, Math.floor(bw / 4));
-            const rows = Math.max(1, Math.floor(bh / 6));
-            for (let wy = 0; wy < rows; wy++) {
-                for (let wx = 0; wx < cols; wx++) {
-                    windows.push({
-                        ox: 2 + wx * (bw / cols),
-                        oy: 3 + wy * (bh / rows),
-                        phase: Math.floor(Math.random() * 10)
-                    });
-                }
-            }
-
-            buildings.push({
-                w: bw,
-                h: bh,
-                xOffset: (Math.random() - 0.5) * 35 * growthFactor,
-                style,
-                windows,
-                hasAntenna: bh > 25 && Math.random() < 0.2
-            });
-        }
-        return { x: slot.x, y: cy, active: true, buildings };
+        return { x: slot.x, y: cy, active: true, hp: 3, maxHp: 3, tier: 1, wavesSurvived: 0, buildings: generateCityBuildings(1) };
     });
     setCities(newCities);
     return points;
@@ -1753,12 +1813,33 @@ const App = () => {
       const cityBonus = cities.filter(c => c.active).length * Math.round(500 * levelMult);
       const totalBonus = baseBonus + cityBonus;
 
+      // Evolve cities
+      let evolvedCount = 0;
+      const evolvedCities = cities.map(c => {
+          if (!c.active) return c;
+          const ws = (c.wavesSurvived || 0) + 1;
+          const newHp = Math.min((c.hp || 1) + 1, c.maxHp || 3);
+          let tier = c.tier || 1;
+          let maxHp = c.maxHp || 3;
+          let buildings = c.buildings;
+          if (ws % 3 === 0 && tier < 5) {
+              tier++;
+              maxHp += 2;
+              buildings = generateCityBuildings(tier);
+              evolvedCount++;
+              createParticles(c.x, c.y, '#0ff', 12);
+          }
+          return { ...c, wavesSurvived: ws, hp: Math.min(newHp, maxHp), maxHp, tier, buildings };
+      });
+      setCities(evolvedCities);
+
       setBonusReport({
           wave: level,
           base: baseBonus,
           cityCount: cities.filter(c => c.active).length,
           cityBonus: cityBonus,
-          total: totalBonus
+          total: totalBonus,
+          evolvedCount
       });
 
       setMoney(prev => prev + totalBonus);
@@ -1783,8 +1864,25 @@ const App = () => {
   const advanceLevel = () => {
       const nextLvl = level + 1;
       setLevel(nextLvl);
-      const nextCities = Math.max(1, 3 - Math.floor(nextLvl / 5));
+      const nextCities = Math.max(2, 3 - Math.floor(nextLvl / 8));
+
+      // Preserve city state (sorted by tier desc so highest-tier states survive city count reduction)
+      const savedState = cities
+          .filter(c => c.active)
+          .sort((a, b) => (b.tier || 1) - (a.tier || 1))
+          .map(c => ({ tier: c.tier || 1, hp: c.hp || 3, maxHp: c.maxHp || 3, wavesSurvived: c.wavesSurvived || 0 }));
+
       const newTerrainPoints = generateMap(nextCities, nextLvl);
+
+      // Apply saved state to new cities
+      const restoredCities = cities.map((c, i) => {
+          if (i < savedState.length) {
+              const s = savedState[i];
+              return { ...c, tier: s.tier, hp: s.hp, maxHp: s.maxHp, wavesSurvived: s.wavesSurvived, buildings: generateCityBuildings(s.tier) };
+          }
+          return c;
+      });
+      setCities(restoredCities);
 
       const peaks = findMountainPeaks(newTerrainPoints, turrets.current.length);
       turrets.current.forEach((t, i) => {
@@ -2161,21 +2259,33 @@ const App = () => {
   };
 
   const checkCityDamage = (x, y) => {
-      let damageDealt = false;
+      let changed = false;
+      let destroyed = false;
       const newCities = cities.map(c => {
           if (c.active && distance(x, y, c.x, c.y) < 55) {
+              const newHp = c.hp - 1;
               createParticles(c.x, c.y, '#f00');
-              damageDealt = true;
-              return { ...c, active: false };
+              changed = true;
+              if (newHp <= 0) {
+                  destroyed = true;
+                  return { ...c, hp: 0, active: false };
+              }
+              return { ...c, hp: newHp };
           }
           return c;
       });
 
-      if (damageDealt) {
-          Sound.cityDestroyed();
+      if (changed) {
           setCities(newCities);
-          setMoney(m => Math.max(0, m - CITY_REPAIR_PENALTY));
-          setMessage('CRITICAL: CITY LOST.');
+          if (destroyed) {
+              Sound.cityDestroyed();
+              setMoney(m => Math.max(0, m - CITY_REPAIR_PENALTY));
+              setMessage('CRITICAL: CITY DESTROYED');
+          } else {
+              Sound.enemyHit();
+              const hit = newCities.find(c => c.active && distance(x, y, c.x, c.y) < 55);
+              if (hit) setMessage(`CITY HIT — SHIELDS ${hit.hp}/${hit.maxHp}`);
+          }
       }
   };
 
@@ -2272,7 +2382,6 @@ const App = () => {
     }
 
     if (selectedAction) {
-        if (selectedAction === 'REPAIR') return;
         const typeData = TURRET_TYPES[selectedAction];
         if (money >= typeData.cost) {
             setMoney(m => m - typeData.cost);
@@ -2299,27 +2408,38 @@ const App = () => {
     }
   };
 
-  const buyRepair = () => {
-      if (money >= REPAIR_COST) {
-          if (cities.length < 5) {
-               setMoney(m => m - REPAIR_COST);
-               const deadCity = cities.find(c => !c.active);
-               if (deadCity) {
-                   deadCity.active = true;
-                   deadCity.buildings = [];
-                   createParticles(deadCity.x, deadCity.y, '#0ff');
-                   setMessage("CITY RECONSTRUCTED");
-                   setCities([...cities]);
-               } else {
-                   setMessage("ALL CITIES OPERATIONAL");
-                   setMoney(m => m + REPAIR_COST);
-               }
-          } else {
-              setMessage("MAX CITIES REACHED");
-          }
-      } else {
-          setMessage("INSUFFICIENT FUNDS");
+  const fortifyCity = () => {
+      const activeCities = cities.filter(c => c.active);
+      if (activeCities.length === 0) {
+          setMessage("NO CITIES TO FORTIFY");
+          return;
       }
+      if (activeCities.every(c => (c.tier || 1) >= 5)) {
+          setMessage("ALL CITIES AT MAX TIER");
+          return;
+      }
+      if (money < FORTIFY_COST) {
+          setMessage("INSUFFICIENT FUNDS");
+          return;
+      }
+      setMoney(m => m - FORTIFY_COST);
+      // Upgrade lowest-tier active city
+      const minTier = Math.min(...activeCities.map(c => c.tier || 1));
+      let upgraded = false;
+      const newCities = cities.map(c => {
+          if (!upgraded && c.active && (c.tier || 1) === minTier && (c.tier || 1) < 5) {
+              upgraded = true;
+              const newTier = (c.tier || 1) + 1;
+              const newMaxHp = (c.maxHp || 3) + 2;
+              createParticles(c.x, c.y, '#0ff', 12);
+              Sound.upgrade();
+              return { ...c, tier: newTier, maxHp: newMaxHp, hp: newMaxHp, buildings: generateCityBuildings(newTier) };
+          }
+          return c;
+      });
+      setCities(newCities);
+      const fortified = newCities.find(c => c.active && upgraded);
+      setMessage(`CITY FORTIFIED — TIER ${fortified ? fortified.tier : '?'}`);
   };
 
   const handleMouseMove = (e) => {
@@ -2363,7 +2483,7 @@ const App = () => {
     });
 
     // Placement ghost
-    if (gameState === 'PLACEMENT' && selectedAction && selectedAction !== 'REPAIR') {
+    if (gameState === 'PLACEMENT' && selectedAction) {
         const mx = mousePos.current.x;
         const my = getTerrainHeight(mx, terrain.current);
         const typeData = TURRET_TYPES[selectedAction];
@@ -2482,6 +2602,12 @@ const App = () => {
                         <span>CITIES SECURE ({bonusReport.cityCount})</span>
                         <span>{bonusReport.cityBonus}</span>
                     </div>
+                    {bonusReport.evolvedCount > 0 && (
+                    <div className="flex justify-between border-b border-cyan-900 pb-1 text-cyan-400">
+                        <span>CITIES EVOLVED</span>
+                        <span>{bonusReport.evolvedCount}</span>
+                    </div>
+                    )}
                     <div className="flex justify-between text-yellow-400 font-bold pt-2">
                         <span>TOTAL FUNDS</span>
                         <span>+{bonusReport.total}</span>
@@ -2546,12 +2672,12 @@ const App = () => {
                   <div className="w-px bg-zinc-800 mx-1"></div>
 
                    <button
-                        onClick={buyRepair}
-                        className="flex flex-col items-center justify-center w-20 h-20 border border-zinc-800 rounded hover:border-blue-500 group transition-all"
+                        onClick={fortifyCity}
+                        className="flex flex-col items-center justify-center w-20 h-20 border border-zinc-800 rounded hover:border-cyan-500 group transition-all"
                     >
-                        <Wifi size={20} className="text-blue-500 mb-1 group-hover:animate-pulse" />
-                        <span className="text-[10px] font-bold text-zinc-300">REPAIR</span>
-                        <span className="text-[10px] text-blue-500">${REPAIR_COST}</span>
+                        <Wifi size={20} className="text-cyan-400 mb-1 group-hover:animate-pulse" />
+                        <span className="text-[10px] font-bold text-zinc-300">FORTIFY</span>
+                        <span className="text-[10px] text-cyan-400">${FORTIFY_COST}</span>
                     </button>
               </div>
 
