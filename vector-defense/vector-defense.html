@@ -611,6 +611,94 @@ const drawBomber = (ctx, b, frameCount) => {
     }
 };
 
+const drawBossShip = (ctx, b, frameCount) => {
+    const dir = b.vx > 0 ? 1 : -1;
+    const scale = b.bossTier >= 2 ? 2.5 : 1.8;
+    const isMega = b.bossTier >= 2;
+
+    ctx.save();
+    ctx.translate(b.x, b.y);
+
+    // Pulsing red glow
+    ctx.save();
+    ctx.shadowColor = '#ff0000';
+    ctx.shadowBlur = 10 + 6 * Math.sin(frameCount * 0.12);
+
+    // Swept-back wings (scaled)
+    ctx.fillStyle = isMega ? '#880000' : '#993300';
+    ctx.beginPath();
+    ctx.moveTo(dir * -4 * scale, 0);
+    ctx.lineTo(dir * -12 * scale, -10 * scale);
+    ctx.lineTo(dir * -8 * scale, 0);
+    ctx.moveTo(dir * -4 * scale, 0);
+    ctx.lineTo(dir * -12 * scale, 10 * scale);
+    ctx.lineTo(dir * -8 * scale, 0);
+    ctx.fill();
+
+    // Mega-boss: spiky wing protrusions
+    if (isMega) {
+        ctx.fillStyle = '#aa0000';
+        ctx.beginPath();
+        ctx.moveTo(dir * -8 * scale, -8 * scale);
+        ctx.lineTo(dir * -14 * scale, -14 * scale);
+        ctx.lineTo(dir * -10 * scale, -6 * scale);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(dir * -8 * scale, 8 * scale);
+        ctx.lineTo(dir * -14 * scale, 14 * scale);
+        ctx.lineTo(dir * -10 * scale, 6 * scale);
+        ctx.fill();
+    }
+
+    // Fuselage gradient (red-orange)
+    const fuseGrad = ctx.createLinearGradient(0, -5 * scale, 0, 5 * scale);
+    fuseGrad.addColorStop(0, isMega ? '#ff2200' : '#ff6633');
+    fuseGrad.addColorStop(0.5, isMega ? '#cc0000' : '#cc4400');
+    fuseGrad.addColorStop(1, isMega ? '#880000' : '#882200');
+    ctx.fillStyle = fuseGrad;
+    ctx.beginPath();
+    ctx.moveTo(dir * 12 * scale, 0);
+    ctx.lineTo(dir * 6 * scale, -5 * scale);
+    ctx.lineTo(dir * -6 * scale, -5 * scale);
+    ctx.lineTo(dir * -10 * scale, 0);
+    ctx.lineTo(dir * -6 * scale, 5 * scale);
+    ctx.lineTo(dir * 6 * scale, 5 * scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = isMega ? '#ff4444' : '#cc6633';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore(); // end shadowBlur
+
+    // Cockpit
+    ctx.fillStyle = '#ff8866';
+    ctx.fillRect(dir * 6 * scale, -2 * scale, dir * 4 * scale, 4 * scale);
+
+    // Dual engine glows
+    const enginePulse = 0.5 + 0.5 * Math.sin(frameCount * 0.25);
+    ctx.fillStyle = `rgba(255, 80, 0, ${0.5 + enginePulse * 0.4})`;
+    ctx.beginPath();
+    ctx.ellipse(dir * -11 * scale, -2.5 * scale, (3 + enginePulse * 2) * scale, (1.5 + enginePulse) * scale * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(dir * -11 * scale, 2.5 * scale, (3 + enginePulse * 2) * scale, (1.5 + enginePulse) * scale * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mega-boss: center engine
+    if (isMega) {
+        ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + enginePulse * 0.5})`;
+        ctx.beginPath();
+        ctx.ellipse(dir * -12 * scale, 0, (4 + enginePulse * 3) * scale, (2 + enginePulse) * scale * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+
+    // HP bar (always visible for boss ships)
+    const barW = isMega ? 60 : 40;
+    drawHPBar(ctx, b.x - barW / 2, b.y - 12 * scale - 4, barW, 4, b.hp / b.maxHp);
+};
+
 const drawEnemyMissile = (ctx, m, frameCount) => {
     const isBoss = m.type === 'BOSS';
     const angle = Math.atan2(m.vy, m.vx);
@@ -1227,7 +1315,9 @@ const App = () => {
         spawnTimer: 0,
         spawnInterval: Math.max(15, 90 - (lvl * 3)),
         totalToSpawn: 12 + (lvl * 4),
-        bomberTimer: 0
+        bomberTimer: 0,
+        isBossWave: lvl % 5 === 0 && lvl > 0,
+        isMegaBossWave: lvl % 10 === 0 && lvl > 0
     };
   };
 
@@ -1241,11 +1331,22 @@ const App = () => {
   };
 
   const startWave = () => {
+      const cfg = levelConfig.current;
       if (turrets.current.length === 0) {
           setMessage("WARNING: NO DEFENSES PLACED");
           setTimeout(() => setMessage(`WAVE ${level} INBOUND`), 2000);
+      } else if (cfg.isMegaBossWave) {
+          setMessage(`ALERT: MEGA BOSS INBOUND`);
+      } else if (cfg.isBossWave) {
+          setMessage(`WARNING: BOSS INBOUND`);
       } else {
           setMessage(`WAVE ${level} ENGAGING`);
+      }
+      // Spawn boss ship on boss waves
+      if (cfg.isMegaBossWave) {
+          spawnBossShip(2);
+      } else if (cfg.isBossWave) {
+          spawnBossShip(1);
       }
       waveCompleted.current = false;
       setGameState('PLAYING');
@@ -1434,13 +1535,19 @@ const App = () => {
           const levelMult = 1 + (level - 1) * 0.15;
           let reward = Math.round(50 * levelMult);
           let scoreReward = Math.round(100 * levelMult);
-          if (enemy.type === 'BOSS') { reward = Math.round(800 * levelMult); scoreReward = Math.round(2000 * levelMult); }
+          if (enemy.type === 'BOSS_SHIP') {
+              const isMega = enemy.bossTier >= 2;
+              reward = Math.round((isMega ? 3000 : 1500) * levelMult);
+              scoreReward = Math.round((isMega ? 10000 : 5000) * levelMult);
+          }
+          else if (enemy.type === 'BOSS') { reward = Math.round(800 * levelMult); scoreReward = Math.round(2000 * levelMult); }
           if (enemy.type === 'ARMORED') { reward = Math.round(100 * levelMult); scoreReward = Math.round(300 * levelMult); }
 
           setMoney(m => m + reward);
           setScore(s => s + scoreReward);
 
-          createExplosion(enemy.x, enemy.y, true, enemy.type === 'BOSS' ? 80 : 30);
+          const deathRadius = enemy.type === 'BOSS_SHIP' ? (enemy.bossTier >= 2 ? 150 : 100) : (enemy.type === 'BOSS' ? 80 : 30);
+          createExplosion(enemy.x, enemy.y, true, deathRadius);
           createParticles(enemy.x, enemy.y, enemy.color);
       } else {
           createParticles(enemy.x, enemy.y, '#fff', 2);
@@ -1585,7 +1692,34 @@ const App = () => {
           hp: 60,
           color: '#ffff00',
           size: 10,
-          lastDrop: 0
+          lastDrop: 0,
+          dropInterval: 50,
+          dropChance: 0.03
+      });
+  };
+
+  const spawnBossShip = (tier) => {
+      const fromLeft = Math.random() > 0.5;
+      const y = 40 + Math.random() * 50;
+      const isMega = tier >= 2;
+      const bossHp = isMega ? 600 + level * 50 : 300 + level * 30;
+      bombers.current.push({
+          id: Math.random().toString(36),
+          x: fromLeft ? -80 : GAME_WIDTH + 80,
+          y: y,
+          vx: fromLeft ? (isMega ? 0.6 : 0.8) : (isMega ? -0.6 : -0.8),
+          active: true,
+          type: 'BOSS_SHIP',
+          maxHp: bossHp,
+          hp: bossHp,
+          color: '#ff4400',
+          size: isMega ? 25 : 18,
+          lastDrop: 0,
+          dropInterval: isMega ? 18 : 25,
+          dropChance: isMega ? 0.10 : 0.06,
+          isBossShip: true,
+          bossTier: tier,
+          escortsSpawned: false
       });
   };
 
@@ -1594,10 +1728,18 @@ const App = () => {
           if (!b.active) return;
           b.x += b.vx;
           b.lastDrop++;
-          if (b.lastDrop > 50 && Math.random() < 0.03) {
+          if (b.lastDrop > (b.dropInterval || 50) && Math.random() < (b.dropChance || 0.03)) {
               spawnEnemyMissile(b.x, b.y, true);
               b.lastDrop = 0;
           }
+
+          // Mega-boss escort spawning
+          if (b.bossTier >= 2 && !b.escortsSpawned && b.x > 200 && b.x < 600) {
+              b.escortsSpawned = true;
+              spawnBomber();
+              spawnBomber();
+          }
+
           if (b.x < -100 || b.x > GAME_WIDTH + 100) b.active = false;
 
           for (let ex of explosions.current) {
@@ -1950,7 +2092,7 @@ const App = () => {
         ctx.setLineDash([]);
     }
 
-    bombers.current.forEach(b => drawBomber(ctx, b, fc));
+    bombers.current.forEach(b => b.isBossShip ? drawBossShip(ctx, b, fc) : drawBomber(ctx, b, fc));
     enemyMissiles.current.forEach(m => drawEnemyMissile(ctx, m, fc));
     playerMissiles.current.forEach(m => drawPlayerMissile(ctx, m));
     lasers.current.forEach(l => drawLaserBeam(ctx, l));
