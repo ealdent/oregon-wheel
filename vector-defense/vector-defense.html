@@ -115,6 +115,274 @@ const TURRET_TYPES = {
 // --- Helper Functions ---
 const distance = (x1, y1, x2, y2) => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 
+// --- Audio Engine ---
+let audioCtx = null;
+let masterGain = null;
+const initAudio = () => {
+    if (audioCtx) return;
+    audioCtx = new AudioContext();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(audioCtx.destination);
+};
+
+let lastEnemyHitFrame = 0;
+
+const Sound = {
+    turretFire(type) {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        if (type === 'FLAK') {
+            // Short white noise burst, bandpass ~2kHz
+            const bufferSize = audioCtx.sampleRate * 0.08;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+            const src = audioCtx.createBufferSource();
+            src.buffer = buffer;
+            const bp = audioCtx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = 2000;
+            bp.Q.value = 1.5;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.4, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            src.connect(bp).connect(g).connect(masterGain);
+            src.start(t);
+            src.stop(t + 0.08);
+        } else if (type === 'SAM') {
+            // Rising sine sweep 200->800Hz
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, t);
+            osc.frequency.exponentialRampToValueAtTime(800, t + 0.12);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.3, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+            osc.connect(g).connect(masterGain);
+            osc.start(t);
+            osc.stop(t + 0.12);
+        } else if (type === 'ARTILLERY') {
+            // Low boom: sine 80Hz + noise burst
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = 80;
+            const g1 = audioCtx.createGain();
+            g1.gain.setValueAtTime(0.5, t);
+            g1.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.connect(g1).connect(masterGain);
+            osc.start(t);
+            osc.stop(t + 0.15);
+            // noise layer
+            const bufferSize = audioCtx.sampleRate * 0.1;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+            const src = audioCtx.createBufferSource();
+            src.buffer = buffer;
+            const lp = audioCtx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 600;
+            const g2 = audioCtx.createGain();
+            g2.gain.setValueAtTime(0.4, t);
+            g2.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+            src.connect(lp).connect(g2).connect(masterGain);
+            src.start(t);
+            src.stop(t + 0.1);
+        }
+    },
+
+    laserBeam(dwellTime) {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 1200;
+        // Slight vibrato
+        const lfo = audioCtx.createOscillator();
+        lfo.frequency.value = 30;
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = 20;
+        lfo.connect(lfoGain).connect(osc.frequency);
+        const g = audioCtx.createGain();
+        const vol = Math.min(0.15 + (dwellTime || 0) / 200, 0.35);
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        osc.connect(g).connect(masterGain);
+        osc.start(t);
+        lfo.start(t);
+        osc.stop(t + 0.05);
+        lfo.stop(t + 0.05);
+    },
+
+    explosion(maxRadius) {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        const large = maxRadius > 50;
+        const dur = large ? 0.4 : 0.2;
+        const bufferSize = audioCtx.sampleRate * dur;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(large ? 800 : 1200, t);
+        lp.frequency.exponentialRampToValueAtTime(100, t + dur);
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(large ? 0.5 : 0.3, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        src.connect(lp).connect(g).connect(masterGain);
+        src.start(t);
+        src.stop(t + dur);
+    },
+
+    enemyHit() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = 600;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.15, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+        osc.connect(g).connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.03);
+    },
+
+    cityDestroyed() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Low descending tone + noise
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.5);
+        const g1 = audioCtx.createGain();
+        g1.gain.setValueAtTime(0.4, t);
+        g1.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.connect(g1).connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.5);
+        const bufferSize = audioCtx.sampleRate * 0.3;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        const lp = audioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 400;
+        const g2 = audioCtx.createGain();
+        g2.gain.setValueAtTime(0.3, t);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        src.connect(lp).connect(g2).connect(masterGain);
+        src.start(t);
+        src.stop(t + 0.3);
+    },
+
+    waveStart() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(600, t + 0.3);
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.2, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.connect(g).connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.3);
+    },
+
+    bossWarning() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Two alternating low alarm tones
+        for (let i = 0; i < 3; i++) {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.value = i % 2 === 0 ? 150 : 120;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, t + i * 0.2);
+            g.gain.linearRampToValueAtTime(0.3, t + i * 0.2 + 0.02);
+            g.gain.setValueAtTime(0.3, t + i * 0.2 + 0.15);
+            g.gain.linearRampToValueAtTime(0, t + i * 0.2 + 0.19);
+            osc.connect(g).connect(masterGain);
+            osc.start(t + i * 0.2);
+            osc.stop(t + i * 0.2 + 0.2);
+        }
+    },
+
+    gameOver() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Descending 3-note sequence
+        const notes = [440, 330, 220];
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.value = freq;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.25, t + i * 0.25);
+            g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.25 + 0.22);
+            osc.connect(g).connect(masterGain);
+            osc.start(t + i * 0.25);
+            osc.stop(t + i * 0.25 + 0.25);
+        });
+    },
+
+    upgrade() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Quick ascending 2-note chirp
+        const notes = [500, 750];
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.25, t + i * 0.07);
+            g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.06);
+            osc.connect(g).connect(masterGain);
+            osc.start(t + i * 0.07);
+            osc.stop(t + i * 0.07 + 0.07);
+        });
+    },
+
+    placeTurret() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Short click + confirmation beep
+        const bufferSize = audioCtx.sampleRate * 0.02;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        const g1 = audioCtx.createGain();
+        g1.gain.setValueAtTime(0.2, t);
+        g1.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+        src.connect(g1).connect(masterGain);
+        src.start(t);
+        src.stop(t + 0.02);
+        // Confirmation beep
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        const g2 = audioCtx.createGain();
+        g2.gain.setValueAtTime(0, t + 0.03);
+        g2.gain.linearRampToValueAtTime(0.2, t + 0.04);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(g2).connect(masterGain);
+        osc.start(t + 0.03);
+        osc.stop(t + 0.1);
+    }
+};
+
 // --- Pre-create scanline overlay canvas ---
 const scanlineCanvas = document.createElement('canvas');
 scanlineCanvas.width = GAME_WIDTH;
@@ -1299,6 +1567,7 @@ const App = () => {
 
   // --- Initialization ---
   const initGame = useCallback(() => {
+    initAudio();
     setMoney(3500);
     setScore(0);
     setLevel(1);
@@ -1337,10 +1606,13 @@ const App = () => {
           setTimeout(() => setMessage(`WAVE ${level} INBOUND`), 2000);
       } else if (cfg.isMegaBossWave) {
           setMessage(`ALERT: MEGA BOSS INBOUND`);
+          Sound.bossWarning();
       } else if (cfg.isBossWave) {
           setMessage(`WARNING: BOSS INBOUND`);
+          Sound.bossWarning();
       } else {
           setMessage(`WAVE ${level} ENGAGING`);
+          Sound.waveStart();
       }
       // Spawn boss ship on boss waves
       if (cfg.isMegaBossWave) {
@@ -1456,6 +1728,7 @@ const App = () => {
 
         if (cities.filter(c => c.active).length === 0) {
             setGameState('GAME_OVER');
+            Sound.gameOver();
         }
     } else {
         updateParticles();
@@ -1550,6 +1823,10 @@ const App = () => {
           createExplosion(enemy.x, enemy.y, true, deathRadius);
           createParticles(enemy.x, enemy.y, enemy.color);
       } else {
+          if (frameCount.current - lastEnemyHitFrame >= 5) {
+              Sound.enemyHit();
+              lastEnemyHitFrame = frameCount.current;
+          }
           createParticles(enemy.x, enemy.y, '#fff', 2);
       }
   };
@@ -1571,6 +1848,7 @@ const App = () => {
           if ((turret.dwellTime || 0) > 10) {
               createParticles(target.x, target.y, '#ff00ff', 1);
           }
+          Sound.laserBeam(turret.dwellTime);
           applyDamage(target, finalDamage);
           return;
       }
@@ -1578,6 +1856,7 @@ const App = () => {
       // Trigger recoil and muzzle flash
       turret.recoilOffset = turret.type === 'ARTILLERY' ? 6 : 4;
       turret.muzzleFlashTimer = turret.type === 'ARTILLERY' ? 8 : 5;
+      Sound.turretFire(turret.type);
 
       if (turret.type === 'SAM') {
            playerMissiles.current.push({
@@ -1702,7 +1981,7 @@ const App = () => {
       const fromLeft = Math.random() > 0.5;
       const y = 40 + Math.random() * 50;
       const isMega = tier >= 2;
-      const bossHp = isMega ? 600 + level * 50 : 300 + level * 30;
+      const bossHp = isMega ? 1500 + level * 100 : 750 + level * 60;
       bombers.current.push({
           id: Math.random().toString(36),
           x: fromLeft ? -80 : GAME_WIDTH + 80,
@@ -1876,6 +2155,7 @@ const App = () => {
       });
 
       if (damageDealt) {
+          Sound.cityDestroyed();
           setCities(newCities);
           setMoney(m => Math.max(0, m - CITY_REPAIR_PENALTY));
           setMessage('CRITICAL: CITY LOST.');
@@ -1912,6 +2192,7 @@ const App = () => {
   const createExplosion = (x, y, isChain = false, maxRadius = 30, color = null) => {
       if (explosions.current.length >= 50) return;
       const mr = isChain ? 25 : maxRadius;
+      if (mr > 10) Sound.explosion(mr);
       explosions.current.push({
           x, y,
           radius: 1,
@@ -1965,6 +2246,7 @@ const App = () => {
             clickedTurret.stats.damage *= 1.2;
             clickedTurret.level++;
             createParticles(clickedTurret.x, clickedTurret.y, '#0f0');
+            Sound.upgrade();
             setMessage(`SYSTEM UPGRADED TO MK ${clickedTurret.level} (NEXT: $${UPGRADE_BASE_COST * Math.pow(2, clickedTurret.level - 1)})`);
         } else {
             setMessage(`INSUFFICIENT FUNDS (NEED $${upgradeCost})`);
@@ -1990,6 +2272,7 @@ const App = () => {
                 muzzleFlashTimer: 0
             });
             createParticles(x, y, typeData.color);
+            Sound.placeTurret();
             setSelectedAction(null);
             setMessage(`${typeData.name} ONLINE`);
         } else {
