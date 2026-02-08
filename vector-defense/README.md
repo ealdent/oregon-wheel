@@ -29,6 +29,7 @@ Turrets can be upgraded by clicking them during the placement phase. Each upgrad
 - **Boss** (red, large) — Massive HP pool with ember trail, appears from wave 5
 - **MIRV** (orange) — Splits into 3 bomblets mid-flight, appears from wave 7
 - **Bomber** (yellow) — Flies across the screen dropping ordnance, appears from wave 3
+- **Boss Ship** (red-orange) — Huge heavily-armored gunship that drops missiles aggressively, appears every 5th wave. Every 10th wave brings a mega-boss with escort bombers
 
 ## Economy
 
