@@ -195,24 +195,28 @@ const Sound = {
     laserBeam(dwellTime) {
         if (!audioCtx) return;
         const t = audioCtx.currentTime;
+        const dwell = dwellTime || 0;
         const osc = audioCtx.createOscillator();
         osc.type = 'sine';
-        osc.frequency.value = 1200;
-        // Slight vibrato
+        // Low base pitch that rises slightly with dwell
+        const baseFreq = 180 + Math.min(dwell, 60) * 2;
+        osc.frequency.setValueAtTime(baseFreq, t);
+        osc.frequency.linearRampToValueAtTime(baseFreq + 40, t + 0.06);
+        // Subtle slow vibrato
         const lfo = audioCtx.createOscillator();
-        lfo.frequency.value = 30;
+        lfo.frequency.value = 8;
         const lfoGain = audioCtx.createGain();
-        lfoGain.gain.value = 20;
+        lfoGain.gain.value = 6;
         lfo.connect(lfoGain).connect(osc.frequency);
         const g = audioCtx.createGain();
-        const vol = Math.min(0.15 + (dwellTime || 0) / 200, 0.35);
+        const vol = Math.min(0.06 + dwell / 500, 0.15);
         g.gain.setValueAtTime(vol, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
         osc.connect(g).connect(masterGain);
         osc.start(t);
         lfo.start(t);
-        osc.stop(t + 0.05);
-        lfo.stop(t + 0.05);
+        osc.stop(t + 0.06);
+        lfo.stop(t + 0.06);
     },
 
     explosion(maxRadius) {
