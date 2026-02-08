@@ -64,10 +64,10 @@ const HP_BOSS_BASE = 200;
 const TURRET_TYPES = {
   FLAK: {
     name: 'FLAK',
-    desc: 'Area Damage',
+    desc: 'Suppression',
     color: '#00ff00',
-    range: 280,
-    fireRate: 20,
+    range: 600,
+    fireRate: 12,
     explosionRadius: 35,
     projectileColor: '#0f0',
     damage: 10,
@@ -1658,6 +1658,11 @@ const App = () => {
             if (turret.recoilOffset > 0) turret.recoilOffset *= 0.7;
             if (turret.recoilOffset < 0.1) turret.recoilOffset = 0;
 
+            // Decay FLAK heat
+            if (turret.type === 'FLAK' && turret.heat > 0) {
+                turret.heat = Math.max(0, turret.heat - 0.3);
+            }
+
             // Decay muzzle flash
             if (turret.muzzleFlashTimer > 0) turret.muzzleFlashTimer--;
 
@@ -1882,7 +1887,15 @@ const App = () => {
       const timeToHit = dist / PLAYER_PROJECTILE_SPEED;
       const predX = target.x + (target.vx * timeToHit);
       const predY = target.y + (target.vy * timeToHit);
-      const angle = Math.atan2(predY - turret.y, predX - turret.x);
+      let angle = Math.atan2(predY - turret.y, predX - turret.x);
+
+      // FLAK: inaccuracy that worsens with heat
+      if (turret.type === 'FLAK') {
+          const heat = turret.heat || 0;
+          const spread = 0.12 + heat * 0.006;
+          angle += (Math.random() - 0.5) * spread;
+          turret.heat = Math.min((turret.heat || 0) + 2, 30);
+      }
 
       playerMissiles.current.push({
           x: turret.x,
