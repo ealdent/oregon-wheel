@@ -56,7 +56,7 @@ const WAVE_COMPLETE_BONUS = 2500;
 
 // Two-tier terrain layout
 const CITY_ZONE_TOP = 420;        // Above this = turret zone, below = city zone
-const LOWER_TERRAIN_Y = 530;      // City baseline
+const LOWER_TERRAIN_Y = 450;      // City foreground baseline
 
 // Enemy Stats (HP values)
 const HP_NORMAL = 10;
@@ -450,13 +450,13 @@ const drawUpperTerrain = (ctx, points, mapData) => {
         ctx.stroke();
     }
 
-    // Upper terrain fill — extends down to transition zone
+    // Upper terrain fill — full depth background layer
     ctx.beginPath();
-    ctx.moveTo(0, CITY_ZONE_TOP);
+    ctx.moveTo(0, GAME_HEIGHT);
     ctx.lineTo(0, points[0].y);
     points.forEach(p => ctx.lineTo(p.x, p.y));
     ctx.lineTo(GAME_WIDTH, points[points.length - 1].y);
-    ctx.lineTo(GAME_WIDTH, CITY_ZONE_TOP);
+    ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
     ctx.fillStyle = '#001a00';
     ctx.fill();
 
@@ -518,37 +518,6 @@ const drawUpperTerrain = (ctx, points, mapData) => {
             ctx.stroke();
         });
     }
-};
-
-const drawTerrainTransition = (ctx, upperPoints, lowerPoints) => {
-    if (!upperPoints || !lowerPoints || upperPoints.length === 0 || lowerPoints.length === 0) return;
-
-    // Cliff/slope fill between upper terrain bottom and lower terrain top
-    ctx.beginPath();
-    ctx.moveTo(0, CITY_ZONE_TOP);
-    lowerPoints.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(GAME_WIDTH, lowerPoints[lowerPoints.length - 1].y);
-    ctx.lineTo(GAME_WIDTH, CITY_ZONE_TOP);
-    ctx.fillStyle = '#0a0800';
-    ctx.fill();
-
-    // Vertical hatching texture on the cliff face
-    ctx.strokeStyle = '#0d0b02';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < GAME_WIDTH; x += 8) {
-        ctx.beginPath();
-        ctx.moveTo(x, CITY_ZONE_TOP);
-        ctx.lineTo(x + 2, CITY_ZONE_TOP + 20);
-        ctx.stroke();
-    }
-
-    // Fog/haze gradient to separate layers
-    const fogGrad = ctx.createLinearGradient(0, CITY_ZONE_TOP - 20, 0, CITY_ZONE_TOP + 30);
-    fogGrad.addColorStop(0, 'rgba(0, 15, 5, 0)');
-    fogGrad.addColorStop(0.5, 'rgba(0, 15, 5, 0.4)');
-    fogGrad.addColorStop(1, 'rgba(0, 15, 5, 0)');
-    ctx.fillStyle = fogGrad;
-    ctx.fillRect(0, CITY_ZONE_TOP - 20, GAME_WIDTH, 50);
 };
 
 const drawLowerTerrain = (ctx, points) => {
@@ -1699,7 +1668,7 @@ const App = () => {
         const undulation = Math.sin(i * 0.12) * 5 + Math.cos(i * 0.25) * 3 + (Math.random() - 0.5) * 2;
         const flattenFactor = distToCity < 40 ? 0 : Math.min(1, (distToCity - 40) / 60);
         const y = LOWER_TERRAIN_Y + undulation * flattenFactor;
-        lowerPoints.push({ x, y: Math.max(CITY_ZONE_TOP + 20, Math.min(570, y)) });
+        lowerPoints.push({ x, y: Math.max(LOWER_TERRAIN_Y - 20, Math.min(LOWER_TERRAIN_Y + 20, y)) });
     }
 
     // Store both terrain arrays
@@ -2705,7 +2674,6 @@ const App = () => {
         drawTurret(ctx, t, isHovered, gameState, fc);
     });
 
-    drawTerrainTransition(ctx, upperTerrain.current, lowerTerrain.current);
     drawLowerTerrain(ctx, lowerTerrain.current);
 
     // Cities on lower terrain
