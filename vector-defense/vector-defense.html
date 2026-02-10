@@ -1749,9 +1749,73 @@ const App = () => {
       return getTerrainHeight(x, lowerTerrain.current);
   };
 
+  // --- Save / Load ---
+  const SAVE_KEY = 'vectorDefenseSave';
+
+  const saveGame = (lvl, m, s, c) => {
+      try {
+          const data = {
+              level: lvl,
+              money: m,
+              score: s,
+              cities: c,
+              turrets: turrets.current.map(t => {
+                  const { icon, ...savedStats } = t.stats;
+                  return { id: t.id, x: t.x, y: t.y, type: t.type,
+                      stats: savedStats, level: t.level, angle: t.angle };
+              }),
+              upperTerrain: upperTerrain.current,
+              lowerTerrain: lowerTerrain.current,
+              mapData: mapData.current,
+              fortifyCount: fortifyCount.current
+          };
+          localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      } catch (e) { /* storage full or unavailable */ }
+  };
+
+  const loadGame = () => {
+      try {
+          const raw = localStorage.getItem(SAVE_KEY);
+          return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+  };
+
+  const clearSave = () => {
+      try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  };
+
+  const hasSave = () => {
+      try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; }
+  };
+
+  const resumeGame = useCallback(() => {
+      const save = loadGame();
+      if (!save) return;
+      initAudio();
+      setLevel(save.level);
+      setMoney(save.money);
+      setScore(save.score);
+      setCities(save.cities);
+      turrets.current = save.turrets.map(t => ({
+          ...t,
+          stats: { ...TURRET_TYPES[t.type], ...t.stats },
+          lastFired: 0, recoilOffset: 0, muzzleFlashTimer: 0
+      }));
+      upperTerrain.current = save.upperTerrain;
+      lowerTerrain.current = save.lowerTerrain;
+      terrain.current = save.upperTerrain;
+      mapData.current = save.mapData;
+      fortifyCount.current = save.fortifyCount || 0;
+      resetEntities();
+      setupLevel(save.level);
+      setGameState('PLACEMENT');
+      setMessage(`SYSTEMS RESTORED. WAVE ${save.level} STANDING BY.`);
+  }, []);
+
   // --- Initialization ---
   const initGame = useCallback(() => {
     initAudio();
+    clearSave();
     setMoney(3500);
     setScore(0);
     setLevel(1);
@@ -1918,6 +1982,7 @@ const App = () => {
 
         if (cities.filter(c => c.active).length === 0) {
             setGameState('GAME_OVER');
+            clearSave();
             Sound.gameOver();
         }
     } else {
@@ -2012,6 +2077,7 @@ const App = () => {
       });
 
       setMoney(prev => prev + totalBonus);
+      saveGame(level, money + totalBonus, score, mergedCities);
       setGameState('LEVEL_COMPLETE');
   };
 
@@ -2066,6 +2132,7 @@ const App = () => {
       setLevel(nextLvl);
       resetEntities();
       setupLevel(nextLvl);
+      saveGame(nextLvl, money, score, cities);
       setGameState('PLACEMENT');
       setMessage('PREPARE DEFENSES. HOSTILES INBOUND.');
   };
@@ -2779,9 +2846,16 @@ const App = () => {
             <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center">
                 <h1 className="text-4xl md:text-6xl font-black text-green-500 tracking-tighter mb-4" style={{textShadow: '0 0 15px #0f0'}}>VECTOR DEFENSE</h1>
                 <p className="text-green-700 mb-8 tracking-widest text-center">DEFEND THE CITIES</p>
-                <button onClick={initGame} className="px-8 py-3 border border-green-500 text-green-500 hover:bg-green-500 hover:text-black font-bold uppercase tracking-widest transition-all">
-                    Initialize
-                </button>
+                <div className="flex flex-col gap-3">
+                    {hasSave() && (
+                        <button onClick={resumeGame} className="px-8 py-3 border border-green-500 text-green-500 hover:bg-green-500 hover:text-black font-bold uppercase tracking-widest transition-all">
+                            Continue (Wave {(() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s?.level || '?'; } catch(e) { return '?'; } })()})
+                        </button>
+                    )}
+                    <button onClick={initGame} className="px-8 py-3 border border-green-500 text-green-500 hover:bg-green-500 hover:text-black font-bold uppercase tracking-widest transition-all">
+                        {hasSave() ? 'New Game' : 'Initialize'}
+                    </button>
+                </div>
             </div>
         )}
 
