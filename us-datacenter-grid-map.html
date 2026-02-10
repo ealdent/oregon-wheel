@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Data Centers & Grid Capacity Overlay Map</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0e17; color: #e0e6f0; overflow: hidden; }
+
+  #app { display: flex; height: 100vh; }
+
+  /* Sidebar */
+  #sidebar {
+    width: 380px; min-width: 380px;
+    background: #111827;
+    border-right: 1px solid #1e293b;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+    z-index: 10;
+  }
+  #sidebar h1 {
+    font-size: 16px; padding: 16px;
+    background: linear-gradient(135deg, #1e3a5f, #0f172a);
+    border-bottom: 1px solid #1e293b;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #sidebar h1 span { font-size: 20px; }
+
+  .panel { padding: 12px 16px; border-bottom: 1px solid #1e293b; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
+
+  /* Layer toggles */
+  .layer-toggle {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0; cursor: pointer; font-size: 13px;
+  }
+  .layer-toggle input { accent-color: #3b82f6; }
+  .layer-toggle .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Year slider */
+  .year-control { padding: 12px 16px; border-bottom: 1px solid #1e293b; }
+  .year-control label { font-size: 13px; color: #94a3b8; display: block; margin-bottom: 6px; }
+  .year-control input[type=range] { width: 100%; accent-color: #3b82f6; }
+  .year-marks { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 4px; }
+  #yearLabel { font-size: 22px; font-weight: 700; color: #3b82f6; }
+
+  /* Stats cards */
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .stat-card {
+    background: #1e293b; border-radius: 8px; padding: 10px;
+    text-align: center;
+  }
+  .stat-card .val { font-size: 20px; font-weight: 700; }
+  .stat-card .lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card.warn .val { color: #f59e0b; }
+  .stat-card.danger .val { color: #ef4444; }
+  .stat-card.ok .val { color: #10b981; }
+  .stat-card.info .val { color: #3b82f6; }
+
+  /* Chart area */
+  #chartArea { padding: 12px 16px; border-bottom: 1px solid #1e293b; }
+  #forecastChart { width: 100%; height: 180px; }
+
+  /* Info panel */
+  #infoPanel {
+    padding: 12px 16px;
+    font-size: 12px; color: #94a3b8;
+    line-height: 1.6;
+  }
+  #infoPanel strong { color: #e0e6f0; }
+  #infoPanel .hub-name { font-size: 15px; font-weight: 700; color: #3b82f6; }
+  #infoPanel .hub-stat { margin: 4px 0; }
+
+  /* Map canvas */
+  #mapContainer { flex: 1; position: relative; overflow: hidden; background: #0a0e17; }
+  #mapCanvas { position: absolute; top: 0; left: 0; }
+  #forecastChart { display: block; }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute; pointer-events: none; z-index: 100;
+    background: rgba(15,23,42,0.95); border: 1px solid #334155;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; max-width: 280px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    display: none;
+  }
+  #tooltip .tt-title { font-weight: 700; font-size: 14px; color: #60a5fa; margin-bottom: 4px; }
+  #tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+  #tooltip .tt-label { color: #94a3b8; }
+  #tooltip .tt-val { color: #e0e6f0; font-weight: 600; }
+
+  /* Legend */
+  #legend {
+    position: absolute; bottom: 16px; right: 16px; z-index: 10;
+    background: rgba(15,23,42,0.9); border: 1px solid #1e293b;
+    border-radius: 8px; padding: 12px; font-size: 11px;
+  }
+  #legend h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .legend-circle { border-radius: 50%; flex-shrink: 0; }
+  .legend-rect { flex-shrink: 0; border-radius: 2px; }
+
+  /* Sources */
+  #sources {
+    position: absolute; bottom: 16px; left: 400px; z-index: 10;
+    font-size: 10px; color: #475569;
+  }
+  #sources a { color: #475569; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h1><span>⚡</span> US Data Center & Grid Overlay</h1>
+
+    <div class="year-control">
+      <label>Forecast Year: <span id="yearLabel">2025</span></label>
+      <input type="range" id="yearSlider" min="2025" max="2030" value="2025" step="1">
+      <div class="year-marks"><span>2025</span><span>2026</span><span>2027</span><span>2028</span><span>2029</span><span>2030</span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Layers</h2>
+      <label class="layer-toggle"><input type="checkbox" id="layerHubs" checked><div class="dot" style="background:#3b82f6"></div> Data Center Hubs</label>
+      <label class="layer-toggle"><input type="checkbox" id="layerPlanned" checked><div class="dot" style="background:#f59e0b"></div> Planned / Under Construction</label>
+      <label class="layer-toggle"><input type="checkbox" id="layerGrid" checked><div class="dot" style="background:rgba(16,185,129,0.3)"></div> ISO/RTO Grid Regions</label>
+      <label class="layer-toggle"><input type="checkbox" id="layerHeatmap" checked><div class="dot" style="background:#ef4444"></div> Demand Stress Heatmap</label>
+      <label class="layer-toggle"><input type="checkbox" id="layerTransmission"><div class="dot" style="background:#a855f7"></div> Transmission Corridors</label>
+    </div>
+
+    <div class="panel">
+      <h2>National Summary</h2>
+      <div class="stat-row">
+        <div class="stat-card info"><div class="val" id="statDCPower">--</div><div class="lbl">DC Demand (GW)</div></div>
+        <div class="stat-card ok"><div class="val" id="statGridCap">~1,290</div><div class="lbl">Grid Capacity (GW)</div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-card warn"><div class="val" id="statPctGrid">--</div><div class="lbl">% of Grid</div></div>
+        <div class="stat-card" id="statReserveCard"><div class="val" id="statReserve">--</div><div class="lbl">Avg Reserve Margin</div></div>
+      </div>
+    </div>
+
+    <div id="chartArea">
+      <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin-bottom:8px;">Demand vs Capacity Forecast</h2>
+      <canvas id="forecastChart"></canvas>
+    </div>
+
+    <div id="infoPanel">
+      <p>Hover over a data center hub or grid region for details.</p>
+      <br>
+      <p><strong>Data Sources:</strong> CBRE, EIA, EPRI, NERC, S&P Global, DOE/LBNL, IEA. Figures represent best-available estimates from public reports (2024-2025).</p>
+    </div>
+  </div>
+
+  <div id="mapContainer">
+    <canvas id="mapCanvas"></canvas>
+    <div id="tooltip"></div>
+    <div id="legend">
+      <h3>Legend</h3>
+      <div class="legend-item"><div class="legend-circle" style="width:14px;height:14px;background:#3b82f6"></div> Existing DC Hub</div>
+      <div class="legend-item"><div class="legend-circle" style="width:14px;height:14px;background:#f59e0b;border:2px dashed #f59e0b;background:transparent"></div> Planned / Building</div>
+      <div class="legend-item"><div class="legend-circle" style="width:10px;height:10px;background:#ef4444;opacity:0.6"></div> Demand Stress Zone</div>
+      <div class="legend-item"><div class="legend-rect" style="width:20px;height:10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4)"></div> ISO/RTO Region</div>
+      <div class="legend-item"><div class="legend-rect" style="width:20px;height:3px;background:#a855f7"></div> Transmission Corridor</div>
+    </div>
+    <div id="sources">
+      Sources: <a href="https://www.cbre.com/insights/reports/north-america-data-center-trends-h1-2025">CBRE H1 2025</a> |
+      <a href="https://www.energy.gov/articles/doe-releases-new-report-evaluating-increase-electricity-demand-data-centers">DOE/LBNL</a> |
+      <a href="https://www.nerc.com/globalassets/programs/rapa/ra/nerc_sra_2025.pdf">NERC 2025</a> |
+      <a href="https://www.spglobal.com/energy/en/news-research/latest-news/electric-power/101425-data-center-grid-power-demand-to-rise-22-in-2025-nearly-triple-by-2030">S&P Global</a> |
+      <a href="https://www.utilitydive.com/news/artificial-intelligence-doubles-data-center-demand-2030-EPRI/717467/">EPRI via Utility Dive</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// DATA
+// =============================================
+
+// Data center hubs: [name, lat, lng, currentMW, underConstructionMW, plannedMW2030, operators[], isoRegion, notes]
+const DC_HUBS = [
+  { name: "Northern Virginia (Ashburn)", lat: 39.04, lng: -77.49, currentMW: 3945, underConstMW: 2078, planned2030MW: 9600,
+    operators: ["AWS","Microsoft","Google","Meta","Equinix","Digital Realty","QTS","CoreWeave"],
+    iso: "PJM", vacancy: 0.72, notes: "Largest DC market globally. 80% YoY increase in construction. Expanding to Richmond, Martinsburg WV, Frederick MD." },
+  { name: "Dallas-Fort Worth", lat: 32.90, lng: -96.98, currentMW: 1125, underConstMW: 1800, planned2030MW: 4400,
+    operators: ["AWS","Microsoft","Google","Meta","Flexential","CyrusOne","QTS","DataBank"],
+    iso: "ERCOT", vacancy: 0.8, notes: "Fastest-growing market. Expected to double by 2026. 89% of under-construction preleased." },
+  { name: "Phoenix / Mesa", lat: 33.42, lng: -111.94, currentMW: 1380, underConstMW: 900, planned2030MW: 3500,
+    operators: ["AWS","Microsoft","Google","Meta","Aligned","Stream","CyrusOne"],
+    iso: "WECC-SW", vacancy: 1.7, notes: "Strong growth driven by land availability and power access. Water usage a concern." },
+  { name: "Chicago", lat: 41.88, lng: -87.80, currentMW: 805, underConstMW: 400, planned2030MW: 1800,
+    operators: ["Equinix","Digital Realty","QTS","AWS","Microsoft","Google"],
+    iso: "PJM/MISO", vacancy: 3.1, notes: "Mature market. Power delivery delays driving 15% pricing increase for 10MW+ blocks." },
+  { name: "Silicon Valley / Bay Area", lat: 37.39, lng: -121.97, currentMW: 680, underConstMW: 250, planned2030MW: 1200,
+    operators: ["Equinix","Digital Realty","CoreSite","AWS","Google","Oracle"],
+    iso: "CAISO", vacancy: 2.8, notes: "Land/power constrained. 19% pricing surge. AI infrastructure operators driving demand." },
+  { name: "Atlanta", lat: 33.76, lng: -84.39, currentMW: 1065, underConstMW: 800, planned2030MW: 3200,
+    operators: ["QTS","Switch","Microsoft","Google","AWS","Equinix","Digital Realty"],
+    iso: "SERC", vacancy: 1.2, notes: "Surging demand from hyperscalers. Strong fiber connectivity and power availability." },
+  { name: "Portland / Hillsboro OR", lat: 45.54, lng: -122.93, currentMW: 450, underConstMW: 300, planned2030MW: 1100,
+    operators: ["AWS","Google","Meta","Flexential","Stack"],
+    iso: "WECC-NW", vacancy: 2.1, notes: "Low-cost hydro power. Moderate climate reduces cooling costs." },
+  { name: "Salt Lake City", lat: 40.76, lng: -111.89, currentMW: 280, underConstMW: 200, planned2030MW: 800,
+    operators: ["AWS","Meta","C10","Novva","DataBank"],
+    iso: "WECC-NW", vacancy: 3.5, notes: "Emerging market. Attractive power costs and growing fiber routes." },
+  { name: "New York / New Jersey", lat: 40.74, lng: -74.17, currentMW: 750, underConstMW: 350, planned2030MW: 1400,
+    operators: ["Equinix","Digital Realty","CyrusOne","CoreSite","AWS","Google"],
+    iso: "NYISO/PJM", vacancy: 2.0, notes: "Financial hub. Severe power and land constraints. Premium pricing." },
+  { name: "Des Moines / Iowa", lat: 41.60, lng: -93.61, currentMW: 350, underConstMW: 400, planned2030MW: 1200,
+    operators: ["Meta","Microsoft","Google","AWS","T5"],
+    iso: "MISO", vacancy: 1.5, notes: "Tax incentives, wind power, cold climate. Meta's massive campus." },
+  { name: "Columbus / New Albany OH", lat: 40.08, lng: -82.80, currentMW: 420, underConstMW: 600, planned2030MW: 1800,
+    operators: ["Meta","AWS","Google","Microsoft","QTS","Cologix"],
+    iso: "PJM", vacancy: 1.0, notes: "Meta Prometheus (200MW) coming 2026. Google & AWS expanding. Major fiber crossroads." },
+  { name: "Las Vegas / Reno", lat: 36.17, lng: -115.14, currentMW: 650, underConstMW: 500, planned2030MW: 1800,
+    operators: ["Switch","AWS","Microsoft"],
+    iso: "WECC-SW", vacancy: 1.8, notes: "Switch Citadel campus 650MW. Abundant solar. Strong growth trajectory." },
+  { name: "San Antonio", lat: 29.42, lng: -98.49, currentMW: 380, underConstMW: 300, planned2030MW: 1000,
+    operators: ["Microsoft","Rackspace","CyrusOne","AWS"],
+    iso: "ERCOT", vacancy: 2.5, notes: "Military/government demand. CPS Energy partnership." },
+  { name: "Sacramento", lat: 38.58, lng: -121.49, currentMW: 220, underConstMW: 150, planned2030MW: 600,
+    operators: ["AWS","Equinix","Cyxtera"],
+    iso: "CAISO", vacancy: 3.2, notes: "State government & overflow from Silicon Valley." },
+  { name: "Denver", lat: 39.74, lng: -104.99, currentMW: 300, underConstMW: 200, planned2030MW: 700,
+    operators: ["Flexential","ViaWest","AWS","Google"],
+    iso: "WECC-CO", vacancy: 2.8, notes: "Growing market. Renewable energy access." },
+  { name: "Minneapolis", lat: 44.98, lng: -93.27, currentMW: 180, underConstMW: 100, planned2030MW: 400,
+    operators: ["Cologix","Flexential","AWS"],
+    iso: "MISO", vacancy: 4.0, notes: "Cold climate, low cooling costs." },
+  { name: "Houston", lat: 29.76, lng: -95.37, currentMW: 320, underConstMW: 250, planned2030MW: 900,
+    operators: ["CyrusOne","QTS","AWS","Microsoft"],
+    iso: "ERCOT", vacancy: 2.2, notes: "Energy sector data. Growing cloud presence." },
+  { name: "Seattle / Quincy WA", lat: 47.23, lng: -119.85, currentMW: 500, underConstMW: 350, planned2030MW: 1300,
+    operators: ["Microsoft","AWS","Google","Sabey","Vantage"],
+    iso: "WECC-NW", vacancy: 1.8, notes: "Quincy: cheap hydro. Microsoft's major WA operations." },
+];
+
+// Major planned/announced mega-campuses
+const PLANNED_CAMPUSES = [
+  { name: "Meta Hyperion", lat: 30.46, lng: -91.19, plannedMW: 5000, operator: "Meta", yearOnline: 2028, notes: "Louisiana. 5GW mega-campus. 10 data centers, 1200 acres." },
+  { name: "Microsoft Fairwater", lat: 43.17, lng: -89.25, plannedMW: 2000, operator: "Microsoft", yearOnline: 2026, notes: "Wisconsin. 2GW computing cluster." },
+  { name: "Microsoft Stargate (Abilene)", lat: 32.45, lng: -99.73, plannedMW: 1500, operator: "Microsoft/OpenAI", yearOnline: 2028, notes: "Texas. Joint venture with OpenAI. Up to $100B investment." },
+  { name: "AWS Indiana Campus", lat: 39.77, lng: -86.16, plannedMW: 800, operator: "AWS", yearOnline: 2027, notes: "Indianapolis area. Multiple buildings planned." },
+  { name: "Google Midlothian TX", lat: 32.48, lng: -97.00, plannedMW: 600, operator: "Google", yearOnline: 2026, notes: "Texas expansion. $1B+ investment." },
+  { name: "CoreWeave NJ Campus", lat: 40.22, lng: -74.76, plannedMW: 500, operator: "CoreWeave", yearOnline: 2026, notes: "New Jersey. AI/GPU cloud focused." },
+  { name: "Meta Prometheus OH", lat: 40.08, lng: -82.81, plannedMW: 200, operator: "Meta", yearOnline: 2026, notes: "New Albany, Ohio. 200MW on-site gas generation." },
+  { name: "Microsoft Cheyenne WY", lat: 41.13, lng: -104.82, plannedMW: 300, operator: "Microsoft", yearOnline: 2027, notes: "Wyoming. Wind-powered campus." },
+  { name: "AWS Mississippi", lat: 32.30, lng: -90.18, plannedMW: 700, operator: "AWS", yearOnline: 2027, notes: "Jackson, MS area. $10B investment." },
+  { name: "Google Kansas City", lat: 39.10, lng: -94.58, plannedMW: 400, operator: "Google", yearOnline: 2027, notes: "Kansas City area. Expansion." },
+  { name: "Microsoft Mount Pleasant WI", lat: 42.72, lng: -87.88, plannedMW: 500, operator: "Microsoft", yearOnline: 2027, notes: "SE Wisconsin campus." },
+];
+
+// ISO/RTO regions (simplified polygon outlines as lat/lng arrays)
+const ISO_REGIONS = [
+  { name: "PJM", color: "#10b981", capacity_GW: 183, peakDemand_GW: 150, reserveMargin: 27, targetReserve: 17.7,
+    dcLoad2025_GW: 8.5, dcLoad2030_GW: 18,
+    notes: "Covers 13 states + DC. Largest US grid operator. Northern Virginia hub straining interconnection queues.",
+    path: [[42.5,-80.5],[42.0,-79.0],[41.5,-77.0],[40.5,-74.0],[39.5,-74.5],[38.5,-75.5],[37.0,-76.5],[36.5,-79.0],[37.0,-81.5],[38.0,-82.5],[39.5,-84.5],[40.5,-84.5],[41.5,-83.5],[42.5,-80.5]] },
+  { name: "ERCOT", color: "#f59e0b", capacity_GW: 140, peakDemand_GW: 85, reserveMargin: 20, targetReserve: 13.75,
+    dcLoad2025_GW: 3.5, dcLoad2030_GW: 10,
+    notes: "Texas-only grid. Peak demand projected to reach 139GW by 2030 due to data center and crypto loads.",
+    path: [[34.0,-100.5],[34.0,-97.0],[33.5,-94.5],[31.0,-94.0],[29.5,-94.5],[28.0,-97.0],[26.5,-97.5],[26.0,-98.5],[29.5,-103.0],[31.5,-104.5],[32.0,-104.0],[33.0,-103.0],[34.0,-100.5]] },
+  { name: "CAISO", color: "#8b5cf6", capacity_GW: 80, peakDemand_GW: 52, reserveMargin: 22, targetReserve: 15,
+    dcLoad2025_GW: 1.5, dcLoad2030_GW: 3.5,
+    notes: "California. Aggressive renewable mandates. Power-constrained for new DC development.",
+    path: [[42.0,-124.5],[42.0,-120.0],[39.0,-120.0],[35.5,-117.5],[34.0,-118.0],[32.5,-117.0],[32.5,-120.0],[34.5,-121.0],[37.0,-122.5],[40.0,-124.5],[42.0,-124.5]] },
+  { name: "MISO", color: "#06b6d4", capacity_GW: 170, peakDemand_GW: 127, reserveMargin: 24.7, targetReserve: 15,
+    dcLoad2025_GW: 1.5, dcLoad2030_GW: 4,
+    notes: "Midwest/South. Margins could drop to -1.9% under extreme conditions. Wind-rich but transmission constrained.",
+    path: [[49.0,-97.0],[48.5,-92.0],[46.5,-90.0],[44.0,-87.0],[41.5,-87.5],[39.5,-87.0],[37.0,-89.0],[35.0,-90.0],[31.0,-91.5],[29.5,-91.0],[29.5,-93.5],[33.0,-94.5],[34.0,-94.5],[36.5,-94.5],[40.0,-95.5],[43.0,-96.5],[46.0,-97.0],[49.0,-97.0]] },
+  { name: "SPP", color: "#ec4899", capacity_GW: 89, peakDemand_GW: 54, reserveMargin: 28.5, targetReserve: 15,
+    dcLoad2025_GW: 0.3, dcLoad2030_GW: 1,
+    notes: "Central plains. Elevated risk during heat events when wind is low. Growing interest from DCs.",
+    path: [[43.0,-96.5],[40.0,-95.5],[36.5,-94.5],[35.5,-94.5],[34.0,-97.0],[34.0,-100.5],[36.5,-103.0],[37.0,-102.0],[41.0,-102.0],[43.0,-98.0],[43.0,-96.5]] },
+  { name: "ISO-NE", color: "#14b8a6", capacity_GW: 31, peakDemand_GW: 25, reserveMargin: 16, targetReserve: 15,
+    dcLoad2025_GW: 0.5, dcLoad2030_GW: 1.2,
+    notes: "New England. Net margin of -1,473 MW under peak scenarios. Resource retirements a concern.",
+    path: [[45.0,-71.5],[44.5,-67.0],[43.0,-70.0],[42.0,-70.0],[41.0,-71.5],[41.5,-73.0],[42.5,-73.5],[44.0,-72.5],[45.0,-71.5]] },
+  { name: "NYISO", color: "#6366f1", capacity_GW: 38, peakDemand_GW: 33, reserveMargin: 20, targetReserve: 15,
+    dcLoad2025_GW: 1.0, dcLoad2030_GW: 2.5,
+    notes: "New York. Congested downstate. High prices constrain DC growth but financial sector drives demand.",
+    path: [[45.0,-75.0],[44.5,-73.5],[42.5,-73.5],[41.0,-73.5],[40.5,-74.0],[40.5,-72.0],[41.0,-72.0],[42.0,-79.0],[42.5,-80.0],[43.5,-79.0],[44.0,-76.0],[45.0,-75.0]] },
+  { name: "SERC (South)", color: "#22c55e", capacity_GW: 240, peakDemand_GW: 190, reserveMargin: 18, targetReserve: 15,
+    dcLoad2025_GW: 2.0, dcLoad2030_GW: 6,
+    notes: "Southeast reliability region. Atlanta hub growing fast. Utility-scale generation additions planned.",
+    path: [[36.5,-79.0],[36.5,-84.0],[35.0,-90.0],[31.0,-91.5],[29.5,-89.5],[30.0,-85.0],[31.0,-81.5],[33.0,-79.0],[35.0,-76.0],[36.5,-76.5],[36.5,-79.0]] },
+];
+
+// National forecast data: [year, dcDemand_GW (mid estimate), gridCapacity_GW, dcDemand_TWh]
+const FORECAST = [
+  { year: 2025, dcGW_low: 21, dcGW_mid: 28, dcGW_high: 38, gridGW: 1290, dcTWh_mid: 210 },
+  { year: 2026, dcGW_low: 26, dcGW_mid: 38, dcGW_high: 52, gridGW: 1310, dcTWh_mid: 270 },
+  { year: 2027, dcGW_low: 32, dcGW_mid: 50, dcGW_high: 72, gridGW: 1330, dcTWh_mid: 340 },
+  { year: 2028, dcGW_low: 38, dcGW_mid: 62, dcGW_high: 95, gridGW: 1350, dcTWh_mid: 420 },
+  { year: 2029, dcGW_low: 44, dcGW_mid: 74, dcGW_high: 115, gridGW: 1370, dcTWh_mid: 490 },
+  { year: 2030, dcGW_low: 50, dcGW_mid: 85, dcGW_high: 134, gridGW: 1390, dcTWh_mid: 550 },
+];
+
+// Transmission corridors (simplified)
+const TRANSMISSION = [
+  { from: [39.04,-77.49], to: [40.08,-82.80], label: "VA → OH Corridor" },
+  { from: [39.04,-77.49], to: [40.74,-74.17], label: "VA → NJ Corridor" },
+  { from: [32.90,-96.98], to: [29.42,-98.49], label: "DFW → SA" },
+  { from: [32.90,-96.98], to: [29.76,-95.37], label: "DFW → Houston" },
+  { from: [41.88,-87.80], to: [41.60,-93.61], label: "Chicago → Iowa" },
+  { from: [40.08,-82.80], to: [41.88,-87.80], label: "OH → Chicago" },
+  { from: [33.76,-84.39], to: [36.5,-79.0], label: "Atlanta → Virginia" },
+  { from: [47.23,-119.85], to: [45.54,-122.93], label: "Quincy → Portland" },
+  { from: [37.39,-121.97], to: [38.58,-121.49], label: "SV → Sacramento" },
+];
+
+// =============================================
+// MAP RENDERING
+// =============================================
+
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+let W, H, offsetX, offsetY, scale;
+let currentYear = 2025;
+let hoveredHub = null;
+let hoveredRegion = null;
+let animFrame = 0;
+
+// Albers USA-like projection (simplified Mercator crop)
+function project(lat, lng) {
+  // Simple equirectangular with scaling for continental US
+  const centerLat = 39.5, centerLng = -98.5;
+  const sx = scale * 14;
+  const sy = scale * 18;
+  const x = (lng - centerLng) * sx * Math.cos(centerLat * Math.PI / 180) + W / 2 + offsetX;
+  const y = -(lat - centerLat) * sy + H / 2 + offsetY;
+  return [x, y];
+}
+
+function resize() {
+  const container = document.getElementById('mapContainer');
+  W = container.clientWidth;
+  H = container.clientHeight;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+  scale = Math.min(W / 900, H / 550) * 0.95;
+  offsetX = 0;
+  offsetY = 10;
+}
+
+// US outline (simplified)
+const US_OUTLINE = [
+  [49.0,-124.7],[48.5,-123.0],[48.0,-122.5],[47.0,-124.5],[46.0,-124.0],[43.0,-124.5],[42.0,-124.5],
+  [39.0,-123.5],[37.0,-122.5],[34.5,-121.0],[34.0,-118.5],[32.5,-117.2],[32.5,-114.7],[31.5,-111.0],
+  [31.5,-108.0],[31.5,-106.5],[29.5,-103.0],[28.0,-97.0],[26.0,-97.5],[25.8,-97.2],[27.0,-97.5],
+  [28.5,-96.0],[29.0,-95.0],[29.5,-94.5],[29.5,-89.5],[30.0,-88.0],[30.5,-87.5],[30.0,-85.5],
+  [29.5,-85.0],[30.0,-84.5],[30.5,-82.0],[31.0,-81.5],[32.0,-80.8],[33.0,-79.0],[34.0,-77.5],
+  [35.0,-75.5],[36.5,-76.0],[37.0,-76.0],[37.5,-76.0],[38.5,-75.0],[39.0,-74.5],[39.5,-74.0],
+  [40.5,-74.0],[40.7,-73.7],[41.0,-72.0],[41.5,-71.8],[42.0,-70.0],[43.0,-70.0],[43.5,-70.0],
+  [44.0,-68.0],[45.0,-67.0],[47.0,-67.8],[47.5,-69.0],[45.0,-71.5],[45.0,-74.5],[44.0,-76.0],
+  [43.5,-79.0],[42.5,-79.5],[42.0,-80.5],[42.0,-83.0],[43.0,-84.5],[45.5,-84.5],[46.0,-84.0],
+  [46.5,-85.0],[47.0,-87.0],[46.5,-90.5],[47.0,-91.5],[48.0,-89.5],[48.5,-88.0],[47.5,-87.0],
+  [44.5,-87.0],[43.5,-87.5],[42.5,-87.5],[42.0,-87.5],[43.0,-87.5],[44.0,-87.0],[45.0,-87.5],
+  [46.0,-87.0],[46.5,-90.5],[47.0,-92.0],[48.5,-92.0],[49.0,-95.0],[49.0,-97.0],[49.0,-104.0],
+  [49.0,-117.0],[49.0,-123.0],[49.0,-124.7],
+];
+
+function drawUSOutline() {
+  ctx.beginPath();
+  US_OUTLINE.forEach(([lat, lng], i) => {
+    const [x, y] = project(lat, lng);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = '#0f1729';
+  ctx.fill();
+  ctx.strokeStyle = '#1e3a5f';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawISORegions() {
+  if (!document.getElementById('layerGrid').checked) return;
+  const yearIdx = currentYear - 2025;
+
+  ISO_REGIONS.forEach(region => {
+    ctx.beginPath();
+    region.path.forEach(([lat, lng], i) => {
+      const [x, y] = project(lat, lng);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+
+    const isHovered = hoveredRegion === region;
+    ctx.fillStyle = isHovered ? region.color + '30' : region.color + '10';
+    ctx.fill();
+    ctx.strokeStyle = isHovered ? region.color + 'cc' : region.color + '55';
+    ctx.lineWidth = isHovered ? 2 : 1;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label
+    const center = region.path.reduce((acc, [lat, lng]) => [acc[0]+lat/region.path.length, acc[1]+lng/region.path.length], [0,0]);
+    const [cx, cy] = project(center[0], center[1]);
+    ctx.font = `bold ${11 * scale}px sans-serif`;
+    ctx.fillStyle = region.color + 'aa';
+    ctx.textAlign = 'center';
+    ctx.fillText(region.name, cx, cy);
+  });
+}
+
+function drawDemandHeatmap() {
+  if (!document.getElementById('layerHeatmap').checked) return;
+  const yearIdx = currentYear - 2025;
+  const growthFactor = 1 + yearIdx * 0.25;
+
+  DC_HUBS.forEach(hub => {
+    const [x, y] = project(hub.lat, hub.lng);
+    const power = hub.currentMW + (hub.planned2030MW - hub.currentMW) * (yearIdx / 5);
+    const stress = power / 2000; // normalize
+    const radius = Math.max(20, stress * 60 * scale) * growthFactor * 0.6;
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    const alpha = Math.min(0.4, stress * 0.2 * growthFactor);
+    grad.addColorStop(0, `rgba(239,68,68,${alpha})`);
+    grad.addColorStop(0.5, `rgba(239,68,68,${alpha * 0.4})`);
+    grad.addColorStop(1, 'rgba(239,68,68,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawTransmission() {
+  if (!document.getElementById('layerTransmission').checked) return;
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 1.5;
+  TRANSMISSION.forEach(t => {
+    const [x1, y1] = project(t.from[0], t.from[1]);
+    const [x2, y2] = project(t.to[0], t.to[1]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+}
+
+function drawHubs() {
+  if (!document.getElementById('layerHubs').checked) return;
+  const yearIdx = currentYear - 2025;
+
+  DC_HUBS.forEach(hub => {
+    const [x, y] = project(hub.lat, hub.lng);
+    const power = hub.currentMW + (hub.planned2030MW - hub.currentMW) * (yearIdx / 5);
+    const r = Math.max(5, Math.sqrt(power / 50) * scale * 1.2);
+    const isHovered = hoveredHub === hub;
+
+    // Glow
+    if (isHovered) {
+      const glow = ctx.createRadialGradient(x, y, r, x, y, r * 3);
+      glow.addColorStop(0, 'rgba(59,130,246,0.3)');
+      glow.addColorStop(1, 'rgba(59,130,246,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Pulse ring
+    const pulseR = r + Math.sin(animFrame * 0.03 + hub.lat) * 3;
+    ctx.beginPath();
+    ctx.arc(x, y, pulseR + 4, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(59,130,246,${0.2 + Math.sin(animFrame * 0.03 + hub.lat) * 0.1})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Main circle
+    const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, 0, x, y, r);
+    grad.addColorStop(0, isHovered ? '#93c5fd' : '#60a5fa');
+    grad.addColorStop(1, isHovered ? '#3b82f6' : '#1d4ed8');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = isHovered ? '#fff' : '#60a5fa';
+    ctx.lineWidth = isHovered ? 2 : 1;
+    ctx.stroke();
+
+    // Label
+    if (r > 8 || isHovered) {
+      ctx.font = `${isHovered ? 'bold ' : ''}${Math.max(9, 10 * scale)}px sans-serif`;
+      ctx.fillStyle = isHovered ? '#fff' : '#94a3b8';
+      ctx.textAlign = 'center';
+      const label = hub.name.split('/')[0].split('(')[0].trim();
+      ctx.fillText(label, x, y - r - 6);
+
+      // MW label
+      ctx.font = `bold ${Math.max(8, 9 * scale)}px sans-serif`;
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillText(Math.round(power) + ' MW', x, y + r + 12);
+    }
+  });
+}
+
+function drawPlannedCampuses() {
+  if (!document.getElementById('layerPlanned').checked) return;
+  const yearIdx = currentYear - 2025;
+
+  PLANNED_CAMPUSES.forEach(campus => {
+    if (campus.yearOnline > currentYear + 1) {
+      // Show as planned (dashed)
+      const [x, y] = project(campus.lat, campus.lng);
+      const r = Math.max(5, Math.sqrt(campus.plannedMW / 100) * scale * 1.2);
+
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Inner dot
+      ctx.fillStyle = 'rgba(245,158,11,0.3)';
+      ctx.fill();
+
+      // Label
+      ctx.font = `${Math.max(8, 9 * scale)}px sans-serif`;
+      ctx.fillStyle = '#f59e0b';
+      ctx.textAlign = 'center';
+      ctx.fillText(campus.name, x, y - r - 5);
+      ctx.fillText(campus.plannedMW + ' MW (' + campus.yearOnline + ')', x, y + r + 10);
+    } else {
+      // Show as coming online (solid amber)
+      const [x, y] = project(campus.lat, campus.lng);
+      const r = Math.max(5, Math.sqrt(campus.plannedMW / 100) * scale * 1.0);
+      ctx.fillStyle = 'rgba(245,158,11,0.6)';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  });
+}
+
+function updateStats() {
+  const yearIdx = currentYear - 2025;
+  const fc = FORECAST[yearIdx];
+
+  document.getElementById('statDCPower').textContent = fc.dcGW_low + '–' + fc.dcGW_high;
+  document.getElementById('statGridCap').textContent = '~' + fc.gridGW.toLocaleString();
+  const pctLow = (fc.dcGW_low / fc.gridGW * 100).toFixed(1);
+  const pctHigh = (fc.dcGW_high / fc.gridGW * 100).toFixed(1);
+  document.getElementById('statPctGrid').textContent = pctLow + '–' + pctHigh + '%';
+
+  // Average reserve margin (weighted rough)
+  const avgReserve = Math.max(5, 22 - yearIdx * 2.5);
+  document.getElementById('statReserve').textContent = avgReserve.toFixed(0) + '%';
+  const card = document.getElementById('statReserveCard');
+  card.className = 'stat-card ' + (avgReserve > 15 ? 'ok' : avgReserve > 10 ? 'warn' : 'danger');
+}
+
+// =============================================
+// FORECAST CHART
+// =============================================
+
+function drawForecastChart() {
+  const chartCanvas = document.getElementById('forecastChart');
+  const cctx = chartCanvas.getContext('2d');
+  const cw = chartCanvas.parentElement.clientWidth - 32;
+  const ch = 180;
+  chartCanvas.width = cw * devicePixelRatio;
+  chartCanvas.height = ch * devicePixelRatio;
+  chartCanvas.style.width = cw + 'px';
+  chartCanvas.style.height = ch + 'px';
+  cctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+  const pad = { top: 20, right: 10, bottom: 30, left: 40 };
+  const pw = cw - pad.left - pad.right;
+  const ph = ch - pad.top - pad.bottom;
+
+  cctx.clearRect(0, 0, cw, ch);
+
+  const maxGW = 160;
+  const gridCapScale = 1400; // for right axis
+
+  // Grid lines
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ph / 4) * i;
+    cctx.beginPath();
+    cctx.moveTo(pad.left, y);
+    cctx.lineTo(pad.left + pw, y);
+    cctx.strokeStyle = '#1e293b';
+    cctx.lineWidth = 1;
+    cctx.stroke();
+
+    cctx.font = '10px sans-serif';
+    cctx.fillStyle = '#64748b';
+    cctx.textAlign = 'right';
+    cctx.fillText(Math.round(maxGW - (maxGW/4)*i) + ' GW', pad.left - 4, y + 4);
+  }
+
+  // X axis labels
+  FORECAST.forEach((fc, i) => {
+    const x = pad.left + (pw / (FORECAST.length - 1)) * i;
+    cctx.font = '10px sans-serif';
+    cctx.fillStyle = fc.year === currentYear ? '#3b82f6' : '#64748b';
+    cctx.textAlign = 'center';
+    cctx.fillText(fc.year, x, ch - 8);
+
+    // Current year marker
+    if (fc.year === currentYear) {
+      cctx.beginPath();
+      cctx.moveTo(x, pad.top);
+      cctx.lineTo(x, pad.top + ph);
+      cctx.strokeStyle = '#3b82f644';
+      cctx.lineWidth = 2;
+      cctx.stroke();
+    }
+  });
+
+  function yPos(gw) { return pad.top + ph * (1 - gw / maxGW); }
+  function xPos(i) { return pad.left + (pw / (FORECAST.length - 1)) * i; }
+
+  // High range band
+  cctx.beginPath();
+  FORECAST.forEach((fc, i) => { const x = xPos(i); i === 0 ? cctx.moveTo(x, yPos(fc.dcGW_high)) : cctx.lineTo(x, yPos(fc.dcGW_high)); });
+  for (let i = FORECAST.length - 1; i >= 0; i--) { cctx.lineTo(xPos(i), yPos(FORECAST[i].dcGW_low)); }
+  cctx.closePath();
+  cctx.fillStyle = 'rgba(59,130,246,0.1)';
+  cctx.fill();
+
+  // High line
+  cctx.beginPath();
+  FORECAST.forEach((fc, i) => { const x = xPos(i); i === 0 ? cctx.moveTo(x, yPos(fc.dcGW_high)) : cctx.lineTo(x, yPos(fc.dcGW_high)); });
+  cctx.strokeStyle = '#ef4444aa';
+  cctx.lineWidth = 1.5;
+  cctx.setLineDash([4, 3]);
+  cctx.stroke();
+  cctx.setLineDash([]);
+
+  // Low line
+  cctx.beginPath();
+  FORECAST.forEach((fc, i) => { const x = xPos(i); i === 0 ? cctx.moveTo(x, yPos(fc.dcGW_low)) : cctx.lineTo(x, yPos(fc.dcGW_low)); });
+  cctx.strokeStyle = '#10b981aa';
+  cctx.lineWidth = 1.5;
+  cctx.setLineDash([4, 3]);
+  cctx.stroke();
+  cctx.setLineDash([]);
+
+  // Mid line (primary)
+  cctx.beginPath();
+  FORECAST.forEach((fc, i) => { const x = xPos(i); i === 0 ? cctx.moveTo(x, yPos(fc.dcGW_mid)) : cctx.lineTo(x, yPos(fc.dcGW_mid)); });
+  cctx.strokeStyle = '#3b82f6';
+  cctx.lineWidth = 2.5;
+  cctx.stroke();
+
+  // Dots
+  FORECAST.forEach((fc, i) => {
+    const x = xPos(i);
+    cctx.fillStyle = fc.year === currentYear ? '#fff' : '#3b82f6';
+    cctx.beginPath();
+    cctx.arc(x, yPos(fc.dcGW_mid), fc.year === currentYear ? 4 : 3, 0, Math.PI * 2);
+    cctx.fill();
+  });
+
+  // Labels
+  cctx.font = 'bold 9px sans-serif';
+  cctx.textAlign = 'left';
+  cctx.fillStyle = '#ef4444';
+  cctx.fillText('High (S&P)', xPos(5) + 4, yPos(FORECAST[5].dcGW_high) + 3);
+  cctx.fillStyle = '#3b82f6';
+  cctx.fillText('Mid (FERC/DOE)', xPos(5) + 4, yPos(FORECAST[5].dcGW_mid) + 3);
+  cctx.fillStyle = '#10b981';
+  cctx.fillText('Low (FERC)', xPos(5) + 4, yPos(FORECAST[5].dcGW_low) + 3);
+
+  // Title
+  cctx.font = '10px sans-serif';
+  cctx.fillStyle = '#94a3b8';
+  cctx.textAlign = 'left';
+  cctx.fillText('DC Power Demand (GW)', pad.left, pad.top - 6);
+}
+
+// =============================================
+// INTERACTION
+// =============================================
+
+function getHubAt(mx, my) {
+  for (const hub of DC_HUBS) {
+    const [x, y] = project(hub.lat, hub.lng);
+    const power = hub.currentMW + (hub.planned2030MW - hub.currentMW) * ((currentYear - 2025) / 5);
+    const r = Math.max(8, Math.sqrt(power / 50) * scale * 1.2) + 5;
+    if (Math.hypot(mx - x, my - y) < r) return hub;
+  }
+  return null;
+}
+
+function getRegionAt(mx, my) {
+  // Simple point-in-polygon
+  for (const region of ISO_REGIONS) {
+    const pts = region.path.map(([lat, lng]) => project(lat, lng));
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i], [xj, yj] = pts[j];
+      if ((yi > my) !== (yj > my) && mx < (xj - xi) * (my - yi) / (yj - yi) + xi) {
+        inside = !inside;
+      }
+    }
+    if (inside) return region;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  hoveredHub = getHubAt(mx, my);
+  hoveredRegion = hoveredHub ? null : getRegionAt(mx, my);
+
+  if (hoveredHub) {
+    const hub = hoveredHub;
+    const yearIdx = currentYear - 2025;
+    const power = hub.currentMW + (hub.planned2030MW - hub.currentMW) * (yearIdx / 5);
+    tooltip.innerHTML = `
+      <div class="tt-title">${hub.name}</div>
+      <div class="tt-row"><span class="tt-label">Current Capacity</span><span class="tt-val">${hub.currentMW.toLocaleString()} MW</span></div>
+      <div class="tt-row"><span class="tt-label">Under Construction</span><span class="tt-val">${hub.underConstMW.toLocaleString()} MW</span></div>
+      <div class="tt-row"><span class="tt-label">${currentYear} Projected</span><span class="tt-val">${Math.round(power).toLocaleString()} MW</span></div>
+      <div class="tt-row"><span class="tt-label">2030 Planned</span><span class="tt-val">${hub.planned2030MW.toLocaleString()} MW</span></div>
+      <div class="tt-row"><span class="tt-label">Vacancy</span><span class="tt-val">${hub.vacancy}%</span></div>
+      <div class="tt-row"><span class="tt-label">ISO Region</span><span class="tt-val">${hub.iso}</span></div>
+      <div style="margin-top:6px;color:#94a3b8;font-size:11px">${hub.operators.slice(0,5).join(', ')}</div>
+      <div style="margin-top:4px;color:#64748b;font-size:10px;font-style:italic">${hub.notes}</div>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = Math.min(e.clientX - 380 + 15, W - 300) + 'px';
+    tooltip.style.top = (e.clientY + 15) + 'px';
+  } else if (hoveredRegion) {
+    const r = hoveredRegion;
+    const yearIdx = currentYear - 2025;
+    const dcLoad = r.dcLoad2025_GW + (r.dcLoad2030_GW - r.dcLoad2025_GW) * (yearIdx / 5);
+    const effectiveReserve = r.reserveMargin - (yearIdx * 2);
+    tooltip.innerHTML = `
+      <div class="tt-title">${r.name} Region</div>
+      <div class="tt-row"><span class="tt-label">Installed Capacity</span><span class="tt-val">${r.capacity_GW} GW</span></div>
+      <div class="tt-row"><span class="tt-label">Peak Demand</span><span class="tt-val">${r.peakDemand_GW} GW</span></div>
+      <div class="tt-row"><span class="tt-label">Reserve Margin</span><span class="tt-val" style="color:${effectiveReserve > 15 ? '#10b981' : effectiveReserve > 10 ? '#f59e0b' : '#ef4444'}">${effectiveReserve.toFixed(1)}%</span></div>
+      <div class="tt-row"><span class="tt-label">Target Reserve</span><span class="tt-val">${r.targetReserve}%</span></div>
+      <div class="tt-row"><span class="tt-label">DC Load (${currentYear})</span><span class="tt-val">${dcLoad.toFixed(1)} GW</span></div>
+      <div class="tt-row"><span class="tt-label">DC Load (2030)</span><span class="tt-val">${r.dcLoad2030_GW} GW</span></div>
+      <div style="margin-top:4px;color:#64748b;font-size:10px;font-style:italic">${r.notes}</div>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = Math.min(e.clientX - 380 + 15, W - 300) + 'px';
+    tooltip.style.top = (e.clientY + 15) + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+
+  // Update info panel
+  const info = document.getElementById('infoPanel');
+  if (hoveredHub) {
+    const hub = hoveredHub;
+    const yearIdx = currentYear - 2025;
+    const power = hub.currentMW + (hub.planned2030MW - hub.currentMW) * (yearIdx / 5);
+    info.innerHTML = `
+      <div class="hub-name">${hub.name}</div>
+      <div class="hub-stat"><strong>Operators:</strong> ${hub.operators.join(', ')}</div>
+      <div class="hub-stat"><strong>${currentYear} Capacity:</strong> ${Math.round(power).toLocaleString()} MW</div>
+      <div class="hub-stat"><strong>Under Construction:</strong> ${hub.underConstMW.toLocaleString()} MW</div>
+      <div class="hub-stat"><strong>Vacancy:</strong> ${hub.vacancy}%</div>
+      <div class="hub-stat"><strong>Notes:</strong> ${hub.notes}</div>
+    `;
+  } else if (hoveredRegion) {
+    const r = hoveredRegion;
+    info.innerHTML = `
+      <div class="hub-name">${r.name} Grid Region</div>
+      <div class="hub-stat"><strong>Capacity:</strong> ${r.capacity_GW} GW installed</div>
+      <div class="hub-stat"><strong>Peak Demand:</strong> ${r.peakDemand_GW} GW</div>
+      <div class="hub-stat"><strong>Reserve Margin:</strong> ${r.reserveMargin}% (target: ${r.targetReserve}%)</div>
+      <div class="hub-stat"><strong>DC Load 2025:</strong> ${r.dcLoad2025_GW} GW</div>
+      <div class="hub-stat"><strong>DC Load 2030:</strong> ${r.dcLoad2030_GW} GW</div>
+      <div class="hub-stat"><strong>Notes:</strong> ${r.notes}</div>
+    `;
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredHub = null;
+  hoveredRegion = null;
+  tooltip.style.display = 'none';
+});
+
+// Year slider
+document.getElementById('yearSlider').addEventListener('input', (e) => {
+  currentYear = parseInt(e.target.value);
+  document.getElementById('yearLabel').textContent = currentYear;
+  updateStats();
+  drawForecastChart();
+});
+
+// Layer toggles
+['layerHubs','layerPlanned','layerGrid','layerHeatmap','layerTransmission'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {});
+});
+
+// =============================================
+// RENDER LOOP
+// =============================================
+
+function render() {
+  animFrame++;
+  ctx.clearRect(0, 0, W, H);
+
+  drawUSOutline();
+  drawISORegions();
+  drawDemandHeatmap();
+  drawTransmission();
+  drawPlannedCampuses();
+  drawHubs();
+
+  requestAnimationFrame(render);
+}
+
+// Init
+window.addEventListener('resize', () => { resize(); drawForecastChart(); });
+resize();
+updateStats();
+drawForecastChart();
+render();
+</script>
+</body>
+</html>
