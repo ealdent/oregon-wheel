@@ -56,7 +56,7 @@ const WAVE_COMPLETE_BONUS = 2500;
 
 // Two-tier terrain layout
 const CITY_ZONE_TOP = 530;        // Above this = turret zone, below = city zone
-const LOWER_TERRAIN_Y = 565;      // City foreground baseline
+const LOWER_TERRAIN_Y = 580;      // City foreground baseline (lowered & flattened)
 
 // Enemy Stats (HP values)
 const HP_NORMAL = 10;
@@ -1622,9 +1622,9 @@ const App = () => {
     const upperPoints = [];
     for (let i = 0; i <= segments; i++) {
         const x = i * segmentWidth;
-        const base = 480;
+        const base = 460;
         const y = base - Math.sin(i * 0.15) * 50 - Math.cos(i * 0.08) * 35 + (Math.random() - 0.5) * 12;
-        upperPoints.push({ x, y: Math.max(380, Math.min(550, y)) });
+        upperPoints.push({ x, y: Math.max(340, Math.min(520, y)) });
     }
     // Post-process: create plateaus by flattening local minima (highest elevation = lowest y)
     for (let i = 2; i < upperPoints.length - 2; i++) {
@@ -1645,30 +1645,20 @@ const App = () => {
         }
     }
 
-    // === Lower terrain (city zone): very flat with gentle undulation ===
+    // === Lower terrain (city zone): very flat ground plane ===
     const lowerPoints = [];
     const citySlots = [];
-    const padding = 60;
-    const availableWidth = GAME_WIDTH - (padding * 2);
-    const spacing = availableWidth / (numCities - 1 || 1);
+    // Place cities at 1/3 and 2/3 (or evenly spaced for other counts)
     for (let i = 0; i < numCities; i++) {
-        const jitter = numCities > 1 ? (Math.random() - 0.5) * 40 : 0;
-        let cx = padding + (i * spacing) + jitter;
-        cx = Math.max(50, Math.min(GAME_WIDTH - 50, cx));
+        const cx = GAME_WIDTH * ((i + 1) / (numCities + 1));
         citySlots.push({ x: cx, w: 40 });
     }
     for (let i = 0; i <= segments; i++) {
         const x = i * segmentWidth;
-        let distToCity = Infinity;
-        citySlots.forEach(slot => {
-            const d = Math.abs(x - slot.x);
-            if (d < distToCity) distToCity = d;
-        });
-        // Flatten near city positions, gentle undulation elsewhere
-        const undulation = Math.sin(i * 0.12) * 5 + Math.cos(i * 0.25) * 3 + (Math.random() - 0.5) * 2;
-        const flattenFactor = distToCity < 40 ? 0 : Math.min(1, (distToCity - 40) / 60);
-        const y = LOWER_TERRAIN_Y + undulation * flattenFactor;
-        lowerPoints.push({ x, y: Math.max(LOWER_TERRAIN_Y - 20, Math.min(LOWER_TERRAIN_Y + 20, y)) });
+        // Very flat terrain with minimal undulation
+        const undulation = Math.sin(i * 0.12) * 2 + (Math.random() - 0.5) * 1;
+        const y = LOWER_TERRAIN_Y + undulation;
+        lowerPoints.push({ x, y: Math.max(LOWER_TERRAIN_Y - 5, Math.min(LOWER_TERRAIN_Y + 5, y)) });
     }
 
     // Store both terrain arrays
@@ -2026,23 +2016,23 @@ const App = () => {
               const cfg = TIER_CONFIG[Math.min(tier, 5)];
               const isMetropolis = c.buildings.length > 15 || gl > 15;
 
-              // Building growth: faster drift, metropolis vertical acceleration
-              const driftRate = 1.0 + tier * 0.3 + gl * 0.1;
+              // Building growth: strong horizontal sprawl, slower vertical
+              const driftRate = 1.5 + tier * 0.4 + gl * 0.15;
               const grownBuildings = c.buildings.map(b => {
                   const tall = isMetropolis && b.h > 30;
                   return {
                       ...b,
-                      h: b.h * (tall ? 1.08 : 1.04),
-                      w: b.w * (isMetropolis ? 1.01 : 1.02),
+                      h: b.h * (tall ? 1.04 : 1.015),
+                      w: b.w * 1.03,
                       xOffset: isMetropolis
-                          ? b.xOffset * 0.998 // densify inward
+                          ? b.xOffset * 0.999 // slight densification
                           : b.xOffset + (b.xOffset > 0 ? driftRate : -driftRate)
                   };
               });
 
-              // Every 2 growth levels: spawn 1-2 suburban buildings at city edges
-              if (gl % 2 === 0 && !isMetropolis) {
-                  const suburbCount = 1 + (gl >= 10 ? 1 : 0);
+              // Every wave: spawn 1-3 suburban buildings at city edges
+              if (!isMetropolis) {
+                  const suburbCount = 1 + (gl >= 5 ? 1 : 0) + (gl >= 12 ? 1 : 0);
                   const currentMaxOffset = Math.max(...grownBuildings.map(b => Math.abs(b.xOffset)), cfg.spread);
                   for (let s = 0; s < suburbCount; s++) {
                       const side = Math.random() > 0.5 ? 1 : -1;
@@ -2082,7 +2072,7 @@ const App = () => {
                   }
                   grownBuildings.push({
                       w: bw, h: bh,
-                      xOffset: (Math.random() - 0.5) * (cfg.spread + gl * 2),
+                      xOffset: (Math.random() - 0.5) * (cfg.spread + gl * 3),
                       style, windows,
                       hasAntenna: bh > 20 && Math.random() < cfg.antennaChance,
                       damage: 0
@@ -2903,8 +2893,8 @@ const App = () => {
         if (!c.active) return max;
         return c.buildings.reduce((m, b) => Math.max(m, (b.damage || 0) < 0.8 ? b.h : 0), max);
     }, 0);
-    const cityZoneHeight = GAME_HEIGHT - CITY_ZONE_TOP; // ~70px available
-    const maxAllowed = cityZoneHeight * 0.85; // buildings shouldn't exceed 85% of city zone
+    const cityZoneHeight = LOWER_TERRAIN_Y - CITY_ZONE_TOP + 20; // allow slight turret overlap
+    const maxAllowed = cityZoneHeight * 0.95;
     const fgScale = maxBuildingH > maxAllowed ? maxAllowed / maxBuildingH : 1.0;
 
     if (fgScale < 1.0) {
