@@ -2269,6 +2269,30 @@ const App = () => {
                 }
             }
 
+            // SWARM turrets prefer high-value targets
+            if (!target && turret.type === 'SWARM') {
+                let bestPriority = -1;
+                let bestDist = turret.stats.range;
+                const swarmPriority = (t) => {
+                    if (t.type === 'BOSS_SHIP') return 4;
+                    if (t.type === 'BOSS') return 3;
+                    if (t.type === 'BOMBER') return 2;
+                    if (t.type === 'ARMORED') return 1;
+                    return 0;
+                };
+                allTargets.forEach(m => {
+                    if (!m.active) return;
+                    let d = distance(turret.x, turret.y, m.x, m.y);
+                    if (d >= turret.stats.range) return;
+                    const pri = swarmPriority(m);
+                    if (pri > bestPriority || (pri === bestPriority && d < bestDist)) {
+                        bestPriority = pri;
+                        bestDist = d;
+                        target = m;
+                    }
+                });
+            }
+
             if (!target) {
                 allTargets.forEach(m => {
                     if (!m.active) return;
@@ -3262,8 +3286,33 @@ const App = () => {
                 }
 
                 // Homing: turn toward target at 0.08 rad/frame
-                const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
-                if (target && target.active) {
+                let target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId && e.active);
+                // Retarget if original target is dead — prefer high-value nearby enemies
+                if (!target) {
+                    const retargetRange = 200;
+                    let bestPriority = -1;
+                    let bestDist = retargetRange;
+                    const swarmPriority = (t) => {
+                        if (t.type === 'BOSS_SHIP') return 4;
+                        if (t.type === 'BOSS') return 3;
+                        if (t.type === 'BOMBER') return 2;
+                        if (t.type === 'ARMORED') return 1;
+                        return 0;
+                    };
+                    [...enemyMissiles.current, ...bombers.current].forEach(e => {
+                        if (!e.active) return;
+                        const d = distance(m.x, m.y, e.x, e.y);
+                        if (d >= retargetRange) return;
+                        const pri = swarmPriority(e);
+                        if (pri > bestPriority || (pri === bestPriority && d < bestDist)) {
+                            bestPriority = pri;
+                            bestDist = d;
+                            target = e;
+                        }
+                    });
+                    if (target) m.targetId = target.id;
+                }
+                if (target) {
                     const desiredAngle = Math.atan2(target.y - m.y, target.x - m.x);
                     let currentAngle = Math.atan2(m.vy, m.vx);
                     let diff = desiredAngle - currentAngle;
