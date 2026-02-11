@@ -49,6 +49,8 @@ const FLAK_COST = 800;
 const SAM_COST = 1800;
 const ARTILLERY_COST = 2800;
 const LASER_COST = 4500;
+const SWARM_COST = 3500;
+const SWARM_SPEED = 5;
 const UPGRADE_BASE_COST = 500;
 const FORTIFY_BASE_COST = 800;
 const CITY_REPAIR_PENALTY = 300;
@@ -113,6 +115,18 @@ const TURRET_TYPES = {
     damage: 3,
     cost: LASER_COST,
     icon: Zap
+  },
+  SWARM: {
+    name: 'SWARM',
+    desc: 'Missile Barrage',
+    color: '#ff8800',
+    range: 650,
+    fireRate: 150,
+    explosionRadius: 12,
+    projectileColor: '#ff8800',
+    damage: 15,
+    cost: SWARM_COST,
+    icon: AlertTriangle
   }
 };
 
@@ -193,6 +207,21 @@ const Sound = {
             src.connect(lp).connect(g2).connect(masterGain);
             src.start(t);
             src.stop(t + 0.1);
+        } else if (type === 'SWARM') {
+            // 4 rapid staccato sawtooth chirps
+            for (let i = 0; i < 4; i++) {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sawtooth';
+                const chirpStart = t + i * 0.04;
+                osc.frequency.setValueAtTime(600 + i * 100, chirpStart);
+                osc.frequency.exponentialRampToValueAtTime(1200 + i * 100, chirpStart + 0.03);
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(0.2, chirpStart);
+                g.gain.exponentialRampToValueAtTime(0.001, chirpStart + 0.03);
+                osc.connect(g).connect(masterGain);
+                osc.start(chirpStart);
+                osc.stop(chirpStart + 0.03);
+            }
         }
     },
 
@@ -393,6 +422,28 @@ const Sound = {
         src.connect(bp).connect(g2).connect(masterGain);
         src.start(t);
         src.stop(t + 0.3);
+    },
+
+    pdcFire() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Short high-pass noise burst
+        const bufferSize = audioCtx.sampleRate * 0.05;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 3000;
+        hp.Q.value = 1;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.25, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        src.connect(hp).connect(g).connect(masterGain);
+        src.start(t);
+        src.stop(t + 0.05);
     },
 
     pointDefense() {
@@ -978,6 +1029,48 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
                 : `rgb(${r}, ${g}, 0)`;
             ctx.fillRect(barX, barY, barW * heat, barH);
         }
+    } else if (t.type === 'SWARM') {
+        // Hexagonal base
+        ctx.fillStyle = '#000';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+            const px = t.x + Math.cos(a) * 10;
+            const py = t.y + Math.sin(a) * 10;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 3 angled launcher tubes with missile tips
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        const tubeAngles = [-Math.PI / 2 - 0.4, -Math.PI / 2, -Math.PI / 2 + 0.4];
+        tubeAngles.forEach(ta => {
+            ctx.save();
+            ctx.rotate(ta + Math.PI / 2);
+            // Tube
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(0, 2 - recoil);
+            ctx.lineTo(0, 12 - recoil);
+            ctx.stroke();
+            // Missile tip
+            ctx.fillStyle = '#ff8800';
+            ctx.beginPath();
+            ctx.moveTo(0, 13 - recoil);
+            ctx.lineTo(-1.5, 10 - recoil);
+            ctx.lineTo(1.5, 10 - recoil);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        });
+        ctx.restore();
     }
 
     // Muzzle flash
@@ -1541,6 +1634,25 @@ const drawPlayerMissile = (ctx, m) => {
         }
         ctx.globalAlpha = 1.0;
 
+    } else if (m.type === 'SWARM') {
+        // Small orange triangle, flashes yellow when dodging
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = m.dodging ? '#ffff00' : '#ff8800';
+        ctx.beginPath();
+        ctx.moveTo(4, 0);
+        ctx.lineTo(-2, -2);
+        ctx.lineTo(-2, 2);
+        ctx.closePath();
+        ctx.fill();
+        // Tiny exhaust dot
+        ctx.fillStyle = '#ff4400';
+        ctx.beginPath();
+        ctx.arc(-3, 0, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
     } else {
         // Default
         ctx.fillStyle = m.color;
@@ -1548,6 +1660,31 @@ const drawPlayerMissile = (ctx, m) => {
         ctx.arc(m.x, m.y, 2, 0, Math.PI * 2);
         ctx.fill();
     }
+};
+
+const drawPdcProjectile = (ctx, p) => {
+    const alpha = 1 - p.life / p.maxLife;
+    // Faint trail
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.strokeStyle = '#ff4400';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x - p.vx * 0.5, p.y - p.vy * 0.5);
+    ctx.stroke();
+    // Glow
+    ctx.globalAlpha = alpha * 0.4;
+    ctx.fillStyle = '#ff6633';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Core
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#ff4400';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
 };
 
 const drawLaserBeam = (ctx, l) => {
@@ -1752,6 +1889,7 @@ const App = () => {
   const explosions = useRef([]);
   const particles = useRef([]);
   const empPulses = useRef([]);
+  const pdcProjectiles = useRef([]);
   const terrain = useRef([]);
   const upperTerrain = useRef([]);
   const lowerTerrain = useRef([]);
@@ -2042,6 +2180,7 @@ const App = () => {
     explosions.current = [];
     particles.current = [];
     empPulses.current = [];
+    pdcProjectiles.current = [];
   };
 
   const startWave = () => {
@@ -2191,6 +2330,7 @@ const App = () => {
         updateEnemyMissiles();
         updateBombers();
         updatePlayerMissiles();
+        updatePdcProjectiles();
         updateLasers();
         updateExplosions();
         updateParticles();
@@ -2546,8 +2686,8 @@ const App = () => {
           let scoreReward = Math.round(100 * levelMult);
           if (enemy.type === 'BOSS_SHIP') {
               const isMega = enemy.bossTier >= 2;
-              reward = Math.round((isMega ? 3000 : 1500) * levelMult);
-              scoreReward = Math.round((isMega ? 10000 : 5000) * levelMult);
+              reward = Math.round((isMega ? 10000 : 5000) * levelMult);
+              scoreReward = Math.round((isMega ? 30000 : 15000) * levelMult);
           }
           else if (enemy.type === 'BOSS') { reward = Math.round(800 * levelMult); scoreReward = Math.round(2000 * levelMult); }
           if (enemy.type === 'ARMORED') { reward = Math.round(100 * levelMult); scoreReward = Math.round(300 * levelMult); }
@@ -2607,6 +2747,31 @@ const App = () => {
               damage: turret.stats.damage,
               explosionRadius: turret.stats.explosionRadius
           });
+          return;
+      }
+
+      if (turret.type === 'SWARM') {
+          const count = 4 + Math.floor(Math.random() * 3); // 4-6 missiles
+          for (let i = 0; i < count; i++) {
+              const spreadAngle = -Math.PI / 2 + (i / (count - 1) - 0.5) * (Math.PI / 3);
+              playerMissiles.current.push({
+                  x: turret.x,
+                  y: turret.y,
+                  vx: Math.cos(spreadAngle) * SWARM_SPEED,
+                  vy: Math.sin(spreadAngle) * SWARM_SPEED,
+                  targetId: target.id,
+                  active: true,
+                  type: 'SWARM',
+                  color: turret.stats.projectileColor,
+                  damage: turret.stats.damage,
+                  explosionRadius: turret.stats.explosionRadius,
+                  dodging: false,
+                  dodgeTimer: 0,
+                  dodgeVx: 0,
+                  dodgeVy: 0,
+                  age: 0
+              });
+          }
           return;
       }
 
@@ -2856,7 +3021,7 @@ const App = () => {
                   }
               }
 
-              // --- Point Defense (intercept player missiles) ---
+              // --- Point Defense Cannons (fire projectiles at player missiles) ---
               b.pdCooldown = Math.max(0, b.pdCooldown - 1);
               b.pdRegenTimer++;
               if (b.pdRegenTimer >= 120 && b.pdCharges < b.pdMaxCharges) {
@@ -2865,31 +3030,39 @@ const App = () => {
               }
               if (b.pdFlash > 0) b.pdFlash--;
               if (b.pdCooldown <= 0 && b.pdCharges > 0) {
-                  const interceptLimit = isMega ? 2 : 1;
-                  let intercepted = 0;
+                  // Find nearest player missile within detection range
+                  let nearest = null;
+                  let nearestDist = 150;
                   for (let pm of playerMissiles.current) {
-                      if (!pm.active || intercepted >= interceptLimit) break;
-                      if (distance(b.x, b.y, pm.x, pm.y) < 80) {
-                          pm.active = false;
-                          intercepted++;
-                          b.pdCharges--;
-                          b.pdFlash = 10;
-                          Sound.pointDefense();
-                          for (let i = 0; i < 6; i++) {
-                              particles.current.push({
-                                  x: pm.x, y: pm.y,
-                                  vx: (Math.random() - 0.5) * 4,
-                                  vy: (Math.random() - 0.5) * 4,
-                                  color: '#ff3333',
-                                  life: 15 + Math.random() * 10,
-                                  maxLife: 25,
-                                  size: 1.5 + Math.random() * 2,
-                                  shape: 'circle'
-                              });
-                          }
+                      if (!pm.active) continue;
+                      const d = distance(b.x, b.y, pm.x, pm.y);
+                      if (d < nearestDist) {
+                          nearestDist = d;
+                          nearest = pm;
                       }
                   }
-                  if (intercepted > 0) b.pdCooldown = 45;
+                  if (nearest) {
+                      // Fire PDC projectile spread toward nearest missile
+                      const baseAngle = Math.atan2(nearest.y - b.y, nearest.x - b.x);
+                      const count = isMega ? 7 : 5;
+                      const coneHalf = Math.PI / 8; // 45° total cone
+                      for (let i = 0; i < count; i++) {
+                          const spread = (i / (count - 1) - 0.5) * 2 * coneHalf;
+                          const a = baseAngle + spread;
+                          pdcProjectiles.current.push({
+                              x: b.x, y: b.y,
+                              vx: Math.cos(a) * 8,
+                              vy: Math.sin(a) * 8,
+                              active: true,
+                              life: 0,
+                              maxLife: 15
+                          });
+                      }
+                      b.pdCharges--;
+                      b.pdFlash = 10;
+                      b.pdCooldown = 30;
+                      Sound.pdcFire();
+                  }
               }
 
               // --- Cluster Bomb ---
@@ -3040,6 +3213,84 @@ const App = () => {
              }
         }
 
+        // SWARM homing + evasion AI
+        if (m.type === 'SWARM' && m.targetId) {
+            m.age = (m.age || 0) + 1;
+            // Age limit: self-destruct after 130 frames
+            if (m.age > 130) {
+                m.active = false;
+                createExplosion(m.x, m.y, false, m.explosionRadius, m.color);
+                const targets = [...enemyMissiles.current, ...bombers.current];
+                targets.forEach(t => {
+                    if (t.active && distance(m.x, m.y, t.x, t.y) < m.explosionRadius) {
+                        applyDamage(t, m.damage);
+                    }
+                });
+                return;
+            }
+
+            // Evasion: scan for nearby PDC projectiles
+            if (m.dodgeTimer > 0) {
+                m.dodgeTimer--;
+                // Blend dodge impulse 50/50 with current velocity
+                m.vx = m.vx * 0.5 + m.dodgeVx * 0.5;
+                m.vy = m.vy * 0.5 + m.dodgeVy * 0.5;
+                m.dodging = true;
+            } else {
+                m.dodging = false;
+                // Check for nearby PDC projectiles
+                for (let p of pdcProjectiles.current) {
+                    if (!p.active) continue;
+                    if (distance(m.x, m.y, p.x, p.y) < 40) {
+                        // Compute perpendicular dodge direction
+                        const dx = p.x - m.x;
+                        const dy = p.y - m.y;
+                        // Perpendicular (pick the side away from projectile path)
+                        const cross = m.vx * dy - m.vy * dx;
+                        m.dodgeVx = cross > 0 ? -dy : dy;
+                        m.dodgeVy = cross > 0 ? dx : -dx;
+                        // Normalize dodge impulse
+                        const dLen = Math.sqrt(m.dodgeVx * m.dodgeVx + m.dodgeVy * m.dodgeVy);
+                        if (dLen > 0) {
+                            m.dodgeVx = (m.dodgeVx / dLen) * SWARM_SPEED;
+                            m.dodgeVy = (m.dodgeVy / dLen) * SWARM_SPEED;
+                        }
+                        m.dodgeTimer = 8;
+                        m.dodging = true;
+                        break;
+                    }
+                }
+
+                // Homing: turn toward target at 0.08 rad/frame
+                const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
+                if (target && target.active) {
+                    const desiredAngle = Math.atan2(target.y - m.y, target.x - m.x);
+                    let currentAngle = Math.atan2(m.vy, m.vx);
+                    let diff = desiredAngle - currentAngle;
+                    // Normalize to [-PI, PI]
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    const turnRate = 0.08;
+                    currentAngle += Math.max(-turnRate, Math.min(turnRate, diff));
+                    m.vx = Math.cos(currentAngle) * SWARM_SPEED;
+                    m.vy = Math.sin(currentAngle) * SWARM_SPEED;
+                }
+            }
+
+            // Subtle sine-wave weave for organic look
+            const weave = Math.sin(m.age * 0.3) * 0.3;
+            const moveAngle = Math.atan2(m.vy, m.vx);
+            m.vx += Math.cos(moveAngle + Math.PI / 2) * weave;
+            m.vy += Math.sin(moveAngle + Math.PI / 2) * weave;
+
+            // Renormalize speed
+            const spd = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+            if (spd > 0) {
+                m.vx = (m.vx / spd) * SWARM_SPEED;
+                m.vy = (m.vy / spd) * SWARM_SPEED;
+            }
+        }
+
         m.x += m.vx;
         m.y += m.vy;
 
@@ -3050,6 +3301,12 @@ const App = () => {
              if (target && target.active && distance(m.x, m.y, target.x, target.y) < 15) {
                  detonated = true;
              }
+        }
+        else if (m.type === 'SWARM') {
+            const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
+            if (target && target.active && distance(m.x, m.y, target.x, target.y) < 12) {
+                detonated = true;
+            }
         }
         else {
             const dist = distance(m.x, m.y, m.targetX, m.targetY);
@@ -3076,6 +3333,43 @@ const App = () => {
         }
     });
     playerMissiles.current = playerMissiles.current.filter(m => m.active);
+  };
+
+  const updatePdcProjectiles = () => {
+      pdcProjectiles.current.forEach(p => {
+          if (!p.active) return;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life++;
+          // Kill at maxLife or screen edge
+          if (p.life >= p.maxLife || p.x < 0 || p.x > GAME_WIDTH || p.y < 0 || p.y > GAME_HEIGHT) {
+              p.active = false;
+              return;
+          }
+          // Check collision with player missiles (8px hit radius)
+          for (let pm of playerMissiles.current) {
+              if (!pm.active) continue;
+              if (distance(p.x, p.y, pm.x, pm.y) < 8) {
+                  p.active = false;
+                  pm.active = false;
+                  Sound.pointDefense();
+                  for (let i = 0; i < 6; i++) {
+                      particles.current.push({
+                          x: pm.x, y: pm.y,
+                          vx: (Math.random() - 0.5) * 4,
+                          vy: (Math.random() - 0.5) * 4,
+                          color: '#ff3333',
+                          life: 15 + Math.random() * 10,
+                          maxLife: 25,
+                          size: 1.5 + Math.random() * 2,
+                          shape: 'circle'
+                      });
+                  }
+                  break;
+              }
+          }
+      });
+      pdcProjectiles.current = pdcProjectiles.current.filter(p => p.active);
   };
 
   const updateLasers = () => {
@@ -3394,6 +3688,7 @@ const App = () => {
     bombers.current.forEach(b => b.isBossShip ? drawBossShip(ctx, b, fc) : drawBomber(ctx, b, fc));
     enemyMissiles.current.forEach(m => drawEnemyMissile(ctx, m, fc));
     playerMissiles.current.forEach(m => drawPlayerMissile(ctx, m));
+    pdcProjectiles.current.forEach(p => drawPdcProjectile(ctx, p));
     lasers.current.forEach(l => drawLaserBeam(ctx, l));
     explosions.current.forEach(ex => drawExplosion(ctx, ex));
     particles.current.forEach(p => drawParticle(ctx, p));
