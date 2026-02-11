@@ -361,6 +361,56 @@ const Sound = {
         });
     },
 
+    empFire() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Descending sweep with electric crackle
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, t);
+        osc.frequency.exponentialRampToValueAtTime(60, t + 0.5);
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.35, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.connect(g).connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.5);
+        // Noise crackle layer
+        const bufferSize = audioCtx.sampleRate * 0.3;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buffer;
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.setValueAtTime(800, t);
+        bp.frequency.exponentialRampToValueAtTime(200, t + 0.3);
+        bp.Q.value = 2;
+        const g2 = audioCtx.createGain();
+        g2.gain.setValueAtTime(0.3, t);
+        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        src.connect(bp).connect(g2).connect(masterGain);
+        src.start(t);
+        src.stop(t + 0.3);
+    },
+
+    pointDefense() {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+        // Quick zap sound
+        const osc = audioCtx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(2000, t);
+        osc.frequency.exponentialRampToValueAtTime(500, t + 0.06);
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.2, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+        osc.connect(g).connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.06);
+    },
+
     placeTurret() {
         if (!audioCtx) return;
         const t = audioCtx.currentTime;
@@ -959,6 +1009,39 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
         ctx.arc(t.x, t.y, 14, 0, Math.PI * 2);
         ctx.stroke();
     }
+
+    // EMP disabled overlay
+    if (t.empDisabled > 0) {
+        // Flickering opacity
+        const flickerOn = Math.floor(frameCount / 3) % 2 === 0;
+        ctx.save();
+        ctx.globalAlpha = flickerOn ? 0.6 : 0.3;
+        ctx.fillStyle = '#004466';
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Cyan sparks around base
+        ctx.strokeStyle = '#00ffff';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+            const a = frameCount * 0.2 + (i / 3) * Math.PI * 2;
+            const r = 10 + Math.random() * 4;
+            ctx.beginPath();
+            ctx.moveTo(t.x + Math.cos(a) * 8, t.y + Math.sin(a) * 8);
+            ctx.lineTo(t.x + Math.cos(a + 0.3) * r, t.y + Math.sin(a + 0.3) * r);
+            ctx.stroke();
+        }
+
+        // "EMP" text
+        const textAlpha = t.empDisabled > 30 ? 0.8 : t.empDisabled / 30 * 0.8;
+        ctx.fillStyle = `rgba(0, 255, 255, ${textAlpha})`;
+        ctx.font = '8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('EMP', t.x, t.y - 16);
+        ctx.restore();
+    }
 };
 
 const drawBomber = (ctx, b, frameCount) => {
@@ -1019,11 +1102,78 @@ const drawBomber = (ctx, b, frameCount) => {
 
 const drawBossShip = (ctx, b, frameCount) => {
     const dir = b.vx > 0 ? 1 : -1;
-    const scale = b.bossTier >= 2 ? 2.5 : 1.8;
+    const scale = b.bossTier >= 2 ? 7.5 : 5.4;
     const isMega = b.bossTier >= 2;
 
     ctx.save();
     ctx.translate(b.x, b.y);
+
+    // Shield visual (drawn behind ship)
+    if (b.shieldActive && b.shield > 0) {
+        const shieldAlpha = 0.15 + 0.1 * Math.sin(frameCount * 0.08);
+        const shieldRadius = 20 * scale;
+        ctx.save();
+        ctx.strokeStyle = `rgba(0, 255, 255, ${shieldAlpha + 0.3})`;
+        ctx.lineWidth = 2;
+        // Hexagonal shield outline
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + frameCount * 0.01;
+            const px = Math.cos(a) * shieldRadius;
+            const py = Math.sin(a) * shieldRadius * 0.7;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = `rgba(0, 255, 255, ${shieldAlpha})`;
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // EMP charge glow (cyan, intensifies as charge builds)
+    if (b.empCharge > 0 && b.empWindup <= 0) {
+        const chargeRatio = b.empCharge / b.empMaxCharge;
+        ctx.save();
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = chargeRatio * 15;
+        ctx.fillStyle = `rgba(0, 255, 255, ${chargeRatio * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 12 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // EMP windup - blue arcs crackling
+    if (b.empWindup > 0) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(100, 150, 255, ${0.5 + 0.5 * Math.sin(frameCount * 0.5)})`;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * Math.PI * 2 + frameCount * 0.3;
+            const r = 10 * scale;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5);
+            const mid1x = Math.cos(a + 0.3) * r * 0.75 + (Math.random() - 0.5) * 6;
+            const mid1y = Math.sin(a + 0.3) * r * 0.75 + (Math.random() - 0.5) * 6;
+            ctx.lineTo(mid1x, mid1y);
+            ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // Cluster bomb windup - orange glow
+    if (b.clusterWindup > 0) {
+        ctx.save();
+        ctx.shadowColor = '#ff8800';
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = `rgba(255, 136, 0, ${0.2 + 0.2 * Math.sin(frameCount * 0.4)})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 
     // Pulsing red glow
     ctx.save();
@@ -1082,27 +1232,64 @@ const drawBossShip = (ctx, b, frameCount) => {
 
     // Dual engine glows
     const enginePulse = 0.5 + 0.5 * Math.sin(frameCount * 0.25);
-    ctx.fillStyle = `rgba(255, 80, 0, ${0.5 + enginePulse * 0.4})`;
+    const bombRunBoost = b.bombRunning > 0 ? 1.5 : 1;
+    ctx.fillStyle = `rgba(255, ${b.bombRunning > 0 ? 200 : 80}, 0, ${(0.5 + enginePulse * 0.4) * bombRunBoost})`;
     ctx.beginPath();
-    ctx.ellipse(dir * -11 * scale, -2.5 * scale, (3 + enginePulse * 2) * scale, (1.5 + enginePulse) * scale * 0.7, 0, 0, Math.PI * 2);
+    ctx.ellipse(dir * -11 * scale, -2.5 * scale, (3 + enginePulse * 2) * scale * bombRunBoost, (1.5 + enginePulse) * scale * 0.7, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(dir * -11 * scale, 2.5 * scale, (3 + enginePulse * 2) * scale, (1.5 + enginePulse) * scale * 0.7, 0, 0, Math.PI * 2);
+    ctx.ellipse(dir * -11 * scale, 2.5 * scale, (3 + enginePulse * 2) * scale * bombRunBoost, (1.5 + enginePulse) * scale * 0.7, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Bombing run afterburner trail
+    if (b.bombRunning > 0) {
+        ctx.fillStyle = `rgba(255, 150, 50, ${0.3 + enginePulse * 0.3})`;
+        ctx.beginPath();
+        ctx.ellipse(dir * -16 * scale, 0, (6 + enginePulse * 4) * scale, (3 + enginePulse * 2) * scale * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     // Mega-boss: center engine
     if (isMega) {
-        ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + enginePulse * 0.5})`;
+        ctx.fillStyle = `rgba(255, 200, 50, ${(0.4 + enginePulse * 0.5) * bombRunBoost})`;
         ctx.beginPath();
-        ctx.ellipse(dir * -12 * scale, 0, (4 + enginePulse * 3) * scale, (2 + enginePulse) * scale * 0.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(dir * -12 * scale, 0, (4 + enginePulse * 3) * scale * bombRunBoost, (2 + enginePulse) * scale * 0.6, 0, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // Point defense flash
+    if (b.pdFlash > 0) {
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 50, 50, ${b.pdFlash / 10 * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, 15 * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
     }
 
     ctx.restore();
 
     // HP bar (always visible for boss ships)
     const barW = isMega ? 60 : 40;
-    drawHPBar(ctx, b.x - barW / 2, b.y - 12 * scale - 4, barW, 4, b.hp / b.maxHp);
+    const barY = b.y - 12 * scale - 4;
+    drawHPBar(ctx, b.x - barW / 2, barY, barW, 4, b.hp / b.maxHp);
+
+    // EMP charge bar (below HP bar)
+    if (b.empCharge > 0 || b.empWindup > 0) {
+        const empRatio = b.empWindup > 0 ? 1 : b.empCharge / b.empMaxCharge;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(b.x - barW / 2, barY + 6, barW, 2);
+        ctx.fillStyle = b.empWindup > 0 ? '#6699ff' : '#00cccc';
+        ctx.fillRect(b.x - barW / 2, barY + 6, barW * empRatio, 2);
+    }
+
+    // Shield HP bar (below EMP bar, only when active)
+    if (b.shieldActive && b.shield > 0) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(b.x - barW / 2, barY + 10, barW, 2);
+        ctx.fillStyle = '#00ffff';
+        ctx.fillRect(b.x - barW / 2, barY + 10, barW * (b.shield / 200), 2);
+    }
 };
 
 const drawEnemyMissile = (ctx, m, frameCount) => {
@@ -1547,6 +1734,7 @@ const App = () => {
   const lasers = useRef([]);
   const explosions = useRef([]);
   const particles = useRef([]);
+  const empPulses = useRef([]);
   const terrain = useRef([]);
   const upperTerrain = useRef([]);
   const lowerTerrain = useRef([]);
@@ -1836,6 +2024,7 @@ const App = () => {
     lasers.current = [];
     explosions.current = [];
     particles.current = [];
+    empPulses.current = [];
   };
 
   const startWave = () => {
@@ -1888,6 +2077,16 @@ const App = () => {
         // Turret Logic
         turrets.current.forEach(turret => {
             turret.lastFired++;
+
+            // EMP disable countdown
+            if (turret.empDisabled > 0) {
+                turret.empDisabled--;
+                // Still decay recoil/flash while disabled
+                if (turret.recoilOffset > 0) turret.recoilOffset *= 0.7;
+                if (turret.recoilOffset < 0.1) turret.recoilOffset = 0;
+                if (turret.muzzleFlashTimer > 0) turret.muzzleFlashTimer--;
+                return; // Skip targeting/firing
+            }
 
             // Decay recoil
             if (turret.recoilOffset > 0) turret.recoilOffset *= 0.7;
@@ -1960,6 +2159,13 @@ const App = () => {
         updateLasers();
         updateExplosions();
         updateParticles();
+
+        // Update EMP pulses
+        empPulses.current.forEach(p => {
+            p.radius += p.maxRadius / 60; // constant expansion rate
+            p.life--;
+        });
+        empPulses.current = empPulses.current.filter(p => p.life > 0);
 
         // Decay screen shake
         if (screenShake.current > 0) screenShake.current *= 0.85;
@@ -2287,6 +2493,16 @@ const App = () => {
   // --- Logic Helpers ---
   const applyDamage = (enemy, damage) => {
       if (!enemy.active || enemy.hp <= 0) return;
+      // Boss shield absorbs damage first
+      if (enemy.shieldActive && enemy.shield > 0) {
+          const absorbed = Math.min(damage, enemy.shield);
+          enemy.shield -= absorbed;
+          damage -= absorbed;
+          if (damage <= 0) {
+              createParticles(enemy.x, enemy.y, '#00ffff', 2);
+              return;
+          }
+      }
       enemy.hp -= damage;
       if (enemy.hp <= 0) {
           enemy.active = false;
@@ -2474,46 +2690,242 @@ const App = () => {
       const fromLeft = Math.random() > 0.5;
       const y = 40 + Math.random() * 50;
       const isMega = tier >= 2;
-      const bossHp = isMega ? 1500 + level * 100 : 750 + level * 60;
+      const bossHp = (isMega ? 1500 + level * 100 : 750 + level * 60) * 20;
       bombers.current.push({
           id: Math.random().toString(36),
           x: fromLeft ? -80 : GAME_WIDTH + 80,
           y: y,
+          baseSpeed: isMega ? 0.6 : 0.8,
           vx: fromLeft ? (isMega ? 0.6 : 0.8) : (isMega ? -0.6 : -0.8),
           active: true,
           type: 'BOSS_SHIP',
           maxHp: bossHp,
           hp: bossHp,
           color: '#ff4400',
-          size: isMega ? 25 : 18,
+          size: isMega ? 75 : 54,
           lastDrop: 0,
           dropInterval: isMega ? 18 : 25,
           dropChance: isMega ? 0.10 : 0.06,
           isBossShip: true,
           bossTier: tier,
-          escortsSpawned: false
+          escortsSpawned: false,
+          // Looping & descent
+          passCount: 0,
+          reentryTimer: 0,
+          // Point defense
+          pdCooldown: 0,
+          pdCharges: isMega ? 4 : 2,
+          pdMaxCharges: isMega ? 4 : 2,
+          pdRegenTimer: 0,
+          pdFlash: 0,
+          // EMP
+          empCharge: 0,
+          empMaxCharge: isMega ? 400 : 600,
+          empWindup: 0,
+          // Cluster bomb
+          clusterTimer: 0,
+          clusterWindup: 0,
+          // Shield (mega only)
+          shield: 0,
+          shieldTimer: isMega ? 0 : -1,
+          shieldActive: false,
+          shieldDuration: 0,
+          // Bombing run
+          bombRunTimer: 0,
+          bombRunning: 0
       });
   };
 
   const updateBombers = () => {
       bombers.current.forEach(b => {
           if (!b.active) return;
-          b.x += b.vx;
-          b.lastDrop++;
-          if (b.lastDrop > (b.dropInterval || 50) && Math.random() < (b.dropChance || 0.03)) {
-              spawnEnemyMissile(b.x, b.y, true);
-              b.lastDrop = 0;
+
+          // --- Boss ship special movement: fly across, exit, reappear lower ---
+          if (b.isBossShip) {
+              const isMega = b.bossTier >= 2;
+              const onScreen = b.x > -80 && b.x < GAME_WIDTH + 80;
+
+              // Reentry delay: boss is off-screen waiting to reappear
+              if (b.reentryTimer > 0) {
+                  b.reentryTimer--;
+                  if (b.reentryTimer <= 0) {
+                      // Reappear from the side it exited, heading back
+                      b.passCount++;
+                      const minAlt = CITY_ZONE_TOP - 50;
+                      const descent = isMega ? (10 + Math.random() * 10) : (15 + Math.random() * 10);
+                      b.y = Math.min(b.y + descent, minAlt);
+                      // Reverse direction: reappear from exit side
+                      b.vx = -b.vx;
+                      b.x = b.vx > 0 ? -79 : GAME_WIDTH + 79;
+                  }
+                  return; // skip all logic while off-screen
+              }
+
+              // Movement
+              const speed = b.bombRunning > 0 ? b.baseSpeed * 3 : b.baseSpeed;
+              b.vx = b.vx > 0 ? speed : -speed;
+              b.x += b.vx;
+
+              // Check if boss has exited the screen
+              if (b.x < -80 || b.x > GAME_WIDTH + 80) {
+                  b.reentryTimer = 120; // ~2 second delay before reappearing
+                  return;
+              }
+
+              // --- Altitude-scaled drop chance: lower = more aggressive ---
+              const altRatio = 1 - Math.max(0, Math.min(1, (b.y - 40) / (CITY_ZONE_TOP - 90)));
+              // altRatio: 1 at top (y=40), 0 at lowest altitude
+              const dropMult = 1 + (1 - altRatio) * 3; // 1x at top, 4x at lowest
+
+              // --- Bombing run ---
+              if (b.bombRunning > 0) {
+                  b.bombRunning--;
+                  if (b.bombRunning % 8 === 0) {
+                      spawnEnemyMissile(b.x, b.y, true);
+                  }
+                  if (b.bombRunning <= 0) {
+                      b.bombRunTimer = 0;
+                  }
+              } else {
+                  b.bombRunTimer++;
+                  if (b.bombRunTimer >= 600) {
+                      b.bombRunning = 90;
+                  }
+              }
+
+              // --- Normal bomb drops (scaled by altitude) ---
+              b.lastDrop++;
+              if (b.bombRunning <= 0 && b.lastDrop > (b.dropInterval || 50) && Math.random() < (b.dropChance || 0.03) * dropMult) {
+                  spawnEnemyMissile(b.x, b.y, true);
+                  b.lastDrop = 0;
+              }
+
+              // --- EMP system ---
+              if (b.empWindup > 0) {
+                  b.empWindup--;
+                  if (b.empWindup <= 0) {
+                      Sound.empFire();
+                      empPulses.current.push({ x: b.x, y: b.y, radius: 0, maxRadius: 450, life: 60 });
+                      turrets.current.forEach(t => {
+                          const d = distance(b.x, b.y, t.x, t.y);
+                          if (d < 150) t.empDisabled = 180;
+                          else if (d < 300) t.empDisabled = Math.max(t.empDisabled || 0, 120);
+                          else if (d < 450) t.empDisabled = Math.max(t.empDisabled || 0, 60);
+                      });
+                      b.empCharge = 0;
+                  }
+              } else {
+                  b.empCharge++;
+                  if (b.empCharge >= b.empMaxCharge) {
+                      b.empWindup = 30;
+                  }
+              }
+
+              // --- Point Defense (intercept player missiles) ---
+              b.pdCooldown = Math.max(0, b.pdCooldown - 1);
+              b.pdRegenTimer++;
+              if (b.pdRegenTimer >= 120 && b.pdCharges < b.pdMaxCharges) {
+                  b.pdCharges++;
+                  b.pdRegenTimer = 0;
+              }
+              if (b.pdFlash > 0) b.pdFlash--;
+              if (b.pdCooldown <= 0 && b.pdCharges > 0) {
+                  const interceptLimit = isMega ? 2 : 1;
+                  let intercepted = 0;
+                  for (let pm of playerMissiles.current) {
+                      if (!pm.active || intercepted >= interceptLimit) break;
+                      if (distance(b.x, b.y, pm.x, pm.y) < 80) {
+                          pm.active = false;
+                          intercepted++;
+                          b.pdCharges--;
+                          b.pdFlash = 10;
+                          Sound.pointDefense();
+                          for (let i = 0; i < 6; i++) {
+                              particles.current.push({
+                                  x: pm.x, y: pm.y,
+                                  vx: (Math.random() - 0.5) * 4,
+                                  vy: (Math.random() - 0.5) * 4,
+                                  color: '#ff3333',
+                                  life: 15 + Math.random() * 10,
+                                  maxLife: 25,
+                                  size: 1.5 + Math.random() * 2,
+                                  shape: 'circle'
+                              });
+                          }
+                      }
+                  }
+                  if (intercepted > 0) b.pdCooldown = 45;
+              }
+
+              // --- Cluster Bomb ---
+              b.clusterTimer++;
+              if (b.clusterWindup > 0) {
+                  b.clusterWindup--;
+                  if (b.clusterWindup <= 0) {
+                      const count = 5 + Math.floor(Math.random() * 3);
+                      const spreadAngle = Math.PI / 6;
+                      for (let i = 0; i < count; i++) {
+                          const angle = (Math.PI / 2) + (i / (count - 1) - 0.5) * 2 * spreadAngle;
+                          const spd = 1.8 + Math.random() * 0.4;
+                          enemyMissiles.current.push({
+                              id: Math.random().toString(36),
+                              x: b.x, y: b.y,
+                              vx: Math.cos(angle) * spd,
+                              vy: Math.sin(angle) * spd,
+                              active: true,
+                              type: 'FAST',
+                              color: '#ff8800',
+                              maxHp: HP_FAST,
+                              hp: HP_FAST,
+                              size: 4,
+                              canSplit: false,
+                              trailHistory: []
+                          });
+                      }
+                      b.clusterTimer = 0;
+                  }
+              } else if (b.clusterTimer >= 400) {
+                  b.clusterWindup = 20;
+              }
+
+              // --- Shield Regen (mega-boss only) ---
+              if (b.shieldTimer >= 0) {
+                  if (b.shieldActive) {
+                      b.shieldDuration--;
+                      if (b.shieldDuration <= 0 || b.shield <= 0) {
+                          b.shieldActive = false;
+                          b.shield = 0;
+                          b.shieldTimer = 0;
+                      }
+                  } else {
+                      b.shieldTimer++;
+                      if (b.shieldTimer >= 500) {
+                          b.shield = 200;
+                          b.shieldActive = true;
+                          b.shieldDuration = 300;
+                      }
+                  }
+              }
+
+              // Mega-boss escort spawning
+              if (isMega && !b.escortsSpawned && b.x > 200 && b.x < 600) {
+                  b.escortsSpawned = true;
+                  spawnBomber();
+                  spawnBomber();
+              }
+
+          } else {
+              // Non-boss bomber: original behavior
+              b.x += b.vx;
+              b.lastDrop++;
+              if (b.lastDrop > (b.dropInterval || 50) && Math.random() < (b.dropChance || 0.03)) {
+                  spawnEnemyMissile(b.x, b.y, true);
+                  b.lastDrop = 0;
+              }
+              if (b.x < -100 || b.x > GAME_WIDTH + 100) b.active = false;
           }
 
-          // Mega-boss escort spawning
-          if (b.bossTier >= 2 && !b.escortsSpawned && b.x > 200 && b.x < 600) {
-              b.escortsSpawned = true;
-              spawnBomber();
-              spawnBomber();
-          }
-
-          if (b.x < -100 || b.x > GAME_WIDTH + 100) b.active = false;
-
+          // Explosion damage (all bombers)
           for (let ex of explosions.current) {
             if (!b.active) break;
             if (distance(b.x, b.y, ex.x, ex.y) < ex.radius) {
@@ -2950,6 +3362,24 @@ const App = () => {
     lasers.current.forEach(l => drawLaserBeam(ctx, l));
     explosions.current.forEach(ex => drawExplosion(ctx, ex));
     particles.current.forEach(p => drawParticle(ctx, p));
+
+    // EMP pulse rings
+    empPulses.current.forEach(p => {
+        const alpha = (p.life / 60) * 0.6;
+        ctx.save();
+        ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`;
+        ctx.lineWidth = 3 * (p.life / 60);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        // Inner glow ring
+        ctx.strokeStyle = `rgba(100, 200, 255, ${alpha * 0.4})`;
+        ctx.lineWidth = 8 * (p.life / 60);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    });
 
     ctx.restore(); // End screen shake
   };
