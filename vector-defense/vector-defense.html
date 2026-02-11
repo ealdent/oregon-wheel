@@ -1824,7 +1824,7 @@ const App = () => {
     turrets.current = [];
     fortifyCount.current = 0;
     resetEntities();
-    generateMap(5);
+    generateMap(2);
     setupLevel(1);
   }, [generateMap]);
 
@@ -2141,25 +2141,12 @@ const App = () => {
 
   const spawnVillages = (cityList, currentLevel) => {
       const active = cityList.filter(c => c.active);
-      if (active.length < 2 || currentLevel < 3) return cityList;
-
+      const destroyed = cityList.filter(c => !c.active);
       const result = [...cityList];
-      const sorted = [...active].sort((a, b) => a.x - b.x);
 
-      for (let i = 0; i < sorted.length - 1; i++) {
-          const left = sorted[i];
-          const right = sorted[i + 1];
-          const gap = right.x - left.x;
-
-          if (gap < 80) continue;
-
-          const midX = left.x + gap * (0.3 + Math.random() * 0.4);
-          const tooClose = active.some(c => Math.abs(c.x - midX) < 40);
-          if (tooClose) continue;
-
-          const spawnChance = Math.min(0.5, 0.1 + (gap / 400) + (currentLevel - 3) * 0.03);
-          if (Math.random() > spawnChance) continue;
-
+      const addVillage = (midX) => {
+          const tooClose = result.filter(c => c.active).some(c => Math.abs(c.x - midX) < 40);
+          if (tooClose) return;
           const vy = getCityTerrainHeight(midX);
           const villageBuildings = generateCityBuildings(0);
           const reduced = villageBuildings.slice(0, Math.max(1, Math.ceil(villageBuildings.length * 0.5)));
@@ -2171,7 +2158,54 @@ const App = () => {
               isVillage: true
           });
           createParticles(midX, vy, '#88dddd', 4);
+      };
+
+      // Spawn near destroyed cities (high probability - resettlement)
+      destroyed.forEach(d => {
+          if (Math.random() < 0.7) {
+              const offset = (Math.random() - 0.5) * 60;
+              addVillage(Math.max(30, Math.min(GAME_WIDTH - 30, d.x + offset)));
+          }
+      });
+
+      // Spawn in gaps between active cities (starts wave 2)
+      if (active.length >= 1 && currentLevel >= 2) {
+          // Also consider edges of the map as spawn zones
+          const sorted = [...active].sort((a, b) => a.x - b.x);
+          const positions = [];
+
+          // Left edge gap
+          if (sorted[0].x > 100) {
+              positions.push({ left: 30, right: sorted[0].x });
+          }
+          // Gaps between cities
+          for (let i = 0; i < sorted.length - 1; i++) {
+              positions.push({ left: sorted[i].x, right: sorted[i + 1].x });
+          }
+          // Right edge gap
+          if (sorted[sorted.length - 1].x < GAME_WIDTH - 100) {
+              positions.push({ left: sorted[sorted.length - 1].x, right: GAME_WIDTH - 30 });
+          }
+
+          positions.forEach(({ left, right }) => {
+              const gap = right - left;
+              if (gap < 60) return;
+
+              // Spawn chance scales with gap size and wave - much more aggressive
+              const spawnChance = Math.min(0.8, 0.25 + (gap / 300) + (currentLevel - 1) * 0.05);
+              if (Math.random() > spawnChance) return;
+
+              const midX = left + gap * (0.3 + Math.random() * 0.4);
+              addVillage(Math.max(30, Math.min(GAME_WIDTH - 30, midX)));
+
+              // Large gaps can spawn multiple villages
+              if (gap > 200 && Math.random() < 0.5) {
+                  const midX2 = left + gap * (Math.random() > 0.5 ? 0.2 : 0.8);
+                  addVillage(Math.max(30, Math.min(GAME_WIDTH - 30, midX2)));
+              }
+          });
       }
+
       return result;
   };
 
@@ -2864,10 +2898,31 @@ const App = () => {
         drawTurret(ctx, t, isHovered, gameState, fc);
     });
 
+    // Compute foreground zoom-out based on tallest building
+    const maxBuildingH = cities.reduce((max, c) => {
+        if (!c.active) return max;
+        return c.buildings.reduce((m, b) => Math.max(m, (b.damage || 0) < 0.8 ? b.h : 0), max);
+    }, 0);
+    const cityZoneHeight = GAME_HEIGHT - CITY_ZONE_TOP; // ~70px available
+    const maxAllowed = cityZoneHeight * 0.85; // buildings shouldn't exceed 85% of city zone
+    const fgScale = maxBuildingH > maxAllowed ? maxAllowed / maxBuildingH : 1.0;
+
+    if (fgScale < 1.0) {
+        ctx.save();
+        // Scale from bottom-center: shrink foreground, anchored at canvas bottom
+        ctx.translate(GAME_WIDTH / 2, GAME_HEIGHT);
+        ctx.scale(fgScale, fgScale);
+        ctx.translate(-GAME_WIDTH / 2, -GAME_HEIGHT);
+    }
+
     drawLowerTerrain(ctx, lowerTerrain.current);
 
     // Cities on lower terrain
     cities.forEach(c => drawCity(ctx, c, fc));
+
+    if (fgScale < 1.0) {
+        ctx.restore();
+    }
 
     // Placement ghost — only in turret zone
     if (gameState === 'PLACEMENT' && selectedAction && mousePos.current.y <= CITY_ZONE_TOP) {
