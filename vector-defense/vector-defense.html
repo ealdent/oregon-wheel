@@ -1006,7 +1006,7 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
         ctx.setLineDash([]);
     }
 
-    const angle = t.angle || Math.PI / 2;
+    const angle = t.angle ?? Math.PI / 2;
     const recoil = t.recoilOffset || 0;
 
     if (t.type === 'FLAK') {
@@ -2549,17 +2549,20 @@ const App = () => {
                 });
             }
 
-            // Track target angle
-            if (target) {
+            // Smooth barrel tracking — only for turrets that need it
+            // ARTILLERY: slow tracking IS the aiming mechanic
+            // LASER: beam needs to follow target continuously
+            // Others: barrel snaps to firing direction on each shot
+            if (target && (turret.type === 'ARTILLERY' || turret.type === 'LASER')) {
                 const dx = target.x - turret.x;
                 const dy = target.y - turret.y;
                 const targetAngle = Math.atan2(-dx, dy) - Math.PI / 2;
-                let angleDiff = targetAngle - (turret.angle || Math.PI / 2);
+                let angleDiff = targetAngle - (turret.angle ?? Math.PI / 2);
                 // Normalize to [-PI, PI]
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
                 while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                 const trackSpeed = turret.stats.trackingSpeed || 0.15;
-                turret.angle = (turret.angle || Math.PI / 2) + angleDiff * trackSpeed;
+                turret.angle = (turret.angle ?? Math.PI / 2) + angleDiff * trackSpeed;
             }
 
             if (turret.type === 'LASER') {
@@ -2602,7 +2605,7 @@ const App = () => {
                     const aDx = target.x - turret.x;
                     const aDy = target.y - turret.y;
                     const targetAngle = Math.atan2(-aDx, aDy) - Math.PI / 2;
-                    let aimDiff = targetAngle - (turret.angle || Math.PI / 2);
+                    let aimDiff = targetAngle - (turret.angle ?? Math.PI / 2);
                     while (aimDiff > Math.PI) aimDiff -= Math.PI * 2;
                     while (aimDiff < -Math.PI) aimDiff += Math.PI * 2;
                     if (Math.abs(aimDiff) < 0.1) {
@@ -3049,7 +3052,7 @@ const App = () => {
 
       if (turret.type === 'ARTILLERY') {
           // Fire along barrel direction — no lead prediction
-          const rot = (turret.angle || Math.PI / 2) + Math.PI / 2;
+          const rot = (turret.angle ?? Math.PI / 2) + Math.PI / 2;
           playerMissiles.current.push({
               x: turret.x,
               y: turret.y,
