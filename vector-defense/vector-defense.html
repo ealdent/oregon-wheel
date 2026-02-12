@@ -36,6 +36,8 @@ const AlertTriangle = (props) => <SvgIcon {...props}><path d="M10.29 3.86L1.82 1
 const Zap = (props) => <SvgIcon {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></SvgIcon>;
 const Target = (props) => <SvgIcon {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></SvgIcon>;
 const Wifi = (props) => <SvgIcon {...props}><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></SvgIcon>;
+const Users = (props) => <SvgIcon {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></SvgIcon>;
+const ShieldPlus = (props) => <SvgIcon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></SvgIcon>;
 
 // --- Constants ---
 const GAME_WIDTH = 800;
@@ -52,7 +54,7 @@ const LASER_COST = 4500;
 const SWARM_COST = 3500;
 const SWARM_SPEED = 5;
 const UPGRADE_BASE_COST = 500;
-const FORTIFY_BASE_COST = 800;
+const SHIELD_BASE_COST = 800;
 const CITY_REPAIR_PENALTY = 300;
 const WAVE_COMPLETE_BONUS = 2500;
 
@@ -624,13 +626,16 @@ const drawUpperTerrain = (ctx, points, mapData) => {
 const drawLowerTerrain = (ctx, points) => {
     if (!points || points.length === 0) return;
 
+    // Extend beyond edges to survive foreground zoom-out scaling
+    const pad = 200;
+
     // Lower terrain fill
     ctx.beginPath();
-    ctx.moveTo(0, GAME_HEIGHT);
-    ctx.lineTo(0, points[0].y);
+    ctx.moveTo(-pad, GAME_HEIGHT);
+    ctx.lineTo(-pad, points[0].y);
     points.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(GAME_WIDTH, points[points.length - 1].y);
-    ctx.lineTo(GAME_WIDTH, GAME_HEIGHT);
+    ctx.lineTo(GAME_WIDTH + pad, points[points.length - 1].y);
+    ctx.lineTo(GAME_WIDTH + pad, GAME_HEIGHT);
     ctx.fillStyle = '#0a0a05';
     ctx.fill();
 
@@ -641,9 +646,9 @@ const drawLowerTerrain = (ctx, points) => {
     ctx.strokeStyle = '#665500';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(0, points[0].y);
+    ctx.moveTo(-pad, points[0].y);
     points.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(GAME_WIDTH, points[points.length - 1].y);
+    ctx.lineTo(GAME_WIDTH + pad, points[points.length - 1].y);
     ctx.stroke();
     ctx.restore();
 
@@ -664,6 +669,22 @@ const TIER_COLORS = [
     { gradTop: '#ffdd66', gradBot: '#aa6600', outline: '#cc8800', winLit: '#ffeeaa', winDark: '#554400', antenna: '#ddaa44' },
 ];
 
+// --- Population Tracking ---
+const TIER_POP_MULT = [0.3, 1, 1.5, 2.5, 4, 6]; // village through tier 5
+const getCityPopulation = (city) => {
+    if (!city.active) return 0;
+    const mult = TIER_POP_MULT[Math.min(city.tier ?? 1, 5)];
+    return city.buildings.reduce((sum, b) => {
+        const alive = 1 - (b.damage || 0);
+        return sum + Math.floor(b.w * b.h * mult * alive / 10);
+    }, 0);
+};
+const formatNumber = (n) => {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 10000) return (n / 1e3).toFixed(1) + 'k';
+    return n.toLocaleString();
+};
+
 const drawCity = (ctx, city, frameCount) => {
     if (!city.active) return;
     const tier = city.tier != null ? city.tier : 1;
@@ -680,32 +701,6 @@ const drawCity = (ctx, city, frameCount) => {
     ctx.fillStyle = glowGrad;
     ctx.fillRect(city.x - glowR, city.y - glowR, glowR * 2, glowR);
     ctx.restore();
-
-    // Shield shimmer for tier 3+
-    if (tier >= 3) {
-        ctx.save();
-        const shimmerAlpha = 0.04 + 0.03 * Math.sin(frameCount * 0.03);
-        const shieldR = 45 + tier * 8;
-        ctx.strokeStyle = tier >= 5
-            ? `rgba(255, 220, 100, ${shimmerAlpha + 0.06 * Math.sin(frameCount * 0.08)})`
-            : tier >= 4
-            ? `rgba(180, 120, 255, ${shimmerAlpha})`
-            : `rgba(100, 200, 255, ${shimmerAlpha})`;
-        ctx.lineWidth = tier >= 5 ? 2 : 1;
-        ctx.beginPath();
-        ctx.arc(city.x, city.y - 10, shieldR, Math.PI, 0);
-        ctx.stroke();
-        // Tier 5: pulsing golden ring
-        if (tier >= 5) {
-            const ringAlpha = 0.08 + 0.06 * Math.sin(frameCount * 0.06);
-            ctx.strokeStyle = `rgba(255, 200, 80, ${ringAlpha})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(city.x, city.y - 5, shieldR + 8, Math.PI * 1.1, Math.PI * -0.1);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
 
     city.buildings.forEach(b => {
         const dmg = b.damage || 0;
@@ -832,6 +827,158 @@ const drawCity = (ctx, city, frameCount) => {
             }
         }
     });
+
+    // --- Shield Generators ---
+    if (city.shields && city.shields.length > 0) {
+        city.shields.forEach(s => {
+            const cx = city.x + s.x;
+            const hw = s.halfWidth;
+            // Compute arc height: float above tallest building under this shield
+            let maxH = 20;
+            city.buildings.forEach(bl => {
+                if ((bl.damage || 0) < 0.8 && Math.abs(bl.xOffset - s.x) <= hw + bl.w / 2) {
+                    maxH = Math.max(maxH, bl.h);
+                }
+            });
+            const clearance = 10;
+            const sag = 6; // shallow curve: 6px droop from center to edges
+            const edgeY = city.y - maxH - clearance; // Y at arc edges
+            // Arc formula: py = edgeY - sag*(1 - t*t), center is highest
+
+            // Underground generator bunker (below terrain line)
+            const shieldColor = tc.gradTop;
+            const r = parseInt(shieldColor.slice(1, 3), 16) || 0;
+            const g = parseInt(shieldColor.slice(3, 5), 16) || 200;
+            const bv = parseInt(shieldColor.slice(5, 7), 16) || 200;
+
+            ctx.save();
+            if (s.damaged) {
+                // Damaged bunker
+                ctx.fillStyle = '#222';
+                ctx.fillRect(cx - 6, city.y + 1, 12, 10);
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cx - 6, city.y + 1, 12, 10);
+                // Sparks
+                if ((frameCount + Math.abs(s.x * 100 | 0)) % 8 < 3) {
+                    ctx.fillStyle = '#ff8800';
+                    ctx.fillRect(cx - 2 + (frameCount % 4), city.y - 1, 2, 2);
+                }
+                // Damaged arc outline
+                ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                for (let i = 0; i <= 20; i++) {
+                    const t = (i / 20) * 2 - 1;
+                    const px = cx + t * hw;
+                    const py = edgeY - sag * (1 - t * t);
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            } else {
+                // Active underground bunker
+                const shimmer = 0.15 + 0.08 * Math.sin(frameCount * 0.04 + s.x * 0.1);
+                const hpFrac = s.hp / s.maxHp;
+
+                // Bunker body (underground)
+                ctx.fillStyle = '#111';
+                ctx.fillRect(cx - 7, city.y + 1, 14, 11);
+                ctx.strokeStyle = `rgba(${r}, ${g}, ${bv}, 0.5)`;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cx - 7, city.y + 1, 14, 11);
+                // Emitter nub poking through terrain
+                ctx.fillStyle = `rgb(${r}, ${g}, ${bv})`;
+                ctx.fillRect(cx - 2, city.y - 2, 4, 4);
+                // Glow on emitter
+                ctx.fillStyle = `rgba(${r}, ${g}, ${bv}, ${0.3 + shimmer * 0.4})`;
+                ctx.fillRect(cx - 1, city.y - 1, 2, 2);
+                // Level indicator pips inside bunker
+                for (let l = 0; l <= s.level; l++) {
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${bv}, ${l < s.level ? 0.9 : 0.3})`;
+                    ctx.fillRect(cx - 5 + l * 4, city.y + 7, 2, 2);
+                }
+
+                // Shield arc (floating above buildings) — phosphor burn glow
+                const lvlBoost = s.level * 0.12; // 0, 0.12, 0.24, 0.36
+
+                // Outer bloom pass (wide soft glow)
+                ctx.beginPath();
+                for (let i = 0; i <= 30; i++) {
+                    const t = (i / 30) * 2 - 1;
+                    const px = cx + t * hw;
+                    const py = edgeY - sag * (1 - t * t);
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.shadowColor = `rgba(${r}, ${g}, ${bv}, ${0.7 + lvlBoost})`;
+                ctx.shadowBlur = 14 + s.level * 4;
+                ctx.strokeStyle = `rgba(${r}, ${g}, ${bv}, ${0.15 + shimmer * 0.2})`;
+                ctx.lineWidth = 4 + s.level;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // Mid glow pass
+                ctx.beginPath();
+                for (let i = 0; i <= 30; i++) {
+                    const t = (i / 30) * 2 - 1;
+                    const px = cx + t * hw;
+                    const py = edgeY - sag * (1 - t * t);
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.shadowColor = `rgba(${Math.min(255, r + 60)}, ${Math.min(255, g + 60)}, ${Math.min(255, bv + 60)}, ${0.8 + lvlBoost})`;
+                ctx.shadowBlur = 6 + s.level * 2;
+                ctx.strokeStyle = `rgba(${r}, ${g}, ${bv}, ${0.35 + shimmer * 0.4 + lvlBoost * 0.3})`;
+                ctx.lineWidth = 2 + s.level * 0.5;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // Core bright line — intensifies toward center with level
+                // Draw segment by segment for center-weighted brightness
+                for (let i = 0; i < 30; i++) {
+                    const t0 = (i / 30) * 2 - 1;
+                    const t1 = ((i + 1) / 30) * 2 - 1;
+                    const tMid = (t0 + t1) / 2;
+                    // Center weight: 1.0 at center, falls off toward edges
+                    const centerW = 1 - tMid * tMid;
+                    const coreAlpha = (0.5 + shimmer * 0.3 + centerW * lvlBoost * 0.8) * hpFrac;
+                    const coreWidth = (1.5 + centerW * lvlBoost * 2) * (hpFrac > 0.5 ? 1 : 0.7);
+                    // Brighten core color toward white at center with level
+                    const cr = Math.min(255, r + Math.floor(centerW * lvlBoost * 200));
+                    const cg = Math.min(255, g + Math.floor(centerW * lvlBoost * 200));
+                    const cb = Math.min(255, bv + Math.floor(centerW * lvlBoost * 200));
+                    ctx.beginPath();
+                    ctx.moveTo(cx + t0 * hw, edgeY - sag * (1 - t0 * t0));
+                    ctx.lineTo(cx + t1 * hw, edgeY - sag * (1 - t1 * t1));
+                    ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${coreAlpha})`;
+                    ctx.lineWidth = coreWidth;
+                    ctx.stroke();
+                }
+
+                // Phosphor bloom fill band (subtle)
+                ctx.beginPath();
+                for (let i = 0; i <= 30; i++) {
+                    const t = (i / 30) * 2 - 1;
+                    ctx.lineTo(cx + t * hw, edgeY - sag * (1 - t * t) - 2);
+                }
+                for (let i = 30; i >= 0; i--) {
+                    const t = (i / 30) * 2 - 1;
+                    ctx.lineTo(cx + t * hw, edgeY - sag * (1 - t * t) + 3);
+                }
+                ctx.closePath();
+                ctx.fillStyle = `rgba(${r}, ${g}, ${bv}, ${shimmer * hpFrac * 0.2 + lvlBoost * 0.1})`;
+                ctx.fill();
+
+                // Shimmer highlight sliding along arc
+                const highlightX = cx + Math.sin(frameCount * 0.05 + s.x) * hw * 0.6;
+                const highlightT = (highlightX - cx) / hw;
+                const highlightY = edgeY - sag * (1 - highlightT * highlightT);
+                ctx.fillStyle = `rgba(255, 255, 255, ${shimmer * 0.6 + lvlBoost * 0.15})`;
+                ctx.fillRect(highlightX - 2, highlightY - 2, 4, 3);
+            }
+            ctx.restore();
+        });
+    }
 };
 
 const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
@@ -1211,9 +1358,13 @@ const drawBomber = (ctx, b, frameCount) => {
 };
 
 const drawBossShip = (ctx, b, frameCount) => {
+    // Don't draw while off-screen
+    if (b.reentryTimer > 0) return;
+
     const dir = b.vx > 0 ? 1 : -1;
     const scale = b.bossTier >= 2 ? 7.5 : 5.4;
     const isMega = b.bossTier >= 2;
+    const hpRatio = b.hp / b.maxHp;
 
     ctx.save();
     ctx.translate(b.x, b.y);
@@ -1340,6 +1491,60 @@ const drawBossShip = (ctx, b, frameCount) => {
     ctx.fillStyle = '#ff8866';
     ctx.fillRect(dir * 6 * scale, -2 * scale, dir * 4 * scale, 4 * scale);
 
+    // --- Damage effects based on HP ---
+    if (hpRatio < 0.75) {
+        // Light smoke puffs
+        const smokeCount = hpRatio < 0.25 ? 4 : hpRatio < 0.5 ? 3 : 1;
+        for (let i = 0; i < smokeCount; i++) {
+            const hash = (frameCount * 3 + i * 137) & 0xFF;
+            const sx = (hash % 20 - 10) * scale * 0.5;
+            const sy = (hash % 14 - 7) * scale * 0.4;
+            const smokeAlpha = (0.15 + (hash % 10) * 0.02) * (1 - hpRatio);
+            ctx.fillStyle = `rgba(80, 80, 80, ${smokeAlpha})`;
+            const drift = Math.sin(frameCount * 0.04 + i) * 3;
+            ctx.beginPath();
+            ctx.arc(sx + drift, sy - Math.abs(Math.sin(frameCount * 0.02 + i)) * 8, 3 + (1 - hpRatio) * 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    if (hpRatio < 0.5) {
+        // Hull breach gashes
+        ctx.strokeStyle = `rgba(40, 10, 0, ${0.8 - hpRatio})`;
+        ctx.lineWidth = 2;
+        const gashCount = hpRatio < 0.25 ? 4 : 2;
+        for (let i = 0; i < gashCount; i++) {
+            const gx = ((i * 97 + 31) % 16 - 8) * scale * 0.4;
+            const gy = ((i * 53 + 17) % 10 - 5) * scale * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(gx - 3, gy - 2);
+            ctx.lineTo(gx + 3, gy + 2);
+            ctx.stroke();
+        }
+        // Fire at breach points
+        if (hpRatio < 0.5) {
+            for (let i = 0; i < (hpRatio < 0.25 ? 3 : 1); i++) {
+                const fx = ((i * 97 + 31) % 16 - 8) * scale * 0.4;
+                const fy = ((i * 53 + 17) % 10 - 5) * scale * 0.3;
+                const flicker = (frameCount + i * 7) % 3;
+                ctx.fillStyle = flicker === 0 ? '#ff6600' : flicker === 1 ? '#ff3300' : '#ffaa00';
+                ctx.fillRect(fx - 2, fy - 3 - Math.random() * 3, 4, 4);
+            }
+        }
+    }
+    if (hpRatio < 0.25) {
+        // Critical: sparking electrical arcs
+        ctx.strokeStyle = `rgba(100, 200, 255, ${0.5 + 0.5 * Math.sin(frameCount * 0.8)})`;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+            const ax = (Math.sin(frameCount * 0.3 + i * 2) * 6) * scale * 0.3;
+            const ay = (Math.cos(frameCount * 0.4 + i * 3) * 4) * scale * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax + (Math.random() - 0.5) * 12, ay + (Math.random() - 0.5) * 8);
+            ctx.stroke();
+        }
+    }
+
     // Dual engine glows
     const enginePulse = 0.5 + 0.5 * Math.sin(frameCount * 0.25);
     const bombRunBoost = b.bombRunning > 0 ? 1.5 : 1;
@@ -1379,9 +1584,9 @@ const drawBossShip = (ctx, b, frameCount) => {
 
     ctx.restore();
 
-    // HP bar (always visible for boss ships)
+    // HP bar (below the ship so it's always visible)
     const barW = isMega ? 60 : 40;
-    const barY = b.y - 12 * scale - 4;
+    const barY = b.y + 12 * scale + 4;
     drawHPBar(ctx, b.x - barW / 2, barY, barW, 4, b.hp / b.maxHp);
 
     // EMP charge bar (below HP bar)
@@ -1664,27 +1869,28 @@ const drawPlayerMissile = (ctx, m) => {
 
 const drawPdcProjectile = (ctx, p) => {
     const alpha = 1 - p.life / p.maxLife;
-    // Faint trail
-    ctx.globalAlpha = alpha * 0.3;
-    ctx.strokeStyle = '#ff4400';
+    // Long tracer line (velocity trail)
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.5;
+    ctx.strokeStyle = '#ff6644';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x - p.vx * 1.2, p.y - p.vy * 1.2);
+    ctx.stroke();
+    // Hot core tracer
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#ffcc88';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x - p.vx * 0.5, p.y - p.vy * 0.5);
+    ctx.lineTo(p.x - p.vx * 0.6, p.y - p.vy * 0.6);
     ctx.stroke();
-    // Glow
-    ctx.globalAlpha = alpha * 0.4;
-    ctx.fillStyle = '#ff6633';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-    // Core
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#ff4400';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
+    // Bright tip
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillRect(p.x - 0.5, p.y - 0.5, 1.5, 1.5);
+    ctx.restore();
 };
 
 const drawLaserBeam = (ctx, l) => {
@@ -1898,7 +2104,7 @@ const App = () => {
   const frameCount = useRef(0);
   const screenShake = useRef(0);
   const mapData = useRef({ stars: [], bgTerrain: [], vegetation: [] });
-  const fortifyCount = useRef(0);
+  const shieldCount = useRef(0);
 
   // Placement State
   const [selectedAction, setSelectedAction] = useState(null);
@@ -2059,7 +2265,7 @@ const App = () => {
         const buildings = generateCityBuildings(1);
         // Start with fewer buildings (reduce by ~40%)
         const reduced = buildings.slice(0, Math.max(2, Math.ceil(buildings.length * 0.6)));
-        return { x: slot.x, y: cy, active: true, hp: 3, maxHp: 3, tier: 1, wavesSurvived: 0, growthLevel: 0, buildings: reduced };
+        return { x: slot.x, y: cy, active: true, hp: 3, maxHp: 3, tier: 1, wavesSurvived: 0, growthLevel: 0, buildings: reduced, shields: [] };
     });
     setCities(newCities);
     return upperPoints;
@@ -2100,7 +2306,7 @@ const App = () => {
               upperTerrain: upperTerrain.current,
               lowerTerrain: lowerTerrain.current,
               mapData: mapData.current,
-              fortifyCount: fortifyCount.current
+              shieldCount: shieldCount.current
           };
           localStorage.setItem(SAVE_KEY, JSON.stringify(data));
       } catch (e) { /* storage full or unavailable */ }
@@ -2138,7 +2344,7 @@ const App = () => {
       lowerTerrain.current = save.lowerTerrain;
       terrain.current = save.upperTerrain;
       mapData.current = save.mapData;
-      fortifyCount.current = save.fortifyCount || 0;
+      shieldCount.current = save.shieldCount || 0;
       resetEntities();
       setupLevel(save.level);
       setGameState('PLACEMENT');
@@ -2155,7 +2361,7 @@ const App = () => {
     setGameState('PLACEMENT');
     setMessage('Commander, hostile forces inbound.');
     turrets.current = [];
-    fortifyCount.current = 0;
+    shieldCount.current = 0;
     resetEntities();
     generateMap(2);
     setupLevel(1);
@@ -2259,7 +2465,7 @@ const App = () => {
             let target = null;
             let minDist = turret.stats.range;
 
-            const allTargets = [...bombers.current, ...enemyMissiles.current];
+            const allTargets = [...bombers.current.filter(b => !b.reentryTimer || b.reentryTimer <= 0), ...enemyMissiles.current];
 
             // Laser turrets prefer their current target for beam continuity
             if (turret.type === 'LASER' && turret.laserTarget) {
@@ -2511,8 +2717,17 @@ const App = () => {
               return { ...c, wavesSurvived: ws, growthLevel: gl, buildings: grownBuildings };
           }
       });
+      // Repair shields: damaged shields come back online after 1 wave
+      const shieldRepaired = updatedCities.map(c => {
+          if (!c.active || !c.shields || c.shields.length === 0) return c;
+          const repairedShields = c.shields.map(s => {
+              if (s.damaged) return { ...s, damaged: false, hp: s.maxHp };
+              return s;
+          });
+          return { ...c, shields: repairedShields };
+      });
       // Spawn villages in gaps between cities
-      const withVillages = spawnVillages(updatedCities, level);
+      const withVillages = spawnVillages(shieldRepaired, level);
       // Check for city merges after growth
       const mergedCities = checkCityMerges(withVillages);
       setCities(mergedCities);
@@ -2549,7 +2764,7 @@ const App = () => {
               x: midX, y: vy, active: true,
               hp: 1, maxHp: 1,
               tier: 0, wavesSurvived: 0, growthLevel: 0,
-              buildings: reduced,
+              buildings: reduced, shields: [],
               isVillage: true
           });
           createParticles(midX, vy, '#88dddd', 4);
@@ -2619,8 +2834,17 @@ const App = () => {
                   const tierB = b.tier != null ? b.tier : 1;
                   const cfgA = TIER_CONFIG[Math.min(tierA, 5)];
                   const cfgB = TIER_CONFIG[Math.min(tierB, 5)];
-                  const spreadA = cfgA.spread + (a.growthLevel || 0) * 2.5;
-                  const spreadB = cfgB.spread + (b.growthLevel || 0) * 2.5;
+                  // Use the greater of tier formula OR actual building extent
+                  const formulaSpreadA = cfgA.spread + (a.growthLevel || 0) * 2.5;
+                  const buildingSpreadA = a.buildings.length > 0
+                      ? Math.max(...a.buildings.map(bl => Math.abs(bl.xOffset) + bl.w / 2))
+                      : 0;
+                  const spreadA = Math.max(formulaSpreadA, buildingSpreadA);
+                  const formulaSpreadB = cfgB.spread + (b.growthLevel || 0) * 2.5;
+                  const buildingSpreadB = b.buildings.length > 0
+                      ? Math.max(...b.buildings.map(bl => Math.abs(bl.xOffset) + bl.w / 2))
+                      : 0;
+                  const spreadB = Math.max(formulaSpreadB, buildingSpreadB);
                   const gap = Math.abs(a.x - b.x) - spreadA - spreadB;
                   if (gap < 35) {
                       const midX = (a.x + b.x) / 2;
@@ -2652,6 +2876,11 @@ const App = () => {
                               hasAntenna: false, damage: 0
                           });
                       }
+                      // Combine shields, adjusting offsets to new city center
+                      const combinedShields = [
+                          ...(a.shields || []).map(s => ({ ...s, x: s.x + offsetA })),
+                          ...(b.shields || []).map(s => ({ ...s, x: s.x + offsetB }))
+                      ];
                       // Tier boost when merging same-tier cities
                       const mergedTier = (tierA === tierB && tierA < 5)
                           ? tierA + 1
@@ -2667,6 +2896,7 @@ const App = () => {
                           tier: mergedTier,
                           growthLevel: Math.max(a.growthLevel || 0, b.growthLevel || 0),
                           buildings: combinedBuildings,
+                          shields: combinedShields,
                           isVillage: false
                       };
                       result[idxB] = { ...b, active: false };
@@ -2936,11 +3166,8 @@ const App = () => {
           // Looping & descent
           passCount: 0,
           reentryTimer: 0,
-          // Point defense
+          // Point defense (rapid-fire tracers)
           pdCooldown: 0,
-          pdCharges: isMega ? 4 : 2,
-          pdMaxCharges: isMega ? 4 : 2,
-          pdRegenTimer: 0,
           pdFlash: 0,
           // EMP
           empCharge: 0,
@@ -2992,8 +3219,27 @@ const App = () => {
 
               // Check if boss has exited the screen
               if (b.x < -80 || b.x > GAME_WIDTH + 80) {
-                  b.reentryTimer = 120; // ~2 second delay before reappearing
+                  b.reentryTimer = 300; // 5 second delay before reappearing
                   return;
+              }
+
+              // Trailing smoke/fire particles when damaged
+              const hpRatio = b.hp / b.maxHp;
+              if (hpRatio < 0.75 && Math.random() < (1 - hpRatio) * 0.5) {
+                  const room = 500 - particles.current.length;
+                  if (room > 0) {
+                      particles.current.push({
+                          x: b.x - b.vx * 8 + (Math.random() - 0.5) * 10,
+                          y: b.y + (Math.random() - 0.5) * 6,
+                          vx: -b.vx * 0.3 + (Math.random() - 0.5) * 0.5,
+                          vy: -0.5 - Math.random() * 0.5,
+                          color: hpRatio < 0.35 ? (Math.random() > 0.4 ? '#ff4400' : '#ff8800') : '#666666',
+                          life: 15 + Math.random() * 15,
+                          maxLife: 30,
+                          size: 2 + Math.random() * 3,
+                          shape: 'circle'
+                      });
+                  }
               }
 
               // --- Altitude-scaled drop chance: lower = more aggressive ---
@@ -3045,18 +3291,14 @@ const App = () => {
                   }
               }
 
-              // --- Point Defense Cannons (fire projectiles at player missiles) ---
+              // --- Point Defense Cannons: rapid-fire tracers at incoming missiles ---
               b.pdCooldown = Math.max(0, b.pdCooldown - 1);
-              b.pdRegenTimer++;
-              if (b.pdRegenTimer >= 120 && b.pdCharges < b.pdMaxCharges) {
-                  b.pdCharges++;
-                  b.pdRegenTimer = 0;
-              }
               if (b.pdFlash > 0) b.pdFlash--;
-              if (b.pdCooldown <= 0 && b.pdCharges > 0) {
+              if (b.pdCooldown <= 0) {
                   // Find nearest player missile within detection range
+                  const pdRange = isMega ? 280 : 220;
                   let nearest = null;
-                  let nearestDist = 150;
+                  let nearestDist = pdRange;
                   for (let pm of playerMissiles.current) {
                       if (!pm.active) continue;
                       const d = distance(b.x, b.y, pm.x, pm.y);
@@ -3066,25 +3308,20 @@ const App = () => {
                       }
                   }
                   if (nearest) {
-                      // Fire PDC projectile spread toward nearest missile
-                      const baseAngle = Math.atan2(nearest.y - b.y, nearest.x - b.x);
-                      const count = isMega ? 7 : 5;
-                      const coneHalf = Math.PI / 8; // 45° total cone
-                      for (let i = 0; i < count; i++) {
-                          const spread = (i / (count - 1) - 0.5) * 2 * coneHalf;
-                          const a = baseAngle + spread;
-                          pdcProjectiles.current.push({
-                              x: b.x, y: b.y,
-                              vx: Math.cos(a) * 8,
-                              vy: Math.sin(a) * 8,
-                              active: true,
-                              life: 0,
-                              maxLife: 15
-                          });
-                      }
-                      b.pdCharges--;
-                      b.pdFlash = 10;
-                      b.pdCooldown = 30;
+                      // Fire single high-velocity tracer directly at target
+                      const a = Math.atan2(nearest.y - b.y, nearest.x - b.x);
+                      const jitter = (Math.random() - 0.5) * 0.06; // slight inaccuracy
+                      const spd = 14;
+                      pdcProjectiles.current.push({
+                          x: b.x, y: b.y,
+                          vx: Math.cos(a + jitter) * spd,
+                          vy: Math.sin(a + jitter) * spd,
+                          active: true,
+                          life: 0,
+                          maxLife: 18
+                      });
+                      b.pdFlash = 3;
+                      b.pdCooldown = isMega ? 4 : 6; // rapid fire
                       Sound.pdcFire();
                   }
               }
@@ -3207,8 +3444,42 @@ const App = () => {
             return;
         }
 
+        // Shield collision — check before ground impact
+        let shieldBlocked = false;
+        if (m.active) {
+            for (const c of cities) {
+                if (!c.active || !c.shields) continue;
+                for (const s of c.shields) {
+                    if (s.damaged || s.hp <= 0) continue;
+                    const scx = c.x + s.x;
+                    if (m.x >= scx - s.halfWidth && m.x <= scx + s.halfWidth) {
+                        // Compute floating arc Y (matches drawing formula)
+                        let maxH = 20;
+                        for (const bl of c.buildings) {
+                            if ((bl.damage || 0) < 0.8 && Math.abs(bl.xOffset - s.x) <= s.halfWidth + bl.w / 2) {
+                                maxH = Math.max(maxH, bl.h);
+                            }
+                        }
+                        const edgeY = c.y - maxH - 10;
+                        const sag = 6;
+                        const t = (m.x - scx) / s.halfWidth;
+                        const shieldY = edgeY - sag * (1 - t * t);
+                        if (m.y >= shieldY) {
+                            s.hp -= 1;
+                            if (s.hp <= 0) s.damaged = true;
+                            m.active = false;
+                            shieldBlocked = true;
+                            createParticles(m.x, shieldY, '#00ffff', 6);
+                            break;
+                        }
+                    }
+                }
+                if (shieldBlocked) break;
+            }
+        }
+
         const groundY = getTerrainHeight(m.x, lowerTerrain.current);
-        if (m.y >= groundY) {
+        if (m.active && m.y >= groundY) {
             m.active = false;
             createExplosion(m.x, m.y);
             checkCityDamage(m.x, m.y);
@@ -3229,7 +3500,7 @@ const App = () => {
         if (!m.active) return;
 
         if (m.type === 'SAM' && m.targetId) {
-             const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
+             const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId && !e.reentryTimer);
              if (target && target.active) {
                  const angle = Math.atan2(target.y - m.y, target.x - m.x);
                  m.vx = Math.cos(angle) * SAM_SPEED;
@@ -3286,7 +3557,7 @@ const App = () => {
                 }
 
                 // Homing: turn toward target at 0.08 rad/frame
-                let target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId && e.active);
+                let target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId && e.active && !e.reentryTimer);
                 // Retarget if original target is dead — prefer high-value nearby enemies
                 if (!target) {
                     const retargetRange = 200;
@@ -3300,7 +3571,7 @@ const App = () => {
                         return 0;
                     };
                     [...enemyMissiles.current, ...bombers.current].forEach(e => {
-                        if (!e.active) return;
+                        if (!e.active || e.reentryTimer > 0) return;
                         const d = distance(m.x, m.y, e.x, e.y);
                         if (d >= retargetRange) return;
                         const pri = swarmPriority(e);
@@ -3463,7 +3734,7 @@ const App = () => {
           } else {
               Sound.enemyHit();
               const hit = newCities.find(c => c.active && distance(x, y, c.x, c.y) < 55);
-              if (hit) setMessage(`CITY HIT — SHIELDS ${hit.hp}/${hit.maxHp}`);
+              if (hit) setMessage(`CITY HIT — HP ${hit.hp}/${hit.maxHp}`);
           }
       }
   };
@@ -3543,8 +3814,37 @@ const App = () => {
     const x = (e.clientX - rect.left) * scaleX;
     const clickY = (e.clientY - rect.top) * scaleY;
 
-    // Restrict turret placement/upgrade to upper terrain zone
+    // Check for shield generator clicks in city zone
     if (clickY > CITY_ZONE_TOP) {
+        for (const c of cities) {
+            if (!c.active || !c.shields) continue;
+            for (let si = 0; si < c.shields.length; si++) {
+                const s = c.shields[si];
+                const gx = c.x + s.x;
+                const gy = c.y + 7; // underground center
+                if (distance(x, clickY, gx, gy) < 18) {
+                    if (s.damaged) { setMessage("SHIELD OFFLINE — REPAIRS AFTER NEXT WAVE"); return; }
+                    if (s.level >= 3) { setMessage("SHIELD AT MAX LEVEL"); return; }
+                    const cost = SHIELD_BASE_COST * Math.pow(10, s.level);
+                    if (money < cost) { setMessage(`INSUFFICIENT FUNDS (NEED $${cost})`); return; }
+                    setMoney(m => m - cost);
+                    const newLevel = s.level + 1;
+                    const newMaxHp = 5 + 5 * newLevel;
+                    const newCities = cities.map(cc => {
+                        if (cc !== c) return cc;
+                        return { ...cc, shields: cc.shields.map((ss, idx) => {
+                            if (idx !== si) return ss;
+                            return { ...ss, level: newLevel, maxHp: newMaxHp, hp: newMaxHp };
+                        })};
+                    });
+                    setCities(newCities);
+                    createParticles(gx, c.y, '#00ffff', 8);
+                    Sound.upgrade();
+                    setMessage(`SHIELD UPGRADED — LV${newLevel} (HP: ${newMaxHp})`);
+                    return;
+                }
+            }
+        }
         if (selectedAction) {
             setMessage('CANNOT PLACE IN CIVILIAN ZONE');
         }
@@ -3598,40 +3898,113 @@ const App = () => {
     }
   };
 
-  const fortifyCity = () => {
-      const cost = FORTIFY_BASE_COST * Math.pow(2, fortifyCount.current);
+  // Shield generator: compute city building extent
+  const getCityExtent = (city) => {
+      if (!city.buildings || city.buildings.length === 0) return { min: -20, max: 20 };
+      const offsets = city.buildings.map(b => [b.xOffset - b.w / 2, b.xOffset + b.w / 2]);
+      return { min: Math.min(...offsets.map(o => o[0])), max: Math.max(...offsets.map(o => o[1])) };
+  };
+
+  // Find uncovered x-ranges within city extent
+  const getUncoveredRanges = (city) => {
+      const ext = getCityExtent(city);
+      const shields = (city.shields || []).filter(s => !s.damaged);
+      if (shields.length === 0) return [{ left: ext.min, right: ext.max }];
+      // Build covered intervals (relative to city center)
+      const covered = shields.map(s => ({ left: s.x - s.halfWidth, right: s.x + s.halfWidth }));
+      covered.sort((a, b) => a.left - b.left);
+      // Merge overlapping intervals
+      const merged = [covered[0]];
+      for (let i = 1; i < covered.length; i++) {
+          const last = merged[merged.length - 1];
+          if (covered[i].left <= last.right) {
+              last.right = Math.max(last.right, covered[i].right);
+          } else {
+              merged.push({ ...covered[i] });
+          }
+      }
+      // Subtract from extent
+      const uncovered = [];
+      let cursor = ext.min;
+      for (const iv of merged) {
+          if (iv.left > cursor) uncovered.push({ left: cursor, right: iv.left });
+          cursor = Math.max(cursor, iv.right);
+      }
+      if (cursor < ext.max) uncovered.push({ left: cursor, right: ext.max });
+      return uncovered;
+  };
+
+  const getShieldAction = () => {
+      const activeCities = cities.filter(c => c.active && !c.isVillage);
+      if (activeCities.length === 0) return { action: 'none' };
+      // Check if any city has a placeable gap (respecting spacing)
+      for (const c of activeCities) {
+          const uncovered = getUncoveredRanges(c);
+          const maxGap = uncovered.reduce((max, u) => Math.max(max, u.right - u.left), 0);
+          if (maxGap > 30) return {
+              action: 'place',
+              cost: SHIELD_BASE_COST * Math.pow(2, shieldCount.current)
+          };
+      }
+      return { action: 'none' };
+  };
+
+  const shieldAction = () => {
       const activeCities = cities.filter(c => c.active && !c.isVillage);
       if (activeCities.length === 0) {
-          setMessage("NO CITIES TO FORTIFY");
+          setMessage("NO CITIES TO SHIELD");
           return;
       }
-      if (activeCities.every(c => (c.tier || 1) >= 5)) {
-          setMessage("ALL CITIES AT MAX TIER");
-          return;
-      }
-      if (money < cost) {
-          setMessage("INSUFFICIENT FUNDS");
-          return;
-      }
-      setMoney(m => m - cost);
-      fortifyCount.current++;
-      // Upgrade lowest-tier active city
-      const minTier = Math.min(...activeCities.map(c => c.tier || 1));
-      let upgraded = false;
-      const newCities = cities.map(c => {
-          if (!upgraded && c.active && !c.isVillage && (c.tier || 1) === minTier && (c.tier || 1) < 5) {
-              upgraded = true;
-              const newTier = (c.tier || 1) + 1;
-              const newMaxHp = (c.maxHp || 3) + 2;
-              createParticles(c.x, c.y, '#0ff', 12);
-              Sound.upgrade();
-              return { ...c, tier: newTier, maxHp: newMaxHp, hp: newMaxHp, buildings: generateCityBuildings(newTier) };
+      // Find city with widest uncovered gap
+      let bestCity = null;
+      let bestGap = 0;
+      let bestGapCenter = 0;
+      for (const c of activeCities) {
+          const uncovered = getUncoveredRanges(c);
+          for (const u of uncovered) {
+              const gapW = u.right - u.left;
+              if (gapW > bestGap) {
+                  bestGap = gapW;
+                  bestCity = c;
+                  bestGapCenter = (u.left + u.right) / 2;
+              }
           }
+      }
+
+      if (!bestCity || bestGap <= 30) {
+          setMessage("NO ROOM FOR ADDITIONAL SHIELDS");
+          return;
+      }
+
+      const cost = SHIELD_BASE_COST * Math.pow(2, shieldCount.current);
+      if (money < cost) { setMessage("INSUFFICIENT FUNDS"); return; }
+      setMoney(m => m - cost);
+      shieldCount.current++;
+      const ext = getCityExtent(bestCity);
+      const hw = 60;
+      let clampedX = Math.max(ext.min + hw, Math.min(ext.max - hw, bestGapCenter));
+      // Enforce minimum spacing from existing shields (100px center-to-center)
+      const minSpacing = 100;
+      const existing = (bestCity.shields || []);
+      for (const es of existing) {
+          const dist = clampedX - es.x;
+          if (Math.abs(dist) < minSpacing) {
+              clampedX = dist >= 0 ? es.x + minSpacing : es.x - minSpacing;
+          }
+      }
+      clampedX = Math.max(ext.min + hw, Math.min(ext.max - hw, clampedX));
+      const newShield = {
+          x: clampedX, hp: 5, maxHp: 5, level: 0,
+          halfWidth: hw, damaged: false
+      };
+      const newCities = cities.map(c => {
+          if (c === bestCity) return { ...c, shields: [...(c.shields || []), newShield] };
           return c;
       });
       setCities(newCities);
-      const fortified = newCities.find(c => c.active && upgraded);
-      setMessage(`CITY FORTIFIED — TIER ${fortified ? fortified.tier : '?'}`);
+      createParticles(bestCity.x + clampedX, bestCity.y - 20, '#00ffff', 8);
+      Sound.upgrade();
+      setMessage(`SHIELD GENERATOR ONLINE (HP: ${newShield.maxHp})`);
   };
 
   const handleMouseMove = (e) => {
@@ -3795,6 +4168,12 @@ const App = () => {
                 </div>
             </div>
             <div className="flex flex-col">
+                <span className="text-[10px] text-green-700">POP</span>
+                <div className="flex items-center gap-1 text-lg font-bold">
+                    <Users size={16} />{formatNumber(cities.reduce((s, c) => s + getCityPopulation(c), 0))}
+                </div>
+            </div>
+            <div className="flex flex-col">
                 <span className="text-[10px] text-green-700">WAVE</span>
                 <div className="flex items-center gap-1 text-lg font-bold">
                     <Shield size={16} />{level}
@@ -3919,14 +4298,21 @@ const App = () => {
 
                   <div className="w-px bg-zinc-800 mx-1"></div>
 
-                   <button
-                        onClick={fortifyCity}
-                        className="flex flex-col items-center justify-center w-20 h-20 border border-zinc-800 rounded hover:border-cyan-500 group transition-all"
-                    >
-                        <Wifi size={20} className="text-cyan-400 mb-1 group-hover:animate-pulse" />
-                        <span className="text-[10px] font-bold text-zinc-300">FORTIFY</span>
-                        <span className="text-[10px] text-cyan-400">${FORTIFY_BASE_COST * Math.pow(2, fortifyCount.current)}</span>
-                    </button>
+                   {(() => {
+                        const sa = getShieldAction();
+                        const disabled = sa.action === 'none';
+                        return (
+                            <button
+                                onClick={shieldAction}
+                                disabled={disabled}
+                                className={`flex flex-col items-center justify-center w-20 h-20 border rounded transition-all ${disabled ? 'border-zinc-800 opacity-40 cursor-not-allowed' : 'border-zinc-800 hover:border-cyan-500 group'}`}
+                            >
+                                <ShieldPlus size={20} className="text-cyan-400 mb-1 group-hover:animate-pulse" />
+                                <span className="text-[10px] font-bold text-zinc-300">SHIELD</span>
+                                {!disabled && <span className="text-[10px] text-cyan-400">${sa.cost}</span>}
+                            </button>
+                        );
+                    })()}
               </div>
 
               <button
@@ -3937,7 +4323,7 @@ const App = () => {
               </button>
           </div>
           <div className="text-center text-xs text-zinc-600 mt-2">
-            Click Unit to Upgrade (cost scales per level)
+            Click turrets or shield generators to upgrade
           </div>
       </div>
 
