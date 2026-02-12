@@ -44,6 +44,7 @@ const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const PLAYER_PROJECTILE_SPEED = 15;
 const SAM_SPEED = 7;
+const ARTILLERY_SHELL_SPEED = 28;
 const EXPLOSION_GROWTH = 1.5;
 
 // Balance Constants
@@ -96,15 +97,16 @@ const TURRET_TYPES = {
   },
   ARTILLERY: {
     name: 'ARTILLERY',
-    desc: 'Massive Area',
+    desc: 'Heavy Cannon',
     color: '#ff00ff',
-    range: 350,
-    fireRate: 70,
-    explosionRadius: 100,
+    range: 400,
+    fireRate: 100,
+    explosionRadius: 0,
     projectileColor: '#f0f',
-    damage: 20,
+    damage: 80,
     cost: ARTILLERY_COST,
-    icon: Shield
+    icon: Shield,
+    trackingSpeed: 0.03
   },
   LASER: {
     name: 'LASER',
@@ -183,32 +185,32 @@ const Sound = {
             osc.start(t);
             osc.stop(t + 0.12);
         } else if (type === 'ARTILLERY') {
-            // Low boom: sine 80Hz + noise burst
+            // Heavy cannon boom: low sine 50Hz + sharp crack + rumble
             const osc = audioCtx.createOscillator();
             osc.type = 'sine';
-            osc.frequency.value = 80;
+            osc.frequency.value = 50;
             const g1 = audioCtx.createGain();
-            g1.gain.setValueAtTime(0.5, t);
-            g1.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            g1.gain.setValueAtTime(0.6, t);
+            g1.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
             osc.connect(g1).connect(masterGain);
             osc.start(t);
-            osc.stop(t + 0.15);
-            // noise layer
-            const bufferSize = audioCtx.sampleRate * 0.1;
+            osc.stop(t + 0.25);
+            // Sharp crack
+            const bufferSize = audioCtx.sampleRate * 0.05;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
             const src = audioCtx.createBufferSource();
             src.buffer = buffer;
-            const lp = audioCtx.createBiquadFilter();
-            lp.type = 'lowpass';
-            lp.frequency.value = 600;
+            const hp = audioCtx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 800;
             const g2 = audioCtx.createGain();
-            g2.gain.setValueAtTime(0.4, t);
-            g2.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-            src.connect(lp).connect(g2).connect(masterGain);
+            g2.gain.setValueAtTime(0.5, t);
+            g2.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+            src.connect(hp).connect(g2).connect(masterGain);
             src.start(t);
-            src.stop(t + 0.1);
+            src.stop(t + 0.05);
         } else if (type === 'SWARM') {
             // 4 rapid staccato sawtooth chirps
             for (let i = 0; i < 4; i++) {
@@ -1004,7 +1006,7 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
         ctx.setLineDash([]);
     }
 
-    const angle = t.angle || -Math.PI / 2;
+    const angle = t.angle || Math.PI / 2;
     const recoil = t.recoilOffset || 0;
 
     if (t.type === 'FLAK') {
@@ -1080,41 +1082,58 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
         ctx.restore();
 
     } else if (t.type === 'ARTILLERY') {
-        // Trapezoid body
+        // Heavy reinforced base
         ctx.fillStyle = '#000';
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(t.x - 14, t.y + 6);
-        ctx.lineTo(t.x - 10, t.y - 8);
-        ctx.lineTo(t.x + 10, t.y - 8);
-        ctx.lineTo(t.x + 14, t.y + 6);
+        ctx.moveTo(t.x - 16, t.y + 6);
+        ctx.lineTo(t.x - 12, t.y - 6);
+        ctx.lineTo(t.x + 12, t.y - 6);
+        ctx.lineTo(t.x + 16, t.y + 6);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // Rivets
-        ctx.fillStyle = color;
-        ctx.fillRect(t.x - 8, t.y - 4, 2, 2);
-        ctx.fillRect(t.x + 6, t.y - 4, 2, 2);
-        ctx.fillRect(t.x - 8, t.y + 2, 2, 2);
-        ctx.fillRect(t.x + 6, t.y + 2, 2, 2);
+        // Pivot housing (circle where barrel mounts)
+        ctx.fillStyle = '#000';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y - 4, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
 
-        // Long thick rotating barrel
+        // Long heavy cannon barrel
         ctx.save();
         ctx.translate(t.x, t.y - 4);
         ctx.rotate(angle + Math.PI / 2);
+        // Barrel body — tapered
+        ctx.fillStyle = '#000';
         ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(0, recoil);
-        ctx.lineTo(0, 20 - recoil);
+        ctx.moveTo(-3, recoil);
+        ctx.lineTo(-2.5, 24 - recoil);
+        ctx.lineTo(2.5, 24 - recoil);
+        ctx.lineTo(3, recoil);
+        ctx.closePath();
+        ctx.fill();
         ctx.stroke();
-        // Barrel tip
-        ctx.lineWidth = 5;
+        // Muzzle brake
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, 18 - recoil);
-        ctx.lineTo(0, 20 - recoil);
+        ctx.moveTo(-4.5, 22 - recoil);
+        ctx.lineTo(-4.5, 25 - recoil);
+        ctx.moveTo(4.5, 22 - recoil);
+        ctx.lineTo(4.5, 25 - recoil);
+        ctx.stroke();
+        // Barrel ring
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-3, 10 - recoil);
+        ctx.lineTo(3, 10 - recoil);
         ctx.stroke();
         ctx.restore();
 
@@ -1196,7 +1215,7 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
         // 3 angled launcher tubes with missile tips
         ctx.save();
         ctx.translate(t.x, t.y);
-        const tubeAngles = [-Math.PI / 2 - 0.4, -Math.PI / 2, -Math.PI / 2 + 0.4];
+        const tubeAngles = [Math.PI / 2 - 0.4, Math.PI / 2, Math.PI / 2 + 0.4];
         tubeAngles.forEach(ta => {
             ctx.save();
             ctx.rotate(ta + Math.PI / 2);
@@ -1222,11 +1241,12 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
 
     // Muzzle flash
     if (t.muzzleFlashTimer > 0) {
-        const flashAlpha = t.muzzleFlashTimer / 8;
+        const flashMax = t.type === 'ARTILLERY' ? 10 : 8;
+        const flashAlpha = t.muzzleFlashTimer / flashMax;
         ctx.save();
         ctx.translate(t.x, t.y);
         ctx.rotate(angle + Math.PI / 2);
-        const barrelLen = t.type === 'ARTILLERY' ? 20 : t.type === 'SAM' ? 14 : 14;
+        const barrelLen = t.type === 'ARTILLERY' ? 25 : t.type === 'SAM' ? 14 : 14;
         ctx.fillStyle = `rgba(255, 255, 200, ${flashAlpha})`;
         ctx.beginPath();
         ctx.arc(0, barrelLen, 4 + t.muzzleFlashTimer, 0, Math.PI * 2);
@@ -1820,24 +1840,29 @@ const drawPlayerMissile = (ctx, m) => {
         }
 
     } else if (m.type === 'ARTILLERY') {
-        // Larger circle with orange-white trail
+        // High-velocity shell — bright elongated tracer
+        const speed = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+        const nx = m.vx / speed;
+        const ny = m.vy / speed;
+        // Hot white core streak
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y);
+        ctx.lineTo(m.x - nx * 12, m.y - ny * 12);
+        ctx.stroke();
+        // Magenta outer glow
+        ctx.strokeStyle = 'rgba(255, 0, 255, 0.6)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y);
+        ctx.lineTo(m.x - nx * 10, m.y - ny * 10);
+        ctx.stroke();
+        // Bright tip
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(m.x, m.y, 3, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y, 1.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = m.color;
-        ctx.beginPath();
-        ctx.arc(m.x, m.y, 2, 0, Math.PI * 2);
-        ctx.fill();
-        // Trail
-        for (let i = 1; i <= 4; i++) {
-            ctx.globalAlpha = 0.5 - i * 0.1;
-            ctx.fillStyle = i < 2 ? '#ffaa44' : '#ff6600';
-            ctx.beginPath();
-            ctx.arc(m.x - m.vx * i * 0.25, m.y - m.vy * i * 0.25, 2.5 - i * 0.4, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1.0;
 
     } else if (m.type === 'SWARM') {
         // Small orange triangle, flashes yellow when dodging
@@ -2499,6 +2524,20 @@ const App = () => {
                 });
             }
 
+            // Artillery targets the most powerful enemy (highest HP)
+            if (!target && turret.type === 'ARTILLERY') {
+                let bestHp = 0;
+                allTargets.forEach(m => {
+                    if (!m.active) return;
+                    let d = distance(turret.x, turret.y, m.x, m.y);
+                    if (d >= turret.stats.range) return;
+                    if (m.hp > bestHp) {
+                        bestHp = m.hp;
+                        target = m;
+                    }
+                });
+            }
+
             if (!target) {
                 allTargets.forEach(m => {
                     if (!m.active) return;
@@ -2512,9 +2551,15 @@ const App = () => {
 
             // Track target angle
             if (target) {
-                const targetAngle = Math.atan2(target.y - turret.y, target.x - turret.x) - Math.PI / 2;
-                const angleDiff = targetAngle - (turret.angle || -Math.PI / 2);
-                turret.angle = (turret.angle || -Math.PI / 2) + angleDiff * 0.15;
+                const dx = target.x - turret.x;
+                const dy = target.y - turret.y;
+                const targetAngle = Math.atan2(dx, dy) - Math.PI / 2;
+                let angleDiff = targetAngle - (turret.angle || Math.PI / 2);
+                // Normalize to [-PI, PI]
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                const trackSpeed = turret.stats.trackingSpeed || 0.15;
+                turret.angle = (turret.angle || Math.PI / 2) + angleDiff * trackSpeed;
             }
 
             if (turret.type === 'LASER') {
@@ -2552,8 +2597,22 @@ const App = () => {
                     }
                 }
             } else if (target && turret.lastFired >= turret.stats.fireRate) {
-                fireTurret(turret, target);
-                turret.lastFired = 0;
+                // Artillery: only fire when barrel is aimed close to target
+                if (turret.type === 'ARTILLERY') {
+                    const aDx = target.x - turret.x;
+                    const aDy = target.y - turret.y;
+                    const targetAngle = Math.atan2(aDx, aDy) - Math.PI / 2;
+                    let aimDiff = targetAngle - (turret.angle || Math.PI / 2);
+                    while (aimDiff > Math.PI) aimDiff -= Math.PI * 2;
+                    while (aimDiff < -Math.PI) aimDiff += Math.PI * 2;
+                    if (Math.abs(aimDiff) < 0.1) {
+                        fireTurret(turret, target);
+                        turret.lastFired = 0;
+                    }
+                } else {
+                    fireTurret(turret, target);
+                    turret.lastFired = 0;
+                }
             }
         });
 
@@ -2984,9 +3043,26 @@ const App = () => {
       }
 
       // Trigger recoil and muzzle flash
-      turret.recoilOffset = turret.type === 'ARTILLERY' ? 6 : 4;
-      turret.muzzleFlashTimer = turret.type === 'ARTILLERY' ? 8 : 5;
+      turret.recoilOffset = turret.type === 'ARTILLERY' ? 8 : 4;
+      turret.muzzleFlashTimer = turret.type === 'ARTILLERY' ? 10 : 5;
       Sound.turretFire(turret.type);
+
+      if (turret.type === 'ARTILLERY') {
+          // Fire along barrel direction — no lead prediction
+          const rot = (turret.angle || Math.PI / 2) + Math.PI / 2;
+          playerMissiles.current.push({
+              x: turret.x,
+              y: turret.y,
+              vx: Math.sin(rot) * ARTILLERY_SHELL_SPEED,
+              vy: Math.cos(rot) * ARTILLERY_SHELL_SPEED,
+              active: true,
+              type: 'ARTILLERY',
+              color: turret.stats.projectileColor,
+              damage: turret.stats.damage,
+              explosionRadius: 0
+          });
+          return;
+      }
 
       if (turret.type === 'SAM') {
            playerMissiles.current.push({
@@ -3614,6 +3690,36 @@ const App = () => {
         m.x += m.vx;
         m.y += m.vy;
 
+        // Artillery: kinetic round with per-frame direct hit detection, no AOE
+        if (m.type === 'ARTILLERY') {
+            const allEnemies = [...enemyMissiles.current, ...bombers.current];
+            let hit = false;
+            for (let e of allEnemies) {
+                if (!e.active) continue;
+                const hitRadius = (e.type === 'BOSS_SHIP' || e.type === 'BOMBER') ? 18 : 10;
+                if (distance(m.x, m.y, e.x, e.y) < hitRadius) {
+                    m.active = false;
+                    applyDamage(e, m.damage);
+                    // Impact flash — small bright particles, no explosion circle
+                    createParticles(m.x, m.y, '#ffffff', 4);
+                    createParticles(m.x, m.y, '#ff00ff', 3);
+                    Sound.explosion(5);
+                    hit = true;
+                    break;
+                }
+            }
+            if (!hit) {
+                const groundY = getTerrainHeight(m.x, terrain.current);
+                if (m.y > groundY || m.y < 0 || m.x < 0 || m.x > GAME_WIDTH) {
+                    m.active = false;
+                    // Terrain impact spark
+                    if (m.y > 0 && m.x > 0 && m.x < GAME_WIDTH) {
+                        createParticles(m.x, m.y, '#ff00ff', 2);
+                    }
+                }
+            }
+        } else {
+
         let detonated = false;
 
         if (m.type === 'SAM') {
@@ -3651,6 +3757,8 @@ const App = () => {
                 }
             });
         }
+
+        } // end non-artillery
     });
     playerMissiles.current = playerMissiles.current.filter(m => m.active);
   };
@@ -3883,7 +3991,7 @@ const App = () => {
                 stats: { ...typeData },
                 lastFired: 0,
                 level: 1,
-                angle: -Math.PI / 2,
+                angle: Math.PI / 2,
                 recoilOffset: 0,
                 muzzleFlashTimer: 0
             });

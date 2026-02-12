@@ -16,7 +16,7 @@ A retro tactical missile command game with a CRT military aesthetic. Defend your
 |------|------|-------------|
 | FLAK | $800 | Dual-barrel suppression fire with medium range |
 | SAM | $1,800 | Homing missiles with high single-target impact |
-| ARTILLERY | $2,800 | Massive explosion radius |
+| ARTILLERY | $2,800 | Heavy cannon that targets the strongest enemy. Massive single-hit damage with high velocity shells, but slow tracking makes it ineffective against fast targets |
 | LASER | $4,500 | Focused beam that grows stronger the longer it dwells on a target. Overheats after 1s of continuous fire, forcing a 3s cooldown |
 | SWARM | $3,500 | Launches a barrage of homing missiles that prioritize high-value targets and evade point defense fire |
 
