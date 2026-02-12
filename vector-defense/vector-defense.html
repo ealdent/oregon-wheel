@@ -99,7 +99,7 @@ const TURRET_TYPES = {
     name: 'ARTILLERY',
     desc: 'Heavy Cannon',
     color: '#ff00ff',
-    range: 400,
+    range: 500,
     fireRate: 100,
     explosionRadius: 0,
     projectileColor: '#f0f',
@@ -2553,7 +2553,7 @@ const App = () => {
             if (target) {
                 const dx = target.x - turret.x;
                 const dy = target.y - turret.y;
-                const targetAngle = Math.atan2(dx, dy) - Math.PI / 2;
+                const targetAngle = Math.atan2(-dx, dy) - Math.PI / 2;
                 let angleDiff = targetAngle - (turret.angle || Math.PI / 2);
                 // Normalize to [-PI, PI]
                 while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
@@ -2601,7 +2601,7 @@ const App = () => {
                 if (turret.type === 'ARTILLERY') {
                     const aDx = target.x - turret.x;
                     const aDy = target.y - turret.y;
-                    const targetAngle = Math.atan2(aDx, aDy) - Math.PI / 2;
+                    const targetAngle = Math.atan2(-aDx, aDy) - Math.PI / 2;
                     let aimDiff = targetAngle - (turret.angle || Math.PI / 2);
                     while (aimDiff > Math.PI) aimDiff -= Math.PI * 2;
                     while (aimDiff < -Math.PI) aimDiff += Math.PI * 2;
@@ -3053,7 +3053,7 @@ const App = () => {
           playerMissiles.current.push({
               x: turret.x,
               y: turret.y,
-              vx: Math.sin(rot) * ARTILLERY_SHELL_SPEED,
+              vx: -Math.sin(rot) * ARTILLERY_SHELL_SPEED,
               vy: Math.cos(rot) * ARTILLERY_SHELL_SPEED,
               active: true,
               type: 'ARTILLERY',
