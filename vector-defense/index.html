@@ -90,43 +90,61 @@
 <body>
     <div class="container">
         <h1>Vector Defense</h1>
-        <p class="intro">A retro tactical missile command game with a CRT military aesthetic. Defend your cities from waves of incoming missiles, bombers, and increasingly dangerous enemies by building and upgrading turrets on mountainous terrain.</p>
+        <p class="intro">A retro tactical missile command game with a CRT military aesthetic. Defend your cities from waves of incoming missiles, bombers, and increasingly dangerous enemies by building turrets and shield generators across a two-tier terrain.</p>
         <a href="vector-defense.html" class="play-link">Play Now</a>
 
         <h2>How to Play</h2>
         <ol>
-            <li><strong>Placement Phase</strong> &mdash; Before each wave, spend funds to place turrets on the terrain and upgrade existing ones. Click a turret type from the armory, then click the map to place it. Click an existing turret to upgrade it.</li>
-            <li><strong>Combat Phase</strong> &mdash; Press <strong>ENGAGE</strong> to start the wave. Turrets fire automatically at enemies within range.</li>
+            <li><strong>Placement Phase</strong> &mdash; Before each wave, spend funds to place turrets on the upper terrain and shield generators over cities. Click a turret type from the armory, then click the terrain to place it. Click an existing turret or shield generator to upgrade it.</li>
+            <li><strong>Combat Phase</strong> &mdash; Press <strong>ENGAGE</strong> to start the wave. Turrets fire automatically at enemies within range. Shield generators intercept missiles before they reach your cities.</li>
             <li><strong>Survive</strong> &mdash; Protect your cities. If all cities are destroyed, it's game over.</li>
         </ol>
 
         <h2>Turrets</h2>
         <table>
             <tr><th>Type</th><th>Cost</th><th>Description</th></tr>
-            <tr><td><strong>FLAK</strong></td><td>$800</td><td>Dual-barrel area damage with medium range</td></tr>
+            <tr><td><strong>FLAK</strong></td><td>$800</td><td>Dual-barrel suppression fire with medium range</td></tr>
             <tr><td><strong>SAM</strong></td><td>$1,800</td><td>Homing missiles with high single-target impact</td></tr>
             <tr><td><strong>ARTILLERY</strong></td><td>$2,800</td><td>Massive explosion radius</td></tr>
-            <tr><td><strong>LASER</strong></td><td>$4,500</td><td>Long-range focused beam that grows stronger the longer it dwells on a target</td></tr>
+            <tr><td><strong>LASER</strong></td><td>$4,500</td><td>Focused beam that grows stronger the longer it dwells on a target. Overheats after 1s of continuous fire, forcing a 3s cooldown</td></tr>
+            <tr><td><strong>SWARM</strong></td><td>$3,500</td><td>Launches a barrage of homing missiles that prioritize high-value targets and evade point defense fire</td></tr>
         </table>
         <p class="note">Turrets can be upgraded by clicking them during the placement phase. Each upgrade improves fire rate, range, and damage (cost doubles per level).</p>
+
+        <h2>Shield Generators</h2>
+        <p class="note">Shield generators project a floating energy arc above city buildings, intercepting enemy missiles before they reach the ground. Place them via the SHIELD button in the armory &mdash; they auto-position over the widest uncovered section of a city.</p>
+        <ul>
+            <li>Click a generator's underground bunker to upgrade it (max level 3)</li>
+            <li>Each level increases shield HP (5 / 10 / 15 / 20)</li>
+            <li>Destroyed shields go offline for one wave, then auto-repair at full HP</li>
+            <li>Shields merge when cities merge</li>
+        </ul>
+
+        <h2>Cities &amp; Population</h2>
+        <p class="note">Cities grow organically between waves &mdash; undamaged cities sprout new buildings and expand outward. Cities that grow into each other automatically merge, potentially triggering a tier upgrade.</p>
+        <ul>
+            <li><strong>Villages</strong> spawn in gaps between cities. After surviving 4 waves undamaged, they promote to tier-1 towns.</li>
+            <li><strong>Tiers</strong> (0&ndash;5) affect building style, height, and glow color, progressing from teal to purple to gold.</li>
+            <li><strong>Population</strong> is tracked in the HUD, calculated from building size and tier. Damage reduces population.</li>
+        </ul>
 
         <h2>Enemies</h2>
         <ul>
             <li><strong>Normal</strong> (red) &mdash; Standard missiles</li>
             <li><strong>Fast</strong> (purple) &mdash; High speed, appears from wave 3</li>
-            <li><strong>Armored</strong> (white) &mdash; Heavy HP with a partial shield, appears from wave 4</li>
-            <li><strong>Boss</strong> (red, large) &mdash; Massive HP pool with ember trail, appears from wave 5</li>
+            <li><strong>Armored</strong> (white) &mdash; Heavy HP, appears from wave 4</li>
+            <li><strong>Boss</strong> (red, large) &mdash; Massive HP with ember trail, appears from wave 5</li>
             <li><strong>MIRV</strong> (orange) &mdash; Splits into 3 bomblets mid-flight, appears from wave 7</li>
             <li><strong>Bomber</strong> (yellow) &mdash; Flies across the screen dropping ordnance, appears from wave 3</li>
-            <li><strong>Boss Ship</strong> (red-orange) &mdash; Huge heavily-armored gunship that drops missiles aggressively, appears every 5th wave. Every 10th wave brings a mega-boss with escort bombers</li>
+            <li><strong>Boss Ship</strong> (every 5th wave) &mdash; Heavily-armored gunship with bombing runs, EMP pulses, cluster bombs, and rapid-fire point defense tracers. Mega-boss variant (every 10th wave) adds energy shields and escort bombers</li>
         </ul>
 
         <h2>Economy</h2>
         <ul>
-            <li>Destroying enemies earns funds and score</li>
+            <li>Destroying enemies earns funds and score (rewards scale with wave number)</li>
             <li>Completing a wave awards a base bonus plus a per-city survival bonus</li>
             <li>Losing a city costs $300</li>
-            <li>Cities can be rebuilt for $2,000 during the placement phase</li>
+            <li>Damaged cities heal HP and repair buildings between waves</li>
         </ul>
     </div>
 </body>
