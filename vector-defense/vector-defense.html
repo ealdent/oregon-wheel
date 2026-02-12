@@ -1025,14 +1025,14 @@ const drawTurret = (ctx, t, isHovered, gameState, frameCount) => {
         // Dual barrels
         ctx.save();
         ctx.translate(t.x, t.y);
-        ctx.rotate(angle);
+        ctx.rotate(angle + Math.PI / 2);
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(-2, -recoil);
-        ctx.lineTo(-2, -14 + recoil);
-        ctx.moveTo(2, -recoil);
-        ctx.lineTo(2, -14 + recoil);
+        ctx.moveTo(-2, recoil);
+        ctx.lineTo(-2, 14 - recoil);
+        ctx.moveTo(2, recoil);
+        ctx.lineTo(2, 14 - recoil);
         ctx.stroke();
         ctx.restore();
 
