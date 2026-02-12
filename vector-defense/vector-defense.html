@@ -3119,6 +3119,9 @@ const App = () => {
           turret.heat = Math.min((turret.heat || 0) + 2, 30);
       }
 
+      // Snap barrel to firing direction
+      turret.angle = angle - Math.PI;
+
       playerMissiles.current.push({
           x: turret.x,
           y: turret.y,
