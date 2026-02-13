@@ -2102,6 +2102,35 @@ const drawMushroomCloud = (ctx, mc) => {
     ctx.restore();
 };
 
+const drawGroundFire = (ctx, fire, frameCount) => {
+    const flicker = Math.sin(frameCount * 0.15 + fire.x * 7) * 0.3 + 0.7;
+    const s = fire.size;
+
+    // Fire glow
+    ctx.fillStyle = `rgba(255, 100, 0, ${0.3 * flicker})`;
+    ctx.beginPath();
+    ctx.arc(fire.x, fire.y - s, s * 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Flame tongues
+    for (let i = 0; i < 3; i++) {
+        const fx = fire.x + Math.sin(frameCount * 0.1 + i * 2 + fire.x) * s * 0.6;
+        const fh = s * (0.8 + Math.sin(frameCount * 0.2 + i * 3) * 0.4);
+        ctx.fillStyle = i === 0 ? `rgba(255, 200, 50, ${0.8 * flicker})`
+                       : `rgba(255, 80, 0, ${0.6 * flicker})`;
+        ctx.fillRect(fx - 1, fire.y - fh, 2, fh);
+    }
+
+    // Rising smoke column
+    const smokeAge = (frameCount + fire.x * 100) % 60;
+    const smokeY = fire.y - s * 2 - smokeAge * 0.5;
+    const smokeAlpha = Math.max(0, 0.3 - smokeAge * 0.005);
+    ctx.fillStyle = `rgba(80, 80, 80, ${smokeAlpha})`;
+    ctx.beginPath();
+    ctx.arc(fire.x + Math.sin(smokeAge * 0.1) * 3, smokeY, 2 + smokeAge * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+};
+
 const drawParticle = (ctx, p) => {
     const lifeRatio = p.life / p.maxLife;
     const alpha = lifeRatio;
@@ -2189,6 +2218,7 @@ const App = () => {
   const screenShake = useRef(0);
   const screenFlash = useRef(0);
   const mushroomClouds = useRef([]);
+  const groundFires = useRef([]);
   const mapData = useRef({ stars: [], bgTerrain: [], vegetation: [] });
   const shieldCount = useRef(0);
 
@@ -2490,6 +2520,7 @@ const App = () => {
     empPulses.current = [];
     pdcProjectiles.current = [];
     mushroomClouds.current = [];
+    groundFires.current = [];
     screenFlash.current = 0;
   };
 
@@ -3676,6 +3707,9 @@ const App = () => {
                     maxHeight: 70 + Math.random() * 25,
                     capSize: 40 + Math.random() * 15
                 });
+                // Debris shower
+                createParticles(m.x, m.y, '#ff6600', 12);
+                createParticles(m.x, m.y, '#884400', 8);
                 // Heavy damage — wider radius, more hits
                 checkCityDamage(m.x, m.y, true);
                 Sound.explosion(60);
@@ -3941,28 +3975,59 @@ const App = () => {
       let changed = false;
       let destroyed = false;
       const newCities = cities.map(c => {
-          if (c.active && distance(x, y, c.x, c.y) < blastRadius) {
-              const newHp = c.hp - hpDamage;
-              createParticles(c.x, c.y, '#f00', heavy ? 6 : 3);
-              changed = true;
-              // Apply damage to buildings
-              const newBuildings = [...c.buildings];
-              const hitCount = heavy ? (3 + Math.floor(Math.random() * 4)) : (1 + Math.floor(Math.random() * 3));
-              const dmgPerHit = heavy ? (0.4 + Math.random() * 0.3) : (0.2 + Math.random() * 0.2);
-              for (let i = 0; i < hitCount; i++) {
-                  const bi = Math.floor(Math.random() * newBuildings.length);
-                  const b = { ...newBuildings[bi] };
-                  b.damage = Math.min(1.0, (b.damage || 0) + dmgPerHit);
-                  newBuildings[bi] = b;
+          if (!c.active) return c;
+
+          // Check each building's absolute position against blast
+          const buildingsInBlast = [];
+          c.buildings.forEach((b, i) => {
+              const bx = c.x + b.xOffset;
+              const by = c.y;
+              const dist = distance(x, y, bx, by);
+              if (dist < blastRadius) {
+                  buildingsInBlast.push({ index: i, dist });
               }
-              if (newHp <= 0) {
-                  destroyed = true;
-                  const rubbleBuildings = newBuildings.map(b => ({ ...b, damage: 1.0 }));
-                  return { ...c, hp: 0, active: false, buildings: rubbleBuildings };
+          });
+
+          if (buildingsInBlast.length === 0) return c;
+
+          changed = true;
+          const newBuildings = [...c.buildings];
+
+          // Damage buildings based on proximity to blast
+          buildingsInBlast.forEach(({ index, dist }) => {
+              const b = { ...newBuildings[index] };
+              const proximity = 1 - (dist / blastRadius);
+              if (heavy) {
+                  b.damage = Math.min(1.0, (b.damage || 0) + 0.5 + proximity * 0.5);
+              } else {
+                  b.damage = Math.min(1.0, (b.damage || 0) + 0.15 + proximity * 0.25);
               }
-              return { ...c, hp: newHp, buildings: newBuildings };
+              newBuildings[index] = b;
+          });
+
+          // Spawn persistent ground fires at heavily damaged buildings
+          buildingsInBlast.forEach(({ index }) => {
+              const b = newBuildings[index];
+              if ((b.damage || 0) >= 0.6) {
+                  groundFires.current.push({
+                      x: c.x + b.xOffset + (Math.random() - 0.5) * b.w,
+                      y: c.y,
+                      age: 0,
+                      maxAge: 999999,
+                      size: 3 + Math.random() * 4
+                  });
+              }
+          });
+
+          createParticles(x, y, '#f00', heavy ? 8 : 4);
+
+          const newHp = c.hp - hpDamage;
+          if (newHp <= 0) {
+              destroyed = true;
+              const rubbleBuildings = newBuildings.map(b => ({ ...b, damage: 1.0 }));
+              return { ...c, hp: 0, active: false, buildings: rubbleBuildings };
           }
-          return c;
+          return { ...c, hp: newHp, buildings: newBuildings };
       });
 
       if (changed) {
@@ -3973,7 +4038,7 @@ const App = () => {
               setMessage(heavy ? 'DEVASTATING IMPACT: CITY DESTROYED' : 'CRITICAL: CITY DESTROYED');
           } else {
               Sound.enemyHit();
-              const hit = newCities.find(c => c.active && distance(x, y, c.x, c.y) < blastRadius);
+              const hit = newCities.find(c => c.active && c.hp < c.maxHp);
               if (hit) setMessage(heavy ? `HEAVY BOMBARDMENT — HP ${hit.hp}/${hit.maxHp}` : `CITY HIT — HP ${hit.hp}/${hit.maxHp}`);
           }
       }
@@ -4312,6 +4377,9 @@ const App = () => {
 
     // Cities on lower terrain
     cities.forEach(c => drawCity(ctx, c, fc));
+
+    // Ground fires on damaged buildings
+    groundFires.current.forEach(f => drawGroundFire(ctx, f, fc));
 
     if (fgScale < 1.0) {
         ctx.restore();
