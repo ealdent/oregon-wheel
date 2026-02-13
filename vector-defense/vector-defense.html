@@ -3196,7 +3196,7 @@ const App = () => {
       // Snap barrel to firing direction
       turret.angle = angle - Math.PI;
 
-      playerMissiles.current.push({
+      const missile = {
           x: turret.x,
           y: turret.y,
           vx: Math.cos(angle) * PLAYER_PROJECTILE_SPEED,
@@ -3208,7 +3208,12 @@ const App = () => {
           color: turret.stats.projectileColor,
           damage: turret.stats.damage,
           explosionRadius: turret.stats.explosionRadius
-      });
+      };
+      // FLAK detonates at target altitude with random perturbation
+      if (turret.type === 'FLAK') {
+          missile.detonateY = predY + (Math.random() - 0.5) * 60;
+      }
+      playerMissiles.current.push(missile);
   };
 
   const spawnEnemyMissile = (originX = null, originY = null, isBomblet = false) => {
@@ -3830,6 +3835,12 @@ const App = () => {
         else if (m.type === 'SWARM') {
             const target = [...enemyMissiles.current, ...bombers.current].find(e => e.id === m.targetId);
             if (target && target.active && distance(m.x, m.y, target.x, target.y) < 12) {
+                detonated = true;
+            }
+        }
+        else if (m.type === 'FLAK') {
+            // Detonate at target altitude (y decreases going up)
+            if (m.y <= m.detonateY) {
                 detonated = true;
             }
         }
