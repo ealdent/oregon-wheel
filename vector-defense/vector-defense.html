@@ -513,6 +513,10 @@ for (let i = 0; i < GAME_HEIGHT; i += 4) {
 // MODULAR DRAW HELPERS (Phase 1-5)
 // ============================================================
 
+// Population per building: ~50 people per floor (w*h as proxy for floor area)
+const getBuildingPop = (b) => Math.round(b.w * b.h * 0.3);
+const getCityPopulation = (city) => city.buildings.reduce((sum, b) => sum + getBuildingPop(b), 0);
+
 const lerpColor = (a, b, t) => {
     // a, b are [r, g, b] arrays, t is 0-1
     return [
@@ -2451,7 +2455,7 @@ const App = () => {
         const buildings = generateCityBuildings(1);
         // Start with fewer buildings (reduce by ~40%)
         const reduced = buildings.slice(0, Math.max(2, Math.ceil(buildings.length * 0.6)));
-        return { x: slot.x, y: cy, active: true, hp: 3, maxHp: 3, tier: 1, wavesSurvived: 0, growthLevel: 0, buildings: reduced, shields: [] };
+        return { x: slot.x, y: cy, active: true, hp: 3, maxHp: 3, tier: 1, wavesSurvived: 0, growthLevel: 0, buildings: reduced, shields: [], casualties: 0 };
     });
     setCities(newCities);
     return upperPoints;
@@ -2830,6 +2834,30 @@ const App = () => {
         mushroomClouds.current.forEach(mc => mc.age++);
         mushroomClouds.current = mushroomClouds.current.filter(mc => mc.age < mc.maxAge);
 
+        // Fire casualties: every 5 seconds, burning buildings kill survivors slowly
+        if (groundFires.current.length > 0 && frameCount.current % 300 === 0) {
+            let casualtyChange = false;
+            const newCities = cities.map(c => {
+                if (!c.active) return c;
+                const burning = c.buildings.filter(b => (b.damage || 0) >= 0.6);
+                if (burning.length === 0) return c;
+                // Remaining survivors in burning buildings die slowly (~2-5% per tick)
+                let fireCasualties = 0;
+                burning.forEach(b => {
+                    const pop = getBuildingPop(b);
+                    const alreadyDead = Math.round(pop * (b.damage || 0) * 0.7);
+                    const survivors = pop - alreadyDead;
+                    if (survivors > 0) {
+                        fireCasualties += Math.max(1, Math.round(survivors * (0.02 + Math.random() * 0.03)));
+                    }
+                });
+                if (fireCasualties === 0) return c;
+                casualtyChange = true;
+                return { ...c, casualties: (c.casualties || 0) + fireCasualties };
+            });
+            if (casualtyChange) setCities(newCities);
+        }
+
         // Fire spread: every 30 seconds, burning buildings ignite 1 neighbor
         if (groundFires.current.length > 0 && frameCount.current % 1800 === 0) {
             let fireSpread = false;
@@ -2855,7 +2883,11 @@ const App = () => {
                 fireSpread = true;
                 const newBuildings = [...c.buildings];
                 const b = { ...newBuildings[bestTarget] };
-                b.damage = Math.min(1.0, (b.damage || 0) + 0.6);
+                const prevDmg = b.damage || 0;
+                b.damage = Math.min(1.0, prevDmg + 0.6);
+                // Spread casualties: 20-30% of newly burning building's population
+                const pop = getBuildingPop(b);
+                const spreadCasualties = Math.round(pop * (b.damage - prevDmg) * 0.25);
                 newBuildings[bestTarget] = b;
                 // Spawn fire on newly burning building
                 groundFires.current.push({
@@ -2864,7 +2896,7 @@ const App = () => {
                     age: 0, maxAge: 999999,
                     size: 3 + Math.random() * 4
                 });
-                return { ...c, buildings: newBuildings };
+                return { ...c, buildings: newBuildings, casualties: (c.casualties || 0) + spreadCasualties };
             });
             if (fireSpread) setCities(newCities);
         }
@@ -3057,7 +3089,7 @@ const App = () => {
               x: midX, y: vy, active: true,
               hp: 1, maxHp: 1,
               tier: 0, wavesSurvived: 0, growthLevel: 0,
-              buildings: reduced, shields: [],
+              buildings: reduced, shields: [], casualties: 0,
               isVillage: true
           });
           createParticles(midX, vy, '#88dddd', 4);
@@ -3190,6 +3222,7 @@ const App = () => {
                           growthLevel: Math.max(a.growthLevel || 0, b.growthLevel || 0),
                           buildings: combinedBuildings,
                           shields: combinedShields,
+                          casualties: (a.casualties || 0) + (b.casualties || 0),
                           isVillage: false
                       };
                       result[idxB] = { ...b, active: false };
@@ -4083,6 +4116,8 @@ const App = () => {
       const hpDamage = heavy ? 3 : 1;
       let changed = false;
       let destroyed = false;
+      let impactCasualties = 0;
+      let hitCity = null;
       const newCities = cities.map(c => {
           if (!c.active) return c;
 
@@ -4102,15 +4137,22 @@ const App = () => {
           changed = true;
           const newBuildings = [...c.buildings];
 
-          // Damage buildings based on proximity to blast
+          // Damage buildings and calculate immediate casualties
+          let cityCasualties = 0;
           buildingsInBlast.forEach(({ index, dist }) => {
               const b = { ...newBuildings[index] };
+              const prevDmg = b.damage || 0;
               const proximity = 1 - (dist / blastRadius);
               if (heavy) {
-                  b.damage = Math.min(1.0, (b.damage || 0) + 0.5 + proximity * 0.5);
+                  b.damage = Math.min(1.0, prevDmg + 0.5 + proximity * 0.5);
               } else {
-                  b.damage = Math.min(1.0, (b.damage || 0) + 0.15 + proximity * 0.25);
+                  b.damage = Math.min(1.0, prevDmg + 0.15 + proximity * 0.25);
               }
+              // Immediate casualties: 40-70% of building pop for the damage increase
+              const pop = getBuildingPop(b);
+              const dmgIncrease = b.damage - prevDmg;
+              const killRate = 0.4 + proximity * 0.3;
+              cityCasualties += Math.round(pop * dmgIncrease * killRate);
               newBuildings[index] = b;
           });
 
@@ -4130,13 +4172,24 @@ const App = () => {
 
           createParticles(x, y, '#f00', heavy ? 8 : 4);
 
+          const newCasualties = (c.casualties || 0) + cityCasualties;
+          impactCasualties = cityCasualties;
+
           const newHp = c.hp - hpDamage;
           if (newHp <= 0) {
               destroyed = true;
               const rubbleBuildings = newBuildings.map(b => ({ ...b, damage: 1.0 }));
-              return { ...c, hp: 0, active: false, buildings: rubbleBuildings };
+              // Remaining population: mass casualties on destruction
+              const remainingPop = c.buildings.reduce((sum, b) => {
+                  const alive = getBuildingPop(b) * (1 - (b.damage || 0) * 0.7);
+                  return sum + Math.round(alive);
+              }, 0);
+              const totalCasualties = newCasualties + Math.round(remainingPop * 0.6);
+              hitCity = { casualties: totalCasualties };
+              return { ...c, hp: 0, active: false, buildings: rubbleBuildings, casualties: totalCasualties };
           }
-          return { ...c, hp: newHp, buildings: newBuildings };
+          hitCity = { casualties: newCasualties };
+          return { ...c, hp: newHp, buildings: newBuildings, casualties: newCasualties };
       });
 
       if (changed) {
@@ -4144,11 +4197,14 @@ const App = () => {
           if (destroyed) {
               Sound.cityDestroyed();
               setMoney(m => Math.max(0, m - CITY_REPAIR_PENALTY));
-              setMessage(heavy ? 'DEVASTATING IMPACT: CITY DESTROYED' : 'CRITICAL: CITY DESTROYED');
-          } else {
+              setMessage(heavy
+                  ? `DEVASTATING IMPACT: CITY DESTROYED — ${hitCity.casualties.toLocaleString()} DEAD`
+                  : `CRITICAL: CITY DESTROYED — ${hitCity.casualties.toLocaleString()} DEAD`);
+          } else if (hitCity) {
               Sound.enemyHit();
-              const hit = newCities.find(c => c.active && c.hp < c.maxHp);
-              if (hit) setMessage(heavy ? `HEAVY BOMBARDMENT — HP ${hit.hp}/${hit.maxHp}` : `CITY HIT — HP ${hit.hp}/${hit.maxHp}`);
+              setMessage(heavy
+                  ? `HEAVY BOMBARDMENT — ${impactCasualties.toLocaleString()} CASUALTIES`
+                  : `CITY HIT — ${impactCasualties.toLocaleString()} CASUALTIES`);
           }
       }
   };
