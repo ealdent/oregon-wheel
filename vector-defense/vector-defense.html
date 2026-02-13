@@ -69,6 +69,9 @@ const HP_FAST = 15;
 const HP_ARMORED = 40;
 const HP_BOSS_BASE = 200;
 
+// HP scales up after every boss wave (every 5 levels)
+const getHpScale = (lvl) => 1 + Math.floor(lvl / 5) * 0.5; // 1x, 1.5x, 2x, 2.5x...
+
 // Turret Stats
 const TURRET_TYPES = {
   FLAK: {
@@ -2393,10 +2396,11 @@ const App = () => {
   }, [generateMap]);
 
   const setupLevel = (lvl) => {
+    const tier = Math.floor(lvl / 5); // jumps at 5, 10, 15...
     levelConfig.current = {
         spawnTimer: 0,
-        spawnInterval: Math.max(15, 90 - (lvl * 3)),
-        totalToSpawn: 12 + (lvl * 4),
+        spawnInterval: Math.max(12, 80 - (lvl * 4)),
+        totalToSpawn: 10 + (lvl * 4) + tier * 10,
         bomberTimer: 0,
         isBossWave: lvl % 5 === 0 && lvl > 0,
         isMegaBossWave: lvl % 10 === 0 && lvl > 0
@@ -2456,7 +2460,8 @@ const App = () => {
             cfg.totalToSpawn--;
         }
 
-        if (level >= 3 && cfg.bomberTimer > 500 && Math.random() < 0.25) {
+        const bomberDelay = Math.max(200, 500 - Math.floor(level / 5) * 60);
+        if (level >= 3 && cfg.bomberTimer > bomberDelay && Math.random() < 0.25) {
             spawnBomber();
             cfg.bomberTimer = 0;
         }
@@ -3153,35 +3158,39 @@ const App = () => {
     let type = 'NORMAL';
     let speed = 0.8 + (level * 0.08);
     let color = '#ff0000';
-    let maxHp = HP_NORMAL;
+    const hpScale = getHpScale(level);
+    let maxHp = Math.round(HP_NORMAL * hpScale);
     let size = 4;
     let canSplit = false;
 
     if (!isBomblet) {
         const rand = Math.random();
+        // Composition shifts harder each tier
+        const tierShift = Math.min(Math.floor(level / 5) * 0.03, 0.15);
 
-        if (level >= 5 && rand < 0.05) {
+        if (level >= 5 && rand < 0.05 + tierShift) {
             type = 'BOSS';
             speed = 0.4;
-            maxHp = HP_BOSS_BASE + (level * 50);
+            maxHp = Math.round((HP_BOSS_BASE + (level * 50)) * hpScale);
             size = 15;
             color = '#ff0000';
         }
-        else if (level >= 7 && rand < 0.2) {
-            type = 'MIRV'; canSplit = true; color = '#ffaa00'; maxHp = HP_NORMAL * 2;
+        else if (level >= 7 && rand < 0.2 + tierShift * 2) {
+            type = 'MIRV'; canSplit = true; color = '#ffaa00';
+            maxHp = Math.round(HP_NORMAL * 2 * hpScale);
         }
-        else if (level >= 4 && rand < 0.3) {
+        else if (level >= 4 && rand < 0.3 + tierShift * 2) {
             type = 'ARMORED';
             speed *= 1.1;
-            maxHp = HP_ARMORED;
+            maxHp = Math.round(HP_ARMORED * hpScale);
             size = 6;
             color = '#ffffff';
         }
-        else if (level >= 3 && rand < 0.45) {
+        else if (level >= 3 && rand < 0.45 + tierShift) {
             type = 'FAST';
             speed = 2.2 + (level * 0.1);
             color = '#bd00ff';
-            maxHp = HP_FAST;
+            maxHp = Math.round(HP_FAST * hpScale);
         }
     }
 
@@ -3205,6 +3214,8 @@ const App = () => {
   const spawnBomber = () => {
       const fromLeft = Math.random() > 0.5;
       const y = 50 + Math.random() * 80;
+      const hpScale = getHpScale(level);
+      const bomberHp = Math.round(60 * hpScale + level * 5);
       bombers.current.push({
           id: Math.random().toString(36),
           x: fromLeft ? -50 : GAME_WIDTH + 50,
@@ -3212,8 +3223,8 @@ const App = () => {
           vx: fromLeft ? 1.2 : -1.2,
           active: true,
           type: 'BOMBER',
-          maxHp: 60,
-          hp: 60,
+          maxHp: bomberHp,
+          hp: bomberHp,
           color: '#ffff00',
           size: 10,
           lastDrop: 0,
@@ -3231,8 +3242,8 @@ const App = () => {
           id: Math.random().toString(36),
           x: fromLeft ? -80 : GAME_WIDTH + 80,
           y: y,
-          baseSpeed: isMega ? 0.6 : 0.8,
-          vx: fromLeft ? (isMega ? 0.6 : 0.8) : (isMega ? -0.6 : -0.8),
+          baseSpeed: isMega ? 0.48 : 0.64,
+          vx: fromLeft ? (isMega ? 0.48 : 0.64) : (isMega ? -0.48 : -0.64),
           active: true,
           type: 'BOSS_SHIP',
           maxHp: bossHp,
