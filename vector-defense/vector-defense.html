@@ -2830,6 +2830,45 @@ const App = () => {
         mushroomClouds.current.forEach(mc => mc.age++);
         mushroomClouds.current = mushroomClouds.current.filter(mc => mc.age < mc.maxAge);
 
+        // Fire spread: every 30 seconds, burning buildings ignite 1 neighbor
+        if (groundFires.current.length > 0 && frameCount.current % 1800 === 0) {
+            let fireSpread = false;
+            const newCities = cities.map(c => {
+                if (!c.active) return c;
+                // Find buildings on fire (damage >= 0.6)
+                const burning = c.buildings.filter(b => (b.damage || 0) >= 0.6);
+                if (burning.length === 0) return c;
+                // Find closest non-burning neighbor for each burning building, pick one
+                let bestTarget = null;
+                let bestDist = Infinity;
+                burning.forEach(fb => {
+                    c.buildings.forEach((b, i) => {
+                        if ((b.damage || 0) >= 0.6) return; // already burning
+                        const gap = Math.abs(b.xOffset - fb.xOffset);
+                        if (gap < bestDist) {
+                            bestDist = gap;
+                            bestTarget = i;
+                        }
+                    });
+                });
+                if (bestTarget === null) return c;
+                fireSpread = true;
+                const newBuildings = [...c.buildings];
+                const b = { ...newBuildings[bestTarget] };
+                b.damage = Math.min(1.0, (b.damage || 0) + 0.6);
+                newBuildings[bestTarget] = b;
+                // Spawn fire on newly burning building
+                groundFires.current.push({
+                    x: c.x + b.xOffset + (Math.random() - 0.5) * b.w,
+                    y: c.y,
+                    age: 0, maxAge: 999999,
+                    size: 3 + Math.random() * 4
+                });
+                return { ...c, buildings: newBuildings };
+            });
+            if (fireSpread) setCities(newCities);
+        }
+
         if (!waveCompleted.current && cfg.totalToSpawn === 0 && enemyMissiles.current.length === 0 && bombers.current.length === 0 && explosions.current.length === 0) {
             waveCompleted.current = true;
             handleWaveComplete();
