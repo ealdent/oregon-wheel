@@ -2051,44 +2051,51 @@ const drawMushroomCloud = (ctx, mc) => {
     if (t >= 1) return;
 
     const alpha = 1 - t * t; // fade out
-    const stemH = Math.min(mc.age * 1.5, mc.maxHeight);
-    const capRadius = mc.capSize * Math.min(t * 3, 1);
+    // Stem rises quickly then slows
+    const rise = Math.min(t * 2.5, 1); // 0→1 over first 40% of life
+    const stemH = rise * mc.maxHeight;
     const capY = mc.y - stemH;
+    // Cap expands after stem has risen partway
+    const capT = Math.max(0, (t - 0.1) / 0.5); // starts at t=0.1, full at t=0.6
+    const capW = mc.capSize * Math.min(capT, 1); // horizontal radius
+    const capH = capW * 0.35; // flattened ellipse
 
     ctx.save();
     ctx.globalAlpha = alpha;
 
     // Stem — wider at base, narrow at top
-    const stemW = 4 + t * 8;
-    const stemGrad = ctx.createLinearGradient(mc.x, mc.y, mc.x, capY);
-    stemGrad.addColorStop(0, 'rgba(180, 120, 60, 0.7)');
-    stemGrad.addColorStop(0.5, 'rgba(200, 150, 80, 0.6)');
-    stemGrad.addColorStop(1, 'rgba(220, 180, 120, 0.4)');
-    ctx.fillStyle = stemGrad;
-    ctx.beginPath();
-    ctx.moveTo(mc.x - stemW * 0.8, mc.y);           // wide at ground
-    ctx.lineTo(mc.x - stemW * 0.3, capY + capRadius * 0.3); // narrow at top
-    ctx.lineTo(mc.x + stemW * 0.3, capY + capRadius * 0.3);
-    ctx.lineTo(mc.x + stemW * 0.8, mc.y);
-    ctx.closePath();
-    ctx.fill();
+    const stemW = 5 + t * 10;
+    if (stemH > 3) {
+        const stemGrad = ctx.createLinearGradient(mc.x, mc.y, mc.x, capY);
+        stemGrad.addColorStop(0, 'rgba(180, 120, 60, 0.7)');
+        stemGrad.addColorStop(0.5, 'rgba(200, 150, 80, 0.6)');
+        stemGrad.addColorStop(1, 'rgba(220, 180, 120, 0.4)');
+        ctx.fillStyle = stemGrad;
+        ctx.beginPath();
+        ctx.moveTo(mc.x - stemW * 0.7, mc.y);
+        ctx.lineTo(mc.x - stemW * 0.25, capY + capH * 0.5);
+        ctx.lineTo(mc.x + stemW * 0.25, capY + capH * 0.5);
+        ctx.lineTo(mc.x + stemW * 0.7, mc.y);
+        ctx.closePath();
+        ctx.fill();
+    }
 
-    // Cap — expanding mushroom dome
-    if (capRadius > 2) {
-        const capGrad = ctx.createRadialGradient(mc.x, capY, 0, mc.x, capY, capRadius);
+    // Cap — wide flat mushroom dome rising with stem
+    if (capW > 2) {
+        const capGrad = ctx.createRadialGradient(mc.x, capY, 0, mc.x, capY, capW);
         capGrad.addColorStop(0, `rgba(255, 240, 180, ${0.9 * alpha})`);
         capGrad.addColorStop(0.3, `rgba(255, 180, 80, ${0.8 * alpha})`);
         capGrad.addColorStop(0.6, `rgba(220, 120, 50, ${0.6 * alpha})`);
-        capGrad.addColorStop(1, `rgba(150, 70, 30, ${0.3 * alpha})`);
+        capGrad.addColorStop(1, `rgba(150, 70, 30, ${0.25 * alpha})`);
         ctx.fillStyle = capGrad;
         ctx.beginPath();
-        ctx.ellipse(mc.x, capY, capRadius, capRadius * 0.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(mc.x, capY, capW, capH, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // Hot core
         ctx.fillStyle = `rgba(255, 255, 200, ${0.6 * alpha * (1 - t)})`;
         ctx.beginPath();
-        ctx.ellipse(mc.x, capY, capRadius * 0.35, capRadius * 0.25, 0, 0, Math.PI * 2);
+        ctx.ellipse(mc.x, capY, capW * 0.3, capH * 0.4, 0, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -3635,14 +3642,14 @@ const App = () => {
             m.active = false;
             if (m.type === 'BOSS') {
                 // Devastating ground impact
-                createExplosion(m.x, m.y, false, 60, '#ff4400');
+                createExplosion(m.x, m.y, false, 25, '#ff4400');
                 screenFlash.current = 1.0;
                 screenShake.current = Math.max(screenShake.current, 10);
                 mushroomClouds.current.push({
                     x: m.x, y: m.y,
                     age: 0, maxAge: 120,
-                    maxHeight: 60 + Math.random() * 20,
-                    capSize: 25 + Math.random() * 10
+                    maxHeight: 70 + Math.random() * 25,
+                    capSize: 40 + Math.random() * 15
                 });
                 // Heavy damage — wider radius, more hits
                 checkCityDamage(m.x, m.y, true);
