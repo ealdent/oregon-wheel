@@ -54,6 +54,8 @@ Cities grow organically between waves — undamaged cities sprout new buildings 
   - Rapid-fire point defense tracers that intercept incoming player missiles
   - Mega-boss variant (every 10th wave) adds energy shields and escort bombers
 
+Difficulty scales in tiers: after every boss wave (every 5 levels), all enemies gain +50% HP. Between bosses, waves ramp up with more enemies and a harder mix of enemy types.
+
 ## Economy
 
 - Destroying enemies earns funds and score (rewards scale with wave number)
