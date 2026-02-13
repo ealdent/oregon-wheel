@@ -2374,6 +2374,21 @@ const App = () => {
       return getTerrainHeight(x, lowerTerrain.current);
   };
 
+  // Check if line from (x1,y1) to (x2,y2) is clear of upper terrain
+  const hasLineOfSight = (x1, y1, x2, y2) => {
+      const pts = terrain.current;
+      if (!pts || pts.length === 0) return true;
+      const steps = Math.max(8, Math.ceil(Math.abs(x2 - x1) / 15));
+      for (let i = 1; i < steps; i++) {
+          const t = i / steps;
+          const sx = x1 + (x2 - x1) * t;
+          const sy = y1 + (y2 - y1) * t;
+          const terrainY = getTerrainHeight(sx, pts);
+          if (sy > terrainY) return false;
+      }
+      return true;
+  };
+
   // --- Save / Load ---
   const SAVE_KEY = 'vectorDefenseSave';
 
@@ -2557,10 +2572,14 @@ const App = () => {
 
             const allTargets = [...bombers.current.filter(b => !b.reentryTimer || b.reentryTimer <= 0), ...enemyMissiles.current];
 
+            // Line-of-sight needed for direct-fire weapons (not homing missiles)
+            const needsLOS = turret.type !== 'SAM' && turret.type !== 'SWARM';
+
             // Laser turrets prefer their current target for beam continuity
             if (turret.type === 'LASER' && turret.laserTarget) {
                 const cur = allTargets.find(m => m.id === turret.laserTarget);
-                if (cur && cur.active && distance(turret.x, turret.y, cur.x, cur.y) < turret.stats.range) {
+                if (cur && cur.active && distance(turret.x, turret.y, cur.x, cur.y) < turret.stats.range
+                    && hasLineOfSight(turret.x, turret.y, cur.x, cur.y)) {
                     target = cur;
                 }
             }
@@ -2596,6 +2615,7 @@ const App = () => {
                     if (!m.active) return;
                     let d = distance(turret.x, turret.y, m.x, m.y);
                     if (d >= turret.stats.range) return;
+                    if (!hasLineOfSight(turret.x, turret.y, m.x, m.y)) return;
                     if (m.hp > bestHp) {
                         bestHp = m.hp;
                         target = m;
@@ -2607,10 +2627,10 @@ const App = () => {
                 allTargets.forEach(m => {
                     if (!m.active) return;
                     let d = distance(turret.x, turret.y, m.x, m.y);
-                    if (d < minDist) {
-                        minDist = d;
-                        target = m;
-                    }
+                    if (d >= minDist) return;
+                    if (needsLOS && !hasLineOfSight(turret.x, turret.y, m.x, m.y)) return;
+                    minDist = d;
+                    target = m;
                 });
             }
 
