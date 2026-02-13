@@ -515,7 +515,6 @@ for (let i = 0; i < GAME_HEIGHT; i += 4) {
 
 // Population per building: ~50 people per floor (w*h as proxy for floor area)
 const getBuildingPop = (b) => Math.round(b.w * b.h * 0.3);
-const getCityPopulation = (city) => city.buildings.reduce((sum, b) => sum + getBuildingPop(b), 0);
 
 const lerpColor = (a, b, t) => {
     // a, b are [r, g, b] arrays, t is 0-1
