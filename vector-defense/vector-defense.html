@@ -4283,15 +4283,25 @@ const App = () => {
     const x = (e.clientX - rect.left) * scaleX;
     const clickY = (e.clientY - rect.top) * scaleY;
 
+    // Compute fgScale to match visual positions (same formula as draw loop)
+    const maxBuildingH = cities.reduce((max, c) => {
+        if (!c.active) return max;
+        return c.buildings.reduce((m, b) => Math.max(m, (b.damage || 0) < 0.8 ? b.h : 0), max);
+    }, 0);
+    const cityZoneHeight = LOWER_TERRAIN_Y - CITY_ZONE_TOP + 20;
+    const maxAllowed = cityZoneHeight * 0.95;
+    const fgScale = maxBuildingH > maxAllowed ? maxAllowed / maxBuildingH : 1.0;
+
     // Check for shield generator clicks in city zone
     if (clickY > CITY_ZONE_TOP) {
         for (const c of cities) {
             if (!c.active || !c.shields) continue;
             for (let si = 0; si < c.shields.length; si++) {
                 const s = c.shields[si];
-                const gx = c.x + s.x;
-                const gy = c.y + 7; // underground center
-                if (distance(x, clickY, gx, gy) < 18) {
+                // Transform world coords to screen coords with fgScale
+                const gx = GAME_WIDTH / 2 + (c.x + s.x - GAME_WIDTH / 2) * fgScale;
+                const gy = GAME_HEIGHT + (c.y + 7 - GAME_HEIGHT) * fgScale;
+                if (distance(x, clickY, gx, gy) < 18 * fgScale) {
                     if (s.damaged) { setMessage("SHIELD OFFLINE — REPAIRS AFTER NEXT WAVE"); return; }
                     if (s.level >= 3) { setMessage("SHIELD AT MAX LEVEL"); return; }
                     const cost = SHIELD_BASE_COST * Math.pow(10, s.level);
@@ -4307,7 +4317,8 @@ const App = () => {
                         })};
                     });
                     setCities(newCities);
-                    createParticles(gx, c.y, '#00ffff', 8);
+                    const particleY = GAME_HEIGHT + (c.y - GAME_HEIGHT) * fgScale;
+                    createParticles(gx, particleY, '#00ffff', 8);
                     Sound.upgrade();
                     setMessage(`SHIELD UPGRADED — LV${newLevel} (HP: ${newMaxHp})`);
                     return;
