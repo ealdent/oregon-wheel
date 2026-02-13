@@ -4202,8 +4202,8 @@ const App = () => {
           } else if (hitCity) {
               Sound.enemyHit();
               setMessage(heavy
-                  ? `HEAVY BOMBARDMENT — ${impactCasualties.toLocaleString()} CASUALTIES`
-                  : `CITY HIT — ${impactCasualties.toLocaleString()} CASUALTIES`);
+                  ? `HEAVY BOMBARDMENT — ${hitCity.casualties.toLocaleString()} CASUALTIES`
+                  : `CITY HIT — ${hitCity.casualties.toLocaleString()} CASUALTIES`);
           }
       }
   };
