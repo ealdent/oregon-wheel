@@ -4552,6 +4552,9 @@ const App = () => {
     const maxAllowed = cityZoneHeight * 0.95;
     const fgScale = maxBuildingH > maxAllowed ? maxAllowed / maxBuildingH : 1.0;
 
+    // Lower terrain always draws at full width (unscaled)
+    drawLowerTerrain(ctx, lowerTerrain.current);
+
     if (fgScale < 1.0) {
         ctx.save();
         // Scale from bottom-center: shrink foreground, anchored at canvas bottom
@@ -4559,8 +4562,6 @@ const App = () => {
         ctx.scale(fgScale, fgScale);
         ctx.translate(-GAME_WIDTH / 2, -GAME_HEIGHT);
     }
-
-    drawLowerTerrain(ctx, lowerTerrain.current);
 
     // Cities on lower terrain
     cities.forEach(c => drawCity(ctx, c, fc));
