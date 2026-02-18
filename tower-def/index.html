@@ -24,6 +24,8 @@
             --glow-coral: 0 0 20px rgba(255, 107, 107, 0.6);
             --neon-violet: #a855f7;
             --glow-violet: 0 0 20px rgba(168, 85, 247, 0.6);
+            --neon-teal: #14b8a6;
+            --glow-teal: 0 0 20px rgba(20, 184, 166, 0.6);
         }
 
         * {
@@ -218,6 +220,11 @@
             box-shadow: var(--glow-violet), inset 0 0 30px rgba(168, 85, 247, 0.05);
         }
 
+        .game-card:nth-child(7):hover {
+            border-color: var(--neon-teal);
+            box-shadow: var(--glow-teal), inset 0 0 30px rgba(20, 184, 166, 0.05);
+        }
+
         .game-card-corner {
             position: absolute;
             width: 20px;
@@ -250,6 +257,10 @@
 
         .game-card:nth-child(6) .game-card-corner {
             border-color: var(--neon-violet);
+        }
+
+        .game-card:nth-child(7) .game-card-corner {
+            border-color: var(--neon-teal);
         }
 
         .game-card-icon {
@@ -338,6 +349,16 @@
         .game-card:nth-child(6):hover .launch-badge {
             background: rgba(168, 85, 247, 0.1);
             box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+        }
+
+        .game-card:nth-child(7) .launch-badge {
+            border-color: var(--neon-teal);
+            color: var(--neon-teal);
+        }
+
+        .game-card:nth-child(7):hover .launch-badge {
+            background: rgba(20, 184, 166, 0.1);
+            box-shadow: 0 0 15px rgba(20, 184, 166, 0.3);
         }
 
         .footer {
@@ -521,6 +542,16 @@
                 <div class="game-card-icon">◉</div>
                 <h2>Bubble Reef TD</h2>
                 <p>Underwater defense. Coral towers, seafoam waves, pearl economy. Defend the reef.</p>
+                <span class="launch-badge">Launch</span>
+            </a>
+            <a href="opus46-tower-def-2.html" class="game-card">
+                <span class="game-card-corner tl"></span>
+                <span class="game-card-corner tr"></span>
+                <span class="game-card-corner bl"></span>
+                <span class="game-card-corner br"></span>
+                <div class="game-card-icon">◎</div>
+                <h2>Tower Defense (Opus 2)</h2>
+                <p>New tower defense. Coming soon.</p>
                 <span class="launch-badge">Launch</span>
             </a>
         </nav>
