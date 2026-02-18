@@ -258,6 +258,8 @@
       flex-direction:column;
       gap: 10px;
       min-height:0;
+      overflow:auto;
+      scrollbar-gutter: stable both-edges;
     }
 
     .panel{
@@ -271,13 +273,18 @@
       flex-direction:column;
       gap: 10px;
       min-height: 0;
+      min-width: 0;
+    }
+    #sidebar > .panel{
+      flex: 0 0 auto;
     }
 
     .panelHeader{
       display:flex;
-      align-items:baseline;
+      align-items:center;
       justify-content:space-between;
       gap: 8px;
+      flex-wrap: wrap;
     }
     .panelHeader h3{
       margin:0;
@@ -290,7 +297,7 @@
 
     .shop{
       display:grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
       gap: 8px;
     }
 
@@ -306,7 +313,8 @@
       display:flex;
       gap: 10px;
       align-items:center;
-      min-height: 62px;
+      min-height: 56px;
+      min-width: 0;
     }
     .shopItem:hover{ transform: translateY(-1px); box-shadow: 0 14px 22px rgba(18, 12, 40, 0.08); }
     .shopItem.active{ border-color: rgba(108,92,231,0.5); box-shadow: 0 18px 28px rgba(108,92,231,0.14); }
@@ -324,14 +332,23 @@
     }
 
     .shopMeta{ min-width:0; }
-    .shopName{ font-weight: 900; font-size: 13px; line-height: 1.1; }
-    .shopDesc{ font-size: 12px; color: var(--muted); line-height: 1.2; margin-top: 3px; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+    .shopName{
+      font-weight: 900;
+      font-size: 13px;
+      line-height: 1.08;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .shopDesc{ display:none; }
     .shopCost{ margin-left:auto; font-weight: 900; font-variant-numeric: tabular-nums; background: rgba(0,194,168,0.12); color:#007a6a; border: 1px solid rgba(0,194,168,0.18); padding: 6px 8px; border-radius: 999px; }
 
     .tinyHint{
-      font-size: 12px;
+      font-size: 11px;
       color: var(--muted);
-      line-height: 1.35;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
     }
 
     .selectedBody{
@@ -340,6 +357,7 @@
       border-radius: 16px;
       padding: 10px;
       min-height: 94px;
+      overflow: auto;
     }
 
     .emptySelect{ color: var(--muted); font-size: 13px; }
@@ -411,7 +429,18 @@
     }
     .upgradeTitle{ font-weight: 950; }
     .upgradeDesc{ font-size: 12px; color: rgba(27,23,48,0.72); margin-top: 4px; line-height: 1.25; }
-    .upgradeRow{ display:flex; gap: 8px; align-items:center; justify-content:space-between; margin-top: 10px; }
+    .upgradeRow{
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      justify-content:space-between;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .upgradeRow .btn{
+      margin-left: auto;
+      max-width: 100%;
+    }
 
     .nextWave{
       display:flex;
@@ -446,6 +475,7 @@
       background: rgba(255,255,255,0.60);
       border-radius: 16px;
       padding: 10px;
+      overflow: hidden;
     }
     details.help summary{
       cursor:pointer;
@@ -456,8 +486,14 @@
       color: rgba(27,23,48,0.78);
       font-size: 13px;
       line-height: 1.35;
+      overflow-wrap: anywhere;
     }
     .helpBody ul{ margin: 8px 0 0 18px; padding:0; }
+    details.help[open] .helpBody{
+      max-height: min(32vh, 220px);
+      overflow: auto;
+      padding-right: 4px;
+    }
 
     footer#footer{
       display:flex;
@@ -471,29 +507,33 @@
       #sidebar{ width: 330px; }
       .brand{ min-width: 200px; }
       .controls{ min-width: 200px; }
+      .shop{ grid-template-columns: 1fr; }
     }
 
     @media (max-width: 900px){
       body{ overflow:hidden; }
+      header#topbar{ flex-direction:column; align-items:stretch; }
+      .brand, .controls{ min-width: 0; }
+      .controls{ justify-content:flex-start; }
+      .hud{ justify-content:flex-start; }
       #main{ flex-direction:column; }
       #sidebar{
         width: 100%;
         max-width: none;
         flex: 0 0 auto;
-        flex-direction: row;
-        flex-wrap: wrap;
+        flex-direction: column;
+        flex-wrap: nowrap;
       }
-      .panel{ flex: 1 1 320px; }
+      .panel{ flex: 0 0 auto; width: 100%; }
       #gameWrap{ min-height: 52vh; }
     }
 
     @media (max-width: 560px){
       #app{ padding: 10px; }
-      header#topbar{ flex-direction:column; align-items:stretch; }
       .brand, .controls{ min-width: 0; justify-content:space-between; }
-      .hud{ justify-content:flex-start; }
       #gameWrap{ min-height: 48vh; }
       .shop{ grid-template-columns: 1fr; }
+      details.help[open] .helpBody{ max-height: min(30vh, 170px); }
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -543,7 +583,7 @@
             <div class="smallMuted">Planning phase only</div>
           </div>
           <div id="shop" class="shop" aria-label="Tower shop"></div>
-          <div class="tinyHint">Controls: <b>1–5</b> pick a tower, <b>Esc</b> cancel, <b>Space</b> start wave, <b>U</b> upgrade selected.</div>
+          <div class="tinyHint">Hotkeys: <b>1–5</b> tower, <b>Esc</b> cancel, <b>Space</b> wave, <b>U</b> upgrade.</div>
         </section>
 
         <section class="panel" id="selectedPanel">
@@ -2310,11 +2350,11 @@
         el.className = "shopItem";
         el.tabIndex = 0;
         el.dataset.tower = t.id;
+        el.title = `${t.name}: ${t.desc}`;
         el.innerHTML = `
           <div class="shopIcon" aria-hidden="true">${t.icon}</div>
           <div class="shopMeta">
             <div class="shopName">${t.name}</div>
-            <div class="shopDesc">${t.desc}</div>
           </div>
           <div class="shopCost">${t.cost}</div>
         `;
@@ -2399,7 +2439,7 @@
             <div class="upgradeRow">
               <div class="shopCost" style="margin-left:0">${next.cost}</div>
               <button id="btnUpgrade" class="btn primary small" type="button" ${canUpgrade?"":"disabled"}>
-                ${canUpgrade?"Upgrade":"${upgradeDisabledReason}"}
+                ${canUpgrade ? "Upgrade" : upgradeDisabledReason}
               </button>
             </div>
           ` : `
