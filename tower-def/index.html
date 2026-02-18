@@ -18,6 +18,7 @@
             --panel-border: rgba(0, 245, 255, 0.4);
             --glow-cyan: 0 0 20px rgba(0, 245, 255, 0.6);
             --glow-magenta: 0 0 20px rgba(255, 0, 170, 0.6);
+            --glow-lime: 0 0 20px rgba(57, 255, 20, 0.6);
         }
 
         * {
@@ -189,6 +190,11 @@
             box-shadow: var(--glow-magenta), inset 0 0 30px rgba(255, 0, 170, 0.05);
         }
 
+        .game-card:nth-child(3):hover {
+            border-color: var(--neon-lime);
+            box-shadow: var(--glow-lime), inset 0 0 30px rgba(57, 255, 20, 0.05);
+        }
+
         .game-card-corner {
             position: absolute;
             width: 20px;
@@ -205,6 +211,10 @@
 
         .game-card:nth-child(2) .game-card-corner {
             border-color: var(--neon-magenta);
+        }
+
+        .game-card:nth-child(3) .game-card-corner {
+            border-color: var(--neon-lime);
         }
 
         .game-card-icon {
@@ -255,6 +265,16 @@
             box-shadow: 0 0 15px rgba(255, 0, 170, 0.3);
         }
 
+        .game-card:nth-child(3) .launch-badge {
+            border-color: var(--neon-lime);
+            color: var(--neon-lime);
+        }
+
+        .game-card:nth-child(3):hover .launch-badge {
+            background: rgba(57, 255, 20, 0.1);
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.3);
+        }
+
         .footer {
             margin-top: 3rem;
             font-size: 0.75rem;
@@ -294,6 +314,16 @@
                 <div class="game-card-icon">◇</div>
                 <h2>Whimsical Defense</h2>
                 <p>Fantasy towers. Archer, Cannon, Ice, Lightning, Poison. Defend the realm.</p>
+                <span class="launch-badge">Launch</span>
+            </a>
+            <a href="grok420-critter-defense.html" class="game-card">
+                <span class="game-card-corner tl"></span>
+                <span class="game-card-corner tr"></span>
+                <span class="game-card-corner bl"></span>
+                <span class="game-card-corner br"></span>
+                <div class="game-card-icon">▣</div>
+                <h2>Critter Towers</h2>
+                <p>Cute critters, friendly towers. Defend your garden with charm and strategy.</p>
                 <span class="launch-badge">Launch</span>
             </a>
         </nav>
