@@ -22,6 +22,8 @@
             --glow-amber: 0 0 20px rgba(255, 176, 0, 0.6);
             --neon-coral: #ff6b6b;
             --glow-coral: 0 0 20px rgba(255, 107, 107, 0.6);
+            --neon-violet: #a855f7;
+            --glow-violet: 0 0 20px rgba(168, 85, 247, 0.6);
         }
 
         * {
@@ -211,6 +213,11 @@
             box-shadow: var(--glow-coral), inset 0 0 30px rgba(255, 107, 107, 0.05);
         }
 
+        .game-card:nth-child(6):hover {
+            border-color: var(--neon-violet);
+            box-shadow: var(--glow-violet), inset 0 0 30px rgba(168, 85, 247, 0.05);
+        }
+
         .game-card-corner {
             position: absolute;
             width: 20px;
@@ -239,6 +246,10 @@
 
         .game-card:nth-child(5) .game-card-corner {
             border-color: var(--neon-coral);
+        }
+
+        .game-card:nth-child(6) .game-card-corner {
+            border-color: var(--neon-violet);
         }
 
         .game-card-icon {
@@ -317,6 +328,16 @@
         .game-card:nth-child(5):hover .launch-badge {
             background: rgba(255, 107, 107, 0.1);
             box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .game-card:nth-child(6) .launch-badge {
+            border-color: var(--neon-violet);
+            color: var(--neon-violet);
+        }
+
+        .game-card:nth-child(6):hover .launch-badge {
+            background: rgba(168, 85, 247, 0.1);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
         }
 
         .footer {
@@ -490,6 +511,16 @@
                 <div class="game-card-icon">✦</div>
                 <h2>Bubble Bastion Defense</h2>
                 <p>Hold the bastion. Bubble towers, sunny skies. Defend with strategy and style.</p>
+                <span class="launch-badge">Launch</span>
+            </a>
+            <a href="opus46-tower-def.html" class="game-card">
+                <span class="game-card-corner tl"></span>
+                <span class="game-card-corner tr"></span>
+                <span class="game-card-corner bl"></span>
+                <span class="game-card-corner br"></span>
+                <div class="game-card-icon">◉</div>
+                <h2>Kingdom's Last Stand (Opus)</h2>
+                <p>Alternate take. Defend the realm, upgrade towers, hold the castle against the horde.</p>
                 <span class="launch-badge">Launch</span>
             </a>
         </nav>
