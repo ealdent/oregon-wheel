@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Excel - Budget_Q4_FINAL_v3_REAL.xlsx</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Segoe+UI:wght@400;500;600;700&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --xl-green:#217346;--xl-green-light:#33a867;--xl-green-dark:#185c37;
+  --xl-blue:#4472c4;--xl-blue-light:#5b9bd5;--xl-orange:#ed7d31;
+  --xl-red:#c00000;--xl-yellow:#ffc000;--xl-light-yellow:#fff2cc;
+  --xl-grey:#f3f3f3;--xl-grey-med:#d6d6d6;--xl-grey-dark:#808080;
+  --xl-border:#c0c0c0;--xl-cell-border:#d4d4d4;
+  --xl-white:#ffffff;--xl-text:#333333;--xl-text-light:#666666;
+  --xl-select:#b4d6ff;--xl-select-border:#0078d4;
+  --ribbon-bg:#f0f0f0;--toolbar-bg:#e8e8e8;
+}
+html,body{height:100%;overflow:hidden;background:var(--xl-grey);font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;font-size:12px;color:var(--xl-text);cursor:cell}
+
+#app{display:flex;flex-direction:column;height:100vh}
+
+/* ===== TITLE BAR ===== */
+#titlebar{background:var(--xl-green);color:white;display:flex;align-items:center;padding:0 8px;height:32px;gap:8px;font-size:12px;flex-shrink:0}
+#titlebar .icon{font-size:14px}
+#titlebar .title{flex:1;text-align:center;font-size:11px;opacity:0.9;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#titlebar .win-btns{display:flex;gap:0}
+#titlebar .win-btns span{padding:6px 12px;cursor:pointer;font-size:10px;opacity:0.8}
+#titlebar .win-btns span:hover{background:rgba(255,255,255,0.15);opacity:1}
+#titlebar .win-btns .close:hover{background:#c42b1c}
+
+/* ===== MENU BAR ===== */
+#menubar{background:var(--ribbon-bg);border-bottom:1px solid var(--xl-border);display:flex;gap:0;padding:0 4px;height:28px;align-items:center;flex-shrink:0}
+.menu-item{padding:4px 12px;font-size:11px;cursor:pointer;border-radius:3px;position:relative;color:var(--xl-text-light)}
+.menu-item:hover{background:rgba(0,0,0,0.06);color:var(--xl-text)}
+.menu-item.active{background:var(--xl-green);color:white}
+
+/* ===== RIBBON / TOOLBAR ===== */
+#ribbon{background:var(--ribbon-bg);border-bottom:1px solid var(--xl-border);padding:4px 8px 6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.ribbon-group{display:flex;gap:3px;align-items:center;padding:2px 8px;border-right:1px solid var(--xl-grey-med)}
+.ribbon-group:last-child{border:none}
+.ribbon-btn{padding:4px 8px;border:1px solid transparent;border-radius:3px;cursor:pointer;font-size:11px;background:transparent;color:var(--xl-text);display:flex;align-items:center;gap:4px;white-space:nowrap;font-family:inherit}
+.ribbon-btn:hover{background:rgba(0,0,0,0.06);border-color:var(--xl-grey-med)}
+.ribbon-btn.tower-btn{border:1px solid var(--xl-grey-med);background:var(--xl-white)}
+.ribbon-btn.tower-btn:hover{background:#e8f5e9;border-color:var(--xl-green)}
+.ribbon-btn.tower-btn.selected{background:#c8e6c9;border-color:var(--xl-green);font-weight:700}
+.ribbon-btn.tower-btn .cost{color:var(--xl-green);font-weight:700;font-size:10px}
+.ribbon-btn.tower-btn.disabled{opacity:0.4;pointer-events:none}
+.ribbon-group-label{font-size:9px;color:var(--xl-grey-dark);text-align:center;border-top:1px solid var(--xl-grey-med);padding-top:2px;margin-top:2px;width:100%}
+
+/* ===== FORMULA BAR ===== */
+#formulabar{background:var(--xl-white);border-bottom:1px solid var(--xl-border);display:flex;height:26px;align-items:center;flex-shrink:0}
+#cellref{width:80px;border-right:1px solid var(--xl-border);padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;text-align:center;color:var(--xl-text);line-height:26px}
+#fx-label{padding:0 8px;font-style:italic;color:var(--xl-grey-dark);font-size:12px;border-right:1px solid var(--xl-border)}
+#formula-content{flex:1;padding:0 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--xl-text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* ===== SPREADSHEET GRID ===== */
+#grid-area{flex:1;display:flex;overflow:hidden;position:relative}
+#row-headers{width:36px;background:var(--xl-grey);border-right:1px solid var(--xl-border);flex-shrink:0;overflow:hidden}
+#row-headers .rh{height:28px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--xl-grey-dark);border-bottom:1px solid var(--xl-cell-border);font-weight:500}
+#col-headers{display:flex;background:var(--xl-grey);border-bottom:1px solid var(--xl-border);height:22px;margin-left:36px}
+#col-headers .ch{width:38px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--xl-grey-dark);border-right:1px solid var(--xl-cell-border);font-weight:500;flex-shrink:0}
+#canvas-wrap{flex:1;overflow:hidden;position:relative}
+canvas{position:absolute;top:0;left:0}
+
+/* ===== STATUS BAR ===== */
+#statusbar{background:var(--xl-green);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:24px;font-size:11px;flex-shrink:0}
+#statusbar .left{display:flex;gap:16px;align-items:center}
+#statusbar .right{display:flex;gap:16px;align-items:center;opacity:0.8}
+.status-item{display:flex;align-items:center;gap:4px}
+
+/* ===== DIALOG (for upgrades) ===== */
+#dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);display:none;align-items:center;justify-content:center;z-index:100}
+#dialog-overlay.show{display:flex}
+#dialog{background:var(--xl-grey);border:1px solid var(--xl-grey-dark);box-shadow:0 4px 24px rgba(0,0,0,0.3);width:340px;max-width:95vw;font-size:12px}
+#dialog-titlebar{background:var(--xl-green);color:white;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
+#dialog-titlebar .close-x{cursor:pointer;padding:2px 6px;font-size:14px}
+#dialog-titlebar .close-x:hover{background:rgba(255,255,255,0.2)}
+#dialog-body{padding:14px 16px}
+.dlg-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--xl-cell-border)}
+.dlg-row .label{color:var(--xl-grey-dark)}
+.dlg-row .val{font-family:'IBM Plex Mono',monospace;font-weight:600}
+#dialog-footer{padding:10px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--xl-border)}
+.dlg-btn{padding:5px 20px;border:1px solid var(--xl-grey-med);background:var(--xl-white);cursor:pointer;font-family:inherit;font-size:11px}
+.dlg-btn:hover{background:var(--xl-grey)}
+.dlg-btn.primary{background:var(--xl-green);color:white;border-color:var(--xl-green-dark)}
+.dlg-btn.primary:hover{background:var(--xl-green-light)}
+.dlg-btn.primary:disabled{background:var(--xl-grey-med);color:var(--xl-grey-dark);border-color:var(--xl-grey-med);cursor:not-allowed}
+.dlg-btn.danger{color:var(--xl-red);border-color:var(--xl-red)}
+.dlg-btn.danger:hover{background:#fff0f0}
+
+/* ===== START OVERLAY ===== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:200}
+.start-dialog{background:var(--xl-grey);border:1px solid var(--xl-grey-dark);box-shadow:0 8px 40px rgba(0,0,0,0.4);width:440px;max-width:92vw}
+.start-dialog .sd-title{background:var(--xl-green);color:white;padding:10px 16px;font-size:13px;font-weight:600}
+.start-dialog .sd-body{padding:20px;text-align:center}
+.start-dialog .sd-body .big{font-size:42px;margin-bottom:8px}
+.start-dialog .sd-body h2{font-size:18px;font-weight:700;margin-bottom:4px;color:var(--xl-green)}
+.start-dialog .sd-body .sub{font-size:11px;color:var(--xl-grey-dark);margin-bottom:12px}
+.start-dialog .sd-body p{font-size:12px;color:var(--xl-text-light);line-height:1.7;margin-bottom:16px;text-align:left}
+.start-dialog .sd-body .note{background:var(--xl-light-yellow);border:1px solid var(--xl-yellow);padding:8px 10px;font-size:11px;text-align:left;margin-bottom:16px;border-radius:2px}
+.start-dialog .sd-footer{padding:10px 20px;border-top:1px solid var(--xl-border);text-align:right}
+
+/* ===== WAVE BUTTON (in ribbon) ===== */
+.wave-btn{padding:5px 14px;border:1px solid var(--xl-green);border-radius:3px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;background:var(--xl-green);color:white}
+.wave-btn:hover:not(:disabled){background:var(--xl-green-light)}
+.wave-btn:disabled{background:var(--xl-grey-med);color:var(--xl-grey-dark);border-color:var(--xl-grey-med);cursor:not-allowed}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:700px){
+  .ribbon-btn{padding:3px 5px;font-size:10px}
+  #cellref{width:55px;font-size:10px}
+  #col-headers .ch{width:32px;font-size:9px}
+  #row-headers{width:28px}
+  #row-headers .rh{font-size:9px;height:24px}
+  .menu-item{padding:3px 8px;font-size:10px}
+  .ribbon-group-label{font-size:8px}
+  #titlebar .title{font-size:10px}
+  .start-dialog{width:95vw}
+}
+@media(max-width:480px){
+  .ribbon-group{padding:2px 4px}
+  .ribbon-btn.tower-btn .cost{display:none}
+  #formulabar{height:22px}
+  #statusbar{height:20px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Title Bar -->
+  <div id="titlebar">
+    <span class="icon">📊</span>
+    <span class="title">Budget_Q4_FINAL_v3_REAL.xlsx - Microsoft Excel</span>
+    <div class="win-btns">
+      <span>─</span><span>☐</span><span class="close">✕</span>
+    </div>
+  </div>
+
+  <!-- Menu Bar -->
+  <div id="menubar">
+    <div class="menu-item">File</div>
+    <div class="menu-item">Home</div>
+    <div class="menu-item active">Insert</div>
+    <div class="menu-item">Page Layout</div>
+    <div class="menu-item">Formulas</div>
+    <div class="menu-item">Data</div>
+    <div class="menu-item">Review</div>
+  </div>
+
+  <!-- Ribbon -->
+  <div id="ribbon">
+    <div class="ribbon-group" id="tower-group" style="flex-wrap:wrap;max-width:600px">
+      <!-- Tower buttons injected here -->
+    </div>
+    <div class="ribbon-group" style="flex-direction:column;align-items:stretch">
+      <button class="wave-btn" id="wave-btn" onclick="launchWave()">▶ RUN Wave 1</button>
+      <button class="ribbon-btn" id="speed-btn" onclick="cycleSpeed()" style="font-size:10px;justify-content:center">Speed: 1×</button>
+    </div>
+  </div>
+
+  <!-- Formula Bar -->
+  <div id="formulabar">
+    <div id="cellref">A1</div>
+    <div id="fx-label">fx</div>
+    <div id="formula-content">Select a cell adjacent to the path to insert a function...</div>
+  </div>
+
+  <!-- Column Headers -->
+  <div id="col-headers"></div>
+
+  <!-- Grid Area -->
+  <div id="grid-area">
+    <div id="row-headers"></div>
+    <div id="canvas-wrap">
+      <canvas id="c"></canvas>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="statusbar">
+    <div class="left">
+      <div class="status-item">📋 Sheet1</div>
+      <div class="status-item" id="status-mode">READY</div>
+    </div>
+    <div class="right">
+      <div class="status-item">¢ELLS: <b id="st-gold">200</b></div>
+      <div class="status-item">INTEGRITY: <b id="st-hp">25</b></div>
+      <div class="status-item">WAVE: <b id="st-wave">0/20</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- Start Dialog -->
+<div class="overlay" id="ov-start">
+  <div class="start-dialog">
+    <div class="sd-title">📊 Microsoft Excel - Getting Started</div>
+    <div class="sd-body">
+      <div class="big">📊</div>
+      <h2>SPREADSHEET DEFENSE</h2>
+      <div class="sub">Budget_Q4_FINAL_v3_REAL.xlsx</div>
+      <p>CRITICAL: Your spreadsheet has been infected with errors. Corrupted data is flowing through the cells. You must insert defensive formulas along the data path to neutralize errors before they reach the output cell and corrupt your entire workbook.</p>
+      <div class="note">⚠️ <b>IT Department Notice:</b> Insert formulas from the ribbon toolbar into cells adjacent to the highlighted data path. Upgrade formulas between waves via the Format Cells dialog. Survive 20 waves to save your Q4 budget report.</div>
+    </div>
+    <div class="sd-footer">
+      <button class="dlg-btn primary" onclick="beginGame()" style="padding:8px 32px;font-size:13px">OK - Open Workbook</button>
+    </div>
+  </div>
+</div>
+
+<!-- End Overlay -->
+<div class="overlay" id="ov-end" style="display:none">
+  <div class="start-dialog">
+    <div class="sd-title" id="end-dlg-title">📊 Microsoft Excel</div>
+    <div class="sd-body">
+      <div class="big" id="end-emoji">💀</div>
+      <h2 id="end-title">WORKBOOK CORRUPTED</h2>
+      <p id="end-text">Too many errors reached the output cell. Your Q4 budget is beyond recovery.</p>
+    </div>
+    <div class="sd-footer">
+      <button class="dlg-btn primary" onclick="location.reload()">Revert to Saved</button>
+    </div>
+  </div>
+</div>
+
+<!-- Upgrade Dialog -->
+<div id="dialog-overlay">
+  <div id="dialog">
+    <div id="dialog-titlebar">
+      <span id="dlg-title">Format Cells</span>
+      <span class="close-x" onclick="closeDlg()">✕</span>
+    </div>
+    <div id="dialog-body"></div>
+    <div id="dialog-footer">
+      <button class="dlg-btn danger" id="dlg-sell" onclick="doSell()">Delete</button>
+      <button class="dlg-btn primary" id="dlg-upgrade" onclick="doUpgrade()">Upgrade</button>
+      <button class="dlg-btn" onclick="closeDlg()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const CELL=38;
+const COLS=22,ROWS=14;
+const CW=COLS*CELL,CH=ROWS*CELL;
+let cv,cx,G;
+
+const TOWERS=[
+  {
+    id:'sum',fn:'SUM()',name:'SUM',tag:'Reliable damage',
+    cost:40,col:'#217346',range:110,dmg:11,rate:0.9,pspd:6,pcol:'#217346',
+    upgrades:[
+      {cost:35,dmg:19,range:120,name:'SUMIF()'},
+      {cost:75,dmg:30,range:130,rate:0.75,name:'SUMIFS()'},
+      {cost:150,dmg:50,range:145,rate:0.6,name:'AGGREGATE()'},
+      {cost:280,dmg:78,range:165,rate:0.45,name:'SUBTOTAL()'}
+    ]
+  },
+  {
+    id:'vlookup',fn:'VLOOKUP()',name:'VLOOKUP',tag:'Heavy single hit',
+    cost:70,col:'#4472c4',range:130,dmg:35,rate:2.4,pspd:4,pcol:'#4472c4',
+    upgrades:[
+      {cost:55,dmg:55,range:140,name:'HLOOKUP()'},
+      {cost:110,dmg:85,range:150,rate:2.0,name:'INDEX(MATCH())'},
+      {cost:200,dmg:130,range:165,rate:1.7,name:'XLOOKUP()'},
+      {cost:360,dmg:200,range:180,rate:1.3,name:'QUERY()'}
+    ]
+  },
+  {
+    id:'if',fn:'IF()',name:'IF',tag:'Slows data flow',
+    cost:55,col:'#ed7d31',range:100,dmg:7,rate:1.1,pspd:5,pcol:'#ed7d31',
+    slow:0.5,slowDur:2.0,
+    upgrades:[
+      {cost:45,dmg:12,slow:0.42,slowDur:2.5,name:'IFS()'},
+      {cost:90,dmg:19,slow:0.33,slowDur:3.0,range:115,name:'SWITCH()'},
+      {cost:175,dmg:30,slow:0.22,slowDur:3.5,range:130,name:'CHOOSE()'},
+      {cost:310,dmg:48,slow:0.12,slowDur:4.0,range:150,name:'LAMBDA()'}
+    ]
+  },
+  {
+    id:'rand',fn:'RAND()',name:'RAND',tag:'Splash recalculation',
+    cost:80,col:'#c00000',range:105,dmg:30,rate:2.2,pspd:3.5,pcol:'#c00000',
+    splash:45,
+    upgrades:[
+      {cost:60,dmg:48,splash:55,name:'RANDBETWEEN()'},
+      {cost:120,dmg:75,splash:65,range:120,name:'RANDARRAY()'},
+      {cost:210,dmg:115,splash:80,range:135,name:'SEQUENCE()'},
+      {cost:370,dmg:180,splash:100,range:155,name:'UNIQUE()'}
+    ]
+  },
+  {
+    id:'macro',fn:'MACRO',name:'MACRO',tag:'Persistent corruption',
+    cost:65,col:'#7030a0',range:100,dmg:8,rate:1.3,pspd:4.5,pcol:'#7030a0',
+    dot:6,dotDur:3,
+    upgrades:[
+      {cost:50,dmg:13,dot:10,dotDur:3.5,name:'VBA Script'},
+      {cost:100,dmg:21,dot:17,dotDur:4,range:115,name:'AutoHotKey'},
+      {cost:190,dmg:34,dot:28,dotDur:4.5,range:130,name:'Power Query'},
+      {cost:340,dmg:52,dot:42,dotDur:5,range:150,name:'AUTOMATION'}
+    ]
+  }
+];
+
+const ENEMIES=[
+  {id:'ref',label:'#REF!',name:'#REF!',hp:40,spd:1.2,reward:5,col:'#c00000',sz:0.7},
+  {id:'na',label:'#N/A',name:'#N/A',hp:28,spd:2.3,reward:6,col:'#808080',sz:0.55},
+  {id:'div',label:'#DIV/0!',name:'#DIV/0!',hp:65,spd:1.4,reward:8,col:'#ed7d31',sz:0.7},
+  {id:'val',label:'#VALUE!',name:'#VALUE!',hp:50,spd:1.8,reward:7,col:'#4472c4',sz:0.6},
+  {id:'name',label:'#NAME?',name:'#NAME?',hp:130,spd:0.8,reward:14,col:'#7030a0',sz:0.8},
+  {id:'null',label:'#NULL!',name:'#NULL!',hp:85,spd:2.0,reward:12,col:'#375623',sz:0.6},
+  {id:'circ',label:'CIRCULAR',name:'Circular Ref',hp:200,spd:0.9,reward:18,col:'#bf8f00',sz:0.85},
+  {id:'num',label:'#NUM!',name:'#NUM!',hp:100,spd:2.4,reward:15,col:'#c55a11',sz:0.6},
+  {id:'corrupt',label:'CORRUPT',name:'Corrupt Cell',hp:450,spd:0.5,reward:32,col:'#333333',sz:1.0},
+  {id:'bsod',label:'BSOD',name:'Blue Screen',hp:1200,spd:0.5,reward:100,col:'#0078d4',sz:1.3}
+];
+
+function buildWaves(){
+  const W=[];
+  for(let i=1;i<=20;i++){
+    const w={num:i,groups:[],hpS:1+(i-1)*0.13};
+    if(i<=3){w.groups.push({t:0,n:6+i*2,d:0.7});if(i>1)w.groups.push({t:1,n:3+i,d:0.5});}
+    else if(i<=6){w.groups.push({t:0,n:8+i,d:0.5});w.groups.push({t:2,n:4+i,d:0.65});w.groups.push({t:3,n:2+i-3,d:0.55});}
+    else if(i<=10){w.groups.push({t:2,n:6+i-4,d:0.45});w.groups.push({t:3,n:5+i-5,d:0.5});w.groups.push({t:4,n:2+i-6,d:0.9});if(i>=9)w.groups.push({t:5,n:3,d:0.65});}
+    else if(i<=14){w.groups.push({t:4,n:4+i-9,d:0.65});w.groups.push({t:5,n:4+i-10,d:0.55});w.groups.push({t:6,n:3+i-10,d:0.85});w.groups.push({t:7,n:Math.floor((i-9)/2),d:0.5});}
+    else if(i<=18){w.groups.push({t:5,n:8+i-13,d:0.35});w.groups.push({t:6,n:5+i-13,d:0.5});w.groups.push({t:8,n:1+i-14,d:1.5});w.groups.push({t:7,n:5+i-14,d:0.35});}
+    else if(i===19){w.groups.push({t:6,n:12,d:0.35});w.groups.push({t:8,n:5,d:0.8});w.groups.push({t:7,n:15,d:0.28});}
+    else{w.groups.push({t:9,n:3,d:3.5});w.groups.push({t:8,n:8,d:0.6});w.groups.push({t:7,n:18,d:0.22});w.groups.push({t:6,n:10,d:0.3});}
+    W.push(w);
+  }
+  return W;
+}
+
+// ═══════════════════════════════════════
+// MAP GEN
+// ═══════════════════════════════════════
+function genMap(){
+  const grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));
+  const path=[];
+  let y=2+Math.floor(Math.random()*(ROWS-4));
+  let x=0;path.push({x,y});grid[y][x]=1;
+  let dir=0,seg=0;
+  while(x<COLS-1){
+    if(seg>2+Math.floor(Math.random()*4)){
+      if(dir===0){dir=y<=2?1:y>=ROWS-3?2:Math.random()<.5?1:2;}else dir=0;
+      seg=0;
+    }
+    let nx=x,ny=y;
+    if(dir===0)nx++;else if(dir===1)ny++;else ny--;
+    if(ny<1||ny>=ROWS-1){dir=0;nx=x+1;ny=y;}
+    if(nx>=COLS)break;
+    if(grid[ny]&&grid[ny][nx]){dir=0;nx=x+1;ny=y;if(nx>=COLS)break;}
+    x=nx;y=ny;path.push({x,y});grid[y][x]=1;seg++;
+  }
+  const placeable=new Set();
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c])continue;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const rr=r+dr,cc=c+dc;
+      if(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&grid[rr][cc]){placeable.add(r*COLS+c);}
+    }
+  }
+  return{path,grid,placeable};
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+function beginGame(){
+  document.getElementById('ov-start').style.display='none';
+  cv=document.getElementById('c');cx=cv.getContext('2d');
+
+  const map=genMap();
+  G={
+    gold:200,hp:25,waveNum:0,score:0,
+    towers:[],enemies:[],projs:[],fx:[],
+    path:map.path,grid:map.grid,placeable:map.placeable,
+    selType:null,selTower:null,
+    waving:false,spawnQ:[],spI:0,spT:0,
+    speed:1,over:false,won:false,
+    waves:buildWaves(),time:0,hover:null
+  };
+
+  buildHeaders();buildTowerBtns();fitCanvas();
+  window.addEventListener('resize',fitCanvas);
+  cv.addEventListener('click',onGridClick);
+  cv.addEventListener('mousemove',e=>{G.hover=xyFromEvent(e)});
+  cv.addEventListener('mouseleave',()=>{G.hover=null});
+  cv.addEventListener('touchstart',e=>{e.preventDefault();onGridClick(e.touches[0]);},{passive:false});
+  requestAnimationFrame(loop);
+}
+
+function buildHeaders(){
+  // Col headers
+  const ch=document.getElementById('col-headers');
+  ch.innerHTML='';
+  for(let c=0;c<COLS;c++){
+    const d=document.createElement('div');d.className='ch';
+    d.textContent=String.fromCharCode(65+c);
+    d.style.width=CELL+'px';ch.appendChild(d);
+  }
+  // Row headers
+  const rh=document.getElementById('row-headers');
+  rh.innerHTML='';
+  for(let r=0;r<ROWS;r++){
+    const d=document.createElement('div');d.className='rh';
+    d.textContent=r+1;d.style.height=CELL+'px';rh.appendChild(d);
+  }
+}
+
+function buildTowerBtns(){
+  const g=document.getElementById('tower-group');
+  g.innerHTML='';
+  TOWERS.forEach((t,i)=>{
+    const b=document.createElement('button');
+    b.className='ribbon-btn tower-btn';b.dataset.i=i;
+    b.innerHTML=`<span style="color:${t.col};font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:11px">${t.fn}</span><span class="cost">¢${t.cost}</span>`;
+    b.title=`${t.name} - ${t.tag}`;
+    b.addEventListener('click',()=>pickType(i));
+    g.appendChild(b);
+  });
+}
+
+function fitCanvas(){
+  const wrap=document.getElementById('canvas-wrap');
+  const w=wrap.clientWidth,h=wrap.clientHeight;
+  const sx=w/CW,sy=h/CH,s=Math.min(sx,sy,1.5);
+  cv.width=CW;cv.height=CH;
+  cv.style.width=Math.floor(CW*s)+'px';
+  cv.style.height=Math.floor(CH*s)+'px';
+  if(G){G.cRect=null;}
+  // Also resize col/row headers
+  document.querySelectorAll('#col-headers .ch').forEach(c=>c.style.width=Math.floor(CELL*s)+'px');
+  document.getElementById('col-headers').style.marginLeft=document.getElementById('row-headers').offsetWidth+'px';
+  document.querySelectorAll('#row-headers .rh').forEach(r=>r.style.height=Math.floor(CELL*s)+'px');
+}
+
+function xyFromEvent(e){
+  if(!G.cRect)G.cRect=cv.getBoundingClientRect();
+  const r=G.cRect;
+  const px='clientX'in e?e.clientX:e.pageX;
+  const py='clientY'in e?e.clientY:e.pageY;
+  return{x:(px-r.left)*(CW/r.width),y:(py-r.top)*(CH/r.height)};
+}
+
+function cellName(c,r){return String.fromCharCode(65+c)+(r+1);}
+
+// ═══════════════════════════════════════
+// UI
+// ═══════════════════════════════════════
+function pickType(i){
+  if(G.selType===i)G.selType=null;else{G.selType=i;G.selTower=null;closeDlg();}
+  document.querySelectorAll('.tower-btn').forEach((b,j)=>b.classList.toggle('selected',j===G.selType));
+  updateFormula();
+}
+
+function updateFormula(){
+  const fc=document.getElementById('formula-content');
+  const cr=document.getElementById('cellref');
+  if(G.selTower){
+    const t=G.selTower,type=TOWERS[t.typeIdx];
+    cr.textContent=cellName(t.gx,t.gy);
+    fc.textContent=`=${t.level>0?type.upgrades[t.level-1].name:type.fn} // Lvl ${t.level+1} | DMG:${t.dmg} | RNG:${t.range}`;
+  }else if(G.selType!==null){
+    cr.textContent='--';
+    fc.textContent=`=INSERT ${TOWERS[G.selType].fn} → Click a cell adjacent to data path`;
+  }else{
+    cr.textContent='A1';
+    fc.textContent='Select a cell adjacent to the path to insert a function...';
+  }
+}
+
+function refreshUI(){
+  document.getElementById('st-gold').textContent=G.gold;
+  document.getElementById('st-hp').textContent=G.hp;
+  document.getElementById('st-wave').textContent=`${G.waveNum}/20`;
+  document.getElementById('status-mode').textContent=G.waving?'CALCULATING...':'READY';
+
+  document.querySelectorAll('.tower-btn').forEach((b,i)=>{
+    b.classList.toggle('disabled',G.gold<TOWERS[i].cost&&G.selType!==i);
+  });
+
+  const wb=document.getElementById('wave-btn');
+  if(G.waving){wb.disabled=true;wb.textContent='⏳ CALCULATING...';}
+  else if(G.waveNum>=20){wb.disabled=true;wb.textContent='✅ WORKBOOK SAVED';}
+  else{wb.disabled=false;wb.textContent=`▶ RUN Wave ${G.waveNum+1}`;}
+
+  updateFormula();
+}
+
+function showDlg(t){
+  G.selTower=t;
+  const type=TOWERS[t.typeIdx];
+  document.getElementById('dlg-title').textContent=`Format Cells — ${cellName(t.gx,t.gy)}`;
+  const body=document.getElementById('dialog-body');
+  const curName=t.level>0?type.upgrades[t.level-1].name:type.fn;
+  let html=`
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:${type.col};margin-bottom:10px;text-align:center">=${curName}</div>
+    <div class="dlg-row"><span class="label">Level</span><span class="val">${t.level+1} / 5</span></div>
+    <div class="dlg-row"><span class="label">Damage</span><span class="val">${t.dmg}</span></div>
+    <div class="dlg-row"><span class="label">Range</span><span class="val">${t.range}</span></div>
+    <div class="dlg-row"><span class="label">Fire Rate</span><span class="val">${(1/t.rate).toFixed(1)}/s</span></div>
+  `;
+  if(t.splash)html+=`<div class="dlg-row"><span class="label">Splash Radius</span><span class="val">${t.splash}</span></div>`;
+  if(t.slow)html+=`<div class="dlg-row"><span class="label">Slow Effect</span><span class="val">${Math.round((1-t.slow)*100)}%</span></div>`;
+  if(t.dot)html+=`<div class="dlg-row"><span class="label">DOT</span><span class="val">${t.dot}/s for ${t.dotDur}s</span></div>`;
+  body.innerHTML=html;
+
+  const ub=document.getElementById('dlg-upgrade');
+  if(t.level<4){
+    const u=type.upgrades[t.level];
+    ub.disabled=G.gold<u.cost;
+    ub.textContent=`⬆ ${u.name} (¢${u.cost})`;
+  }else{ub.disabled=true;ub.textContent='MAX LEVEL';}
+  document.getElementById('dlg-sell').textContent=`🗑 Delete (refund ¢${Math.floor(t.totalCost*0.6)})`;
+  document.getElementById('dialog-overlay').classList.add('show');
+  updateFormula();
+}
+
+function closeDlg(){document.getElementById('dialog-overlay').classList.remove('show');G.selTower=null;updateFormula();}
+
+function doUpgrade(){
+  const t=G.selTower;if(!t||t.level>=4)return;
+  const type=TOWERS[t.typeIdx],u=type.upgrades[t.level];
+  if(G.gold<u.cost)return;
+  G.gold-=u.cost;t.totalCost+=u.cost;t.level++;
+  if(u.dmg)t.dmg=u.dmg;if(u.range)t.range=u.range;if(u.rate)t.rate=u.rate;
+  if(u.splash)t.splash=u.splash;if(u.slow)t.slow=u.slow;if(u.slowDur)t.slowDur=u.slowDur;
+  if(u.dot)t.dot=u.dot;if(u.dotDur)t.dotDur=u.dotDur;
+  for(let i=0;i<10;i++)G.fx.push({x:t.x,y:t.y,vx:(Math.random()-.5)*3,vy:-Math.random()*2,life:.6,ml:.6,col:'#217346',sz:4,type:'sparkle'});
+  showDlg(t);refreshUI();
+}
+
+function doSell(){
+  const t=G.selTower;if(!t)return;
+  G.gold+=Math.floor(t.totalCost*0.6);
+  G.towers=G.towers.filter(tw=>tw!==t);closeDlg();refreshUI();
+}
+
+// ═══════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════
+function onGridClick(e){
+  const pos=xyFromEvent(e);
+  const gx=Math.floor(pos.x/CELL),gy=Math.floor(pos.y/CELL);
+  if(gx<0||gx>=COLS||gy<0||gy>=ROWS)return;
+
+  const existing=G.towers.find(t=>t.gx===gx&&t.gy===gy);
+  if(existing){G.selTower=existing;G.selType=null;
+    document.querySelectorAll('.tower-btn').forEach(b=>b.classList.remove('selected'));
+    showDlg(existing);return;}
+
+  if(G.selType!==null){
+    const type=TOWERS[G.selType];
+    if(G.gold<type.cost)return;
+    if(G.grid[gy]&&G.grid[gy][gx])return;
+    if(G.towers.find(t=>t.gx===gx&&t.gy===gy))return;
+    if(!G.placeable.has(gy*COLS+gx)&&!G.towers.some(t=>Math.abs(t.gx-gx)<=1&&Math.abs(t.gy-gy)<=1))return;
+    G.gold-=type.cost;
+    const tower={
+      gx,gy,x:gx*CELL+CELL/2,y:gy*CELL+CELL/2,typeIdx:G.selType,level:0,
+      dmg:type.dmg,range:type.range,rate:type.rate,cd:0,totalCost:type.cost,
+      splash:type.splash||0,slow:type.slow||0,slowDur:type.slowDur||0,
+      dot:type.dot||0,dotDur:type.dotDur||0,ang:0
+    };
+    G.towers.push(tower);
+    for(let i=0;i<8;i++)G.fx.push({x:tower.x,y:tower.y,vx:(Math.random()-.5)*2,vy:-Math.random()*2,life:.4,ml:.4,col:type.col,sz:3,type:'sparkle'});
+    refreshUI();
+  }else{closeDlg();}
+}
+
+function launchWave(){
+  if(G.waving||G.waveNum>=20)return;
+  G.waveNum++;G.waving=true;
+  const wd=G.waves[G.waveNum-1];
+  G.spawnQ=[];let d=0;
+  wd.groups.forEach(g=>{for(let i=0;i<g.n;i++){G.spawnQ.push({ti:g.t,at:d,hpS:wd.hpS});d+=g.d;}});
+  G.spI=0;G.spT=0;refreshUI();
+}
+
+function cycleSpeed(){
+  const sp=[1,2,3],i=sp.indexOf(G.speed);
+  G.speed=sp[(i+1)%3];
+  document.getElementById('speed-btn').textContent=`Speed: ${G.speed}×`;
+}
+
+// ═══════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════
+let prevT=0;
+function loop(t){
+  if(G.over||G.won)return;
+  const rdt=Math.min((t-prevT)/1000,0.05);prevT=t;
+  const dt=rdt*G.speed;G.time+=dt;
+  update(dt);render();refreshUI();
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  // Spawn
+  if(G.waving&&G.spI<G.spawnQ.length){
+    G.spT+=dt;
+    while(G.spI<G.spawnQ.length&&G.spT>=G.spawnQ[G.spI].at){spawnE(G.spawnQ[G.spI]);G.spI++;}
+  }
+  if(G.waving&&G.spI>=G.spawnQ.length&&G.enemies.length===0){
+    G.waving=false;G.gold+=12+G.waveNum*3;
+    if(G.waveNum>=20){G.won=true;endScreen(true);}
+    refreshUI();
+  }
+
+  // Enemies
+  G.enemies.forEach(e=>{
+    if(e.dead)return;
+    if(e.dotT>0){e.dotT-=dt;e.hp-=e.dotD*dt;if(e.hp<=0)e.dead=true;}
+    let sm=1;if(e.slowT>0){e.slowT-=dt;sm=e.slowA;}
+    if(e.pi<G.path.length-1){
+      const tg=G.path[e.pi+1],tx=tg.x*CELL+CELL/2,ty=tg.y*CELL+CELL/2;
+      const dx=tx-e.x,dy=ty-e.y,d=Math.hypot(dx,dy);
+      const spd=e.spd*sm*CELL*dt;
+      if(d<spd){e.x=tx;e.y=ty;e.pi++;}else{e.x+=dx/d*spd;e.y+=dy/d*spd;}
+    }
+    if(e.pi>=G.path.length-1){e.dead=true;e.leaked=true;G.hp--;
+      for(let i=0;i<5;i++)G.fx.push({x:e.x,y:e.y,vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3,life:.4,ml:.4,col:'#c00000',sz:4});
+      if(G.hp<=0){G.over=true;endScreen(false);}
+    }
+  });
+  G.enemies=G.enemies.filter(e=>{
+    if(e.dead&&!e.leaked&&e.hp<=0){G.gold+=e.reward;G.score+=e.reward;
+      for(let i=0;i<6;i++)G.fx.push({x:e.x,y:e.y,vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3,life:.35,ml:.35,col:e.col,sz:3,type:'sparkle'});
+      return false;}
+    return!e.dead;
+  });
+
+  // Towers
+  G.towers.forEach(t=>{
+    t.cd-=dt;if(t.cd>0)return;
+    let best=null,bp=-1;
+    G.enemies.forEach(e=>{if(e.dead)return;const d=Math.hypot(e.x-t.x,e.y-t.y);if(d<=t.range&&e.pi>bp){bp=e.pi;best=e;}});
+    if(best){t.cd=t.rate;t.ang=Math.atan2(best.y-t.y,best.x-t.x);fire(t,best);}
+  });
+
+  // Projectiles
+  G.projs.forEach(p=>{
+    if(p.dead)return;
+    if(p.instant){p.dead=true;hitE(p.tgt,p);
+      G.fx.push({x:p.srcX,y:p.srcY,tx:p.tgt.x,ty:p.tgt.y,life:.15,ml:.15,type:'beam',col:p.col});
+      return;}
+    const dx=p.tgt.x-p.x,dy=p.tgt.y-p.y,d=Math.hypot(dx,dy);
+    const spd=p.spd*CELL*(1/60)*G.speed;
+    if(d<spd+8||p.tgt.dead){
+      if(!p.tgt.dead)hitE(p.tgt,p);p.dead=true;
+      if(p.splash){
+        G.enemies.forEach(e=>{if(e===p.tgt||e.dead)return;const sd=Math.hypot(e.x-p.tgt.x,e.y-p.tgt.y);
+          if(sd<=p.splash){e.hp-=p.dmg*(1-sd/p.splash)*.6;if(e.hp<=0)e.dead=true;}});
+        for(let i=0;i<8;i++)G.fx.push({x:p.x,y:p.y,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,life:.3,ml:.3,col:p.col,sz:5});
+      }
+    }else{p.x+=dx/d*spd;p.y+=dy/d*spd;}
+  });
+  G.projs=G.projs.filter(p=>!p.dead);
+
+  // FX
+  G.fx.forEach(f=>{f.life-=dt;if(f.type!=='beam'){f.x+=(f.vx||0)*dt*60;f.y+=(f.vy||0)*dt*60;}});
+  G.fx=G.fx.filter(f=>f.life>0);
+}
+
+function spawnE(def){
+  const t=ENEMIES[def.ti],s=G.path[0];
+  G.enemies.push({x:s.x*CELL+CELL/2,y:s.y*CELL+CELL/2,pi:0,
+    hp:t.hp*def.hpS,maxHp:t.hp*def.hpS,spd:t.spd,reward:t.reward,
+    col:t.col,sz:t.sz,label:t.label,dead:false,slowT:0,slowA:1,dotT:0,dotD:0});
+}
+
+function fire(tower,target){
+  const type=TOWERS[tower.typeIdx];
+  G.projs.push({x:tower.x,y:tower.y,srcX:tower.x,srcY:tower.y,tgt:target,dmg:tower.dmg,
+    spd:type.pspd,col:type.pcol,splash:tower.splash,slow:tower.slow,slowDur:tower.slowDur,
+    dot:tower.dot,dotDur:tower.dotDur,instant:type.pspd>=50,dead:false});
+}
+
+function hitE(e,p){
+  if(e.dead)return;e.hp-=p.dmg;
+  if(p.slow&&(e.slowT<=0||p.slow<e.slowA)){e.slowT=p.slowDur;e.slowA=p.slow;}
+  if(p.dot&&(e.dotT<=0||p.dot>e.dotD)){e.dotT=p.dotDur;e.dotD=p.dot;}
+  if(e.hp<=0)e.dead=true;
+}
+
+function endScreen(win){
+  document.getElementById('ov-end').style.display='flex';
+  document.getElementById('end-emoji').textContent=win?'✅':'💀';
+  document.getElementById('end-title').textContent=win?'WORKBOOK SAVED':'WORKBOOK CORRUPTED';
+  document.getElementById('end-dlg-title').textContent=win?'📊 File Saved Successfully':'📊 Critical Error';
+  document.getElementById('end-text').textContent=win
+    ?`All errors neutralized. Q4 budget saved. Final score: ¢${G.score}`
+    :`Errors overwhelmed your formulas on wave ${G.waveNum}. The spreadsheet is beyond repair. Score: ¢${G.score}`;
+}
+
+// ═══════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════
+function render(){
+  cx.clearRect(0,0,CW,CH);
+  drawGrid();
+  drawPath();
+  drawTowers();
+  drawEnemies();
+  drawProjs();
+  drawFX();
+  drawHover();
+  drawRange();
+}
+
+function drawGrid(){
+  cx.fillStyle='#ffffff';cx.fillRect(0,0,CW,CH);
+  // Grid lines
+  cx.strokeStyle=`${G.waving?'#e8e8e8':'#d4d4d4'}`;cx.lineWidth=0.5;
+  for(let c=0;c<=COLS;c++){cx.beginPath();cx.moveTo(c*CELL,0);cx.lineTo(c*CELL,CH);cx.stroke();}
+  for(let r=0;r<=ROWS;r++){cx.beginPath();cx.moveTo(0,r*CELL);cx.lineTo(CW,r*CELL);cx.stroke();}
+}
+
+function drawPath(){
+  const path=G.path;
+  // Highlight path cells in yellow
+  path.forEach(p=>{
+    cx.fillStyle=G.waving?'#fff2cc':'#fff9e6';
+    cx.fillRect(p.x*CELL+1,p.y*CELL+1,CELL-2,CELL-2);
+    // Cell border highlight
+    cx.strokeStyle='#ffc000';cx.lineWidth=1;
+    cx.strokeRect(p.x*CELL+0.5,p.y*CELL+0.5,CELL-1,CELL-1);
+  });
+
+  // Data flow arrows in path cells
+  for(let i=0;i<path.length-1;i++){
+    const p=path[i],n=path[i+1];
+    const px=p.x*CELL+CELL/2,py=p.y*CELL+CELL/2;
+    const nx=n.x*CELL+CELL/2,ny=n.y*CELL+CELL/2;
+    const dx=nx-px,dy=ny-py;
+    cx.fillStyle='rgba(192,192,0,0.15)';cx.font='10px sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillText(dx>0?'→':dx<0?'←':dy>0?'↓':'↑',px,py);
+  }
+
+  // Start cell label
+  const s=path[0],e=path[path.length-1];
+  cx.font='bold 8px "IBM Plex Mono",monospace';cx.textAlign='center';cx.textBaseline='middle';
+  cx.fillStyle='#808080';
+  cx.fillText('INPUT',s.x*CELL+CELL/2,s.y*CELL+CELL/2-5);
+  cx.fillText('▶',s.x*CELL+CELL/2,s.y*CELL+CELL/2+5);
+  cx.fillText('OUTPUT',e.x*CELL+CELL/2,e.y*CELL+CELL/2-5);
+  cx.fillText('■',e.x*CELL+CELL/2,e.y*CELL+CELL/2+5);
+}
+
+function drawTowers(){
+  G.towers.forEach(t=>{
+    const type=TOWERS[t.typeIdx];
+    const x=t.gx*CELL,y=t.gy*CELL;
+
+    // Cell background
+    cx.fillStyle=type.col+'18';
+    cx.fillRect(x+1,y+1,CELL-2,CELL-2);
+
+    // Cell border colored
+    cx.strokeStyle=type.col;cx.lineWidth=1.5;
+    cx.strokeRect(x+1,y+1,CELL-2,CELL-2);
+
+    // Function name as cell content
+    const curName=t.level>0?type.upgrades[t.level-1].name:type.fn;
+    cx.font=`bold ${Math.min(9,CELL/4.5)}px "IBM Plex Mono",monospace`;
+    cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillStyle=type.col;
+    // Truncate if needed
+    const displayName=curName.length>8?curName.slice(0,7)+'…':curName;
+    cx.fillText(displayName,x+CELL/2,y+CELL/2);
+
+    // Level dots at bottom
+    if(t.level>0){
+      for(let i=0;i<t.level;i++){
+        cx.fillStyle=type.col;
+        cx.beginPath();cx.arc(x+CELL/2-((t.level-1)*4)/2+i*4,y+CELL-4,1.5,0,Math.PI*2);cx.fill();
+      }
+    }
+
+    // Selected border
+    if(G.selTower===t){
+      cx.strokeStyle='#0078d4';cx.lineWidth=2;cx.setLineDash([3,3]);
+      cx.strokeRect(x,y,CELL,CELL);cx.setLineDash([]);
+    }
+  });
+}
+
+function drawEnemies(){
+  G.enemies.forEach(e=>{
+    if(e.dead)return;
+    const sz=CELL*e.sz*0.45;
+
+    // Error box
+    cx.fillStyle=e.col;
+    const bw=Math.max(sz*2,28),bh=sz*1.2;
+    const bx=e.x-bw/2,by=e.y-bh/2;
+
+    // Shadow
+    cx.fillStyle='rgba(0,0,0,0.1)';
+    cx.fillRect(bx+2,by+2,bw,bh);
+
+    // Main box
+    cx.fillStyle=e.col;cx.fillRect(bx,by,bw,bh);
+
+    // Error text
+    cx.font=`bold ${Math.min(11,bh*0.7)}px "IBM Plex Mono",monospace`;
+    cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillStyle='#ffffff';
+    cx.fillText(e.label,e.x,e.y);
+
+    // HP bar
+    const hbw=bw,hbh=3,hbx=e.x-hbw/2,hby=by-5;
+    const pct=e.hp/e.maxHp;
+    cx.fillStyle='rgba(0,0,0,0.2)';cx.fillRect(hbx,hby,hbw,hbh);
+    cx.fillStyle=pct>0.5?'#217346':pct>0.25?'#ffc000':'#c00000';
+    cx.fillRect(hbx,hby,hbw*pct,hbh);
+
+    // Slow indicator
+    if(e.slowT>0){cx.strokeStyle='rgba(237,125,49,0.5)';cx.lineWidth=1;cx.strokeRect(bx-2,by-2,bw+4,bh+4);}
+    if(e.dotT>0){cx.strokeStyle='rgba(112,48,160,0.5)';cx.lineWidth=1;cx.strokeRect(bx-1,by-1,bw+2,bh+2);}
+  });
+}
+
+function drawProjs(){
+  G.projs.forEach(p=>{
+    if(p.dead||p.instant)return;
+    // Small colored square (like a cell moving)
+    cx.fillStyle=p.col;
+    cx.fillRect(p.x-3,p.y-3,6,6);
+    cx.strokeStyle='rgba(255,255,255,0.6)';cx.lineWidth=0.5;
+    cx.strokeRect(p.x-3,p.y-3,6,6);
+  });
+}
+
+function drawFX(){
+  G.fx.forEach(f=>{
+    const a=f.life/f.ml;
+    if(f.type==='beam'){
+      cx.strokeStyle=f.col;cx.globalAlpha=a;cx.lineWidth=2;
+      cx.setLineDash([4,3]);
+      cx.beginPath();cx.moveTo(f.x,f.y);cx.lineTo(f.tx,f.ty);cx.stroke();
+      cx.setLineDash([]);cx.globalAlpha=1;
+    }else if(f.type==='sparkle'){
+      cx.fillStyle=f.col;cx.globalAlpha=a;
+      cx.font=`${f.sz*2}px monospace`;cx.textAlign='center';cx.textBaseline='middle';
+      cx.fillText('✦',f.x,f.y);cx.globalAlpha=1;
+    }else{
+      cx.fillStyle=f.col;cx.globalAlpha=a;
+      cx.beginPath();cx.arc(f.x,f.y,f.sz*a,0,Math.PI*2);cx.fill();
+      cx.globalAlpha=1;
+    }
+  });
+}
+
+function drawHover(){
+  if(!G.hover||G.selType===null)return;
+  const gx=Math.floor(G.hover.x/CELL),gy=Math.floor(G.hover.y/CELL);
+  if(gx<0||gx>=COLS||gy<0||gy>=ROWS)return;
+  const onPath=G.grid[gy]&&G.grid[gy][gx];
+  const occ=G.towers.find(t=>t.gx===gx&&t.gy===gy);
+  const plc=G.placeable.has(gy*COLS+gx)||G.towers.some(t=>Math.abs(t.gx-gx)<=1&&Math.abs(t.gy-gy)<=1);
+  const ok=!onPath&&!occ&&plc;
+  const type=TOWERS[G.selType];
+
+  // Range preview
+  cx.fillStyle=ok?'rgba(33,115,70,0.06)':'rgba(192,0,0,0.06)';
+  cx.strokeStyle=ok?'rgba(33,115,70,0.2)':'rgba(192,0,0,0.2)';
+  cx.lineWidth=1;cx.beginPath();cx.arc(gx*CELL+CELL/2,gy*CELL+CELL/2,type.range,0,Math.PI*2);cx.fill();cx.stroke();
+
+  // Cell highlight
+  cx.fillStyle=ok?'rgba(33,115,70,0.15)':'rgba(192,0,0,0.12)';
+  cx.fillRect(gx*CELL+1,gy*CELL+1,CELL-2,CELL-2);
+  cx.strokeStyle=ok?'#217346':'#c00000';cx.lineWidth=2;
+  cx.strokeRect(gx*CELL+1,gy*CELL+1,CELL-2,CELL-2);
+
+  // Preview text
+  if(ok){
+    cx.font='bold 8px "IBM Plex Mono",monospace';cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillStyle=type.col+'88';cx.fillText(type.fn,gx*CELL+CELL/2,gy*CELL+CELL/2);
+  }
+
+  // Update cell ref
+  document.getElementById('cellref').textContent=cellName(gx,gy);
+}
+
+function drawRange(){
+  const t=G.selTower;if(!t)return;
+  cx.strokeStyle='rgba(0,120,212,0.2)';cx.fillStyle='rgba(0,120,212,0.03)';
+  cx.lineWidth=1;cx.setLineDash([4,4]);
+  cx.beginPath();cx.arc(t.x,t.y,t.range,0,Math.PI*2);cx.fill();cx.stroke();
+  cx.setLineDash([]);
+}
+</script>
+</body>
+</html>
