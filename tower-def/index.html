@@ -26,6 +26,8 @@
             --glow-violet: 0 0 20px rgba(168, 85, 247, 0.6);
             --neon-teal: #14b8a6;
             --glow-teal: 0 0 20px rgba(20, 184, 166, 0.6);
+            --neon-indigo: #6c5ce7;
+            --glow-indigo: 0 0 20px rgba(108, 92, 231, 0.6);
         }
 
         * {
@@ -225,6 +227,11 @@
             box-shadow: var(--glow-teal), inset 0 0 30px rgba(20, 184, 166, 0.05);
         }
 
+        .game-card:nth-child(8):hover {
+            border-color: var(--neon-indigo);
+            box-shadow: var(--glow-indigo), inset 0 0 30px rgba(108, 92, 231, 0.05);
+        }
+
         .game-card-corner {
             position: absolute;
             width: 20px;
@@ -261,6 +268,10 @@
 
         .game-card:nth-child(7) .game-card-corner {
             border-color: var(--neon-teal);
+        }
+
+        .game-card:nth-child(8) .game-card-corner {
+            border-color: var(--neon-indigo);
         }
 
         .game-card-icon {
@@ -359,6 +370,16 @@
         .game-card:nth-child(7):hover .launch-badge {
             background: rgba(20, 184, 166, 0.1);
             box-shadow: 0 0 15px rgba(20, 184, 166, 0.3);
+        }
+
+        .game-card:nth-child(8) .launch-badge {
+            border-color: var(--neon-indigo);
+            color: var(--neon-indigo);
+        }
+
+        .game-card:nth-child(8):hover .launch-badge {
+            background: rgba(108, 92, 231, 0.1);
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.3);
         }
 
         .footer {
@@ -552,6 +573,16 @@
                 <div class="game-card-icon">◎</div>
                 <h2>Excel TD</h2>
                 <p>Spreadsheet tower defense. Place towers in cells. Defend the budget. =SUM(enemies).</p>
+                <span class="launch-badge">Launch</span>
+            </a>
+            <a href="gp52pro-candy-circuit-td.html" class="game-card">
+                <span class="game-card-corner tl"></span>
+                <span class="game-card-corner tr"></span>
+                <span class="game-card-corner bl"></span>
+                <span class="game-card-corner br"></span>
+                <div class="game-card-icon">◐</div>
+                <h2>Candy Circuit TD</h2>
+                <p>Sweet circuits. Candy towers, pastel paths. No dependencies. Pure vanilla defense.</p>
                 <span class="launch-badge">Launch</span>
             </a>
         </nav>

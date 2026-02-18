@@ -1,0 +1,3171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Candy Circuit TD (No Dependencies)</title>
+  <style>
+    :root{
+      --bgA:#f7f8ff;
+      --bgB:#ffeef8;
+      --panel: rgba(255,255,255,0.86);
+      --panelSolid: #ffffff;
+      --stroke: rgba(30, 20, 55, 0.12);
+      --stroke2: rgba(30, 20, 55, 0.18);
+      --ink:#1b1730;
+      --muted:#6e668a;
+      --accent:#6c5ce7;
+      --accent2:#00c2a8;
+      --warn:#ffb020;
+      --danger:#ff4d6d;
+      --shadow: 0 18px 40px rgba(18, 12, 40, 0.14);
+      --shadow2: 0 10px 22px rgba(18, 12, 40, 0.10);
+      --r: 18px;
+      --r2: 14px;
+    }
+
+    *{ box-sizing: border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at 10% 10%, rgba(108,92,231,0.18), transparent 55%),
+        radial-gradient(900px 520px at 90% 30%, rgba(0,194,168,0.18), transparent 60%),
+        linear-gradient(135deg, var(--bgA), var(--bgB));
+      overflow:hidden;
+    }
+
+    a{ color: inherit; }
+
+    #app{
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    header#topbar{
+      display:flex;
+      gap: 12px;
+      align-items:center;
+      justify-content:space-between;
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      padding: 10px 12px;
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 260px;
+    }
+    .logo{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      background:
+        radial-gradient(16px 16px at 30% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0)),
+        linear-gradient(145deg, rgba(108,92,231,0.85), rgba(0,194,168,0.85));
+      box-shadow: 0 10px 18px rgba(18, 12, 40, 0.16);
+      border: 1px solid rgba(255,255,255,0.35);
+      font-size: 22px;
+    }
+    .title{
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      line-height: 1.1;
+    }
+    .subtitle{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+
+    .hud{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items:center;
+      justify-content:center;
+      padding: 2px 0;
+    }
+    .stat{
+      background: rgba(255,255,255,0.65);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 8px 10px;
+      min-width: 86px;
+      box-shadow: 0 8px 16px rgba(18, 12, 40, 0.06);
+    }
+    .stat .label{
+      display:block;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.35px;
+      text-transform: uppercase;
+    }
+    .stat .value{
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      margin-top: 1px;
+    }
+
+    .controls{
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      justify-content:flex-end;
+      flex-wrap: wrap;
+      min-width: 260px;
+    }
+
+    .btn{
+      appearance:none;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.82);
+      color: var(--ink);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 700;
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(18, 12, 40, 0.08);
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .btn:hover{ transform: translateY(-1px); box-shadow: 0 14px 22px rgba(18, 12, 40, 0.10); }
+    .btn:active{ transform: translateY(0px) scale(0.99); }
+    .btn:disabled{ opacity: 0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    .btn.small{ padding: 8px 10px; border-radius: 12px; font-weight: 800; }
+
+    .btn.primary{
+      border-color: rgba(108,92,231,0.35);
+      background: linear-gradient(145deg, rgba(108,92,231,0.95), rgba(0,194,168,0.95));
+      color: white;
+      box-shadow: 0 14px 26px rgba(108,92,231,0.22);
+    }
+    .btn.primary:hover{ box-shadow: 0 18px 32px rgba(108,92,231,0.28); }
+
+    .btn.danger{
+      border-color: rgba(255,77,109,0.35);
+      background: rgba(255,77,109,0.12);
+      color: #a10021;
+    }
+
+    #main{
+      flex:1;
+      min-height:0;
+      display:flex;
+      gap: 10px;
+    }
+
+    #gameWrap{
+      flex: 1;
+      min-width: 0;
+      position:relative;
+      background: rgba(255,255,255,0.35);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      display:flex;
+      align-items:stretch;
+    }
+
+    canvas#game{
+      width:100%;
+      height:100%;
+      display:block;
+      touch-action: none;
+      background: transparent;
+    }
+
+    #overlay{
+      position:absolute;
+      inset: 0;
+      pointer-events:none;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      padding: 10px;
+      gap: 8px;
+    }
+
+    .toast{
+      pointer-events:none;
+      background: rgba(255,255,255,0.88);
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      padding: 8px 12px;
+      box-shadow: 0 18px 40px rgba(18, 12, 40, 0.16);
+      font-weight: 800;
+      font-size: 13px;
+      transform: translateY(0);
+      opacity: 1;
+      transition: opacity 250ms ease, transform 250ms ease;
+    }
+    .toast.hidden{ opacity:0; transform: translateY(-8px); }
+
+    .bigMessage{
+      margin-top: 70px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--stroke);
+      border-radius: 22px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      max-width: 520px;
+      text-align:center;
+      opacity: 1;
+      transform: scale(1);
+      transition: opacity 250ms ease, transform 250ms ease;
+    }
+    .bigMessage.hidden{ opacity:0; transform: scale(0.98); }
+    .bigMessage h2{ margin: 0 0 6px; }
+    .bigMessage p{ margin: 0; color: var(--muted); }
+
+    .waveBanner{
+      margin-top: 8px;
+      background: rgba(108,92,231,0.12);
+      border: 1px solid rgba(108,92,231,0.20);
+      color: #3b2fb8;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      box-shadow: 0 12px 20px rgba(108,92,231,0.12);
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 250ms ease, transform 250ms ease;
+    }
+    .waveBanner.hidden{ opacity:0; transform: translateY(-6px); }
+
+    #sidebar{
+      width: 360px;
+      max-width: 42vw;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      min-height:0;
+    }
+
+    .panel{
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      box-shadow: var(--shadow2);
+      padding: 10px 10px 12px;
+      backdrop-filter: blur(10px);
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .panelHeader{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap: 8px;
+    }
+    .panelHeader h3{
+      margin:0;
+      font-size: 14px;
+      letter-spacing: 0.25px;
+      text-transform: uppercase;
+      color: rgba(27,23,48,0.82);
+    }
+    .smallMuted{ font-size: 12px; color: var(--muted); }
+
+    .shop{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .shopItem{
+      background: rgba(255,255,255,0.75);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 10px;
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(18, 12, 40, 0.06);
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+      user-select:none;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      min-height: 62px;
+    }
+    .shopItem:hover{ transform: translateY(-1px); box-shadow: 0 14px 22px rgba(18, 12, 40, 0.08); }
+    .shopItem.active{ border-color: rgba(108,92,231,0.5); box-shadow: 0 18px 28px rgba(108,92,231,0.14); }
+
+    .shopIcon{
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display:grid;
+      place-items:center;
+      background: rgba(108,92,231,0.12);
+      border: 1px solid rgba(108,92,231,0.18);
+      font-size: 20px;
+      flex: 0 0 auto;
+    }
+
+    .shopMeta{ min-width:0; }
+    .shopName{ font-weight: 900; font-size: 13px; line-height: 1.1; }
+    .shopDesc{ font-size: 12px; color: var(--muted); line-height: 1.2; margin-top: 3px; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+    .shopCost{ margin-left:auto; font-weight: 900; font-variant-numeric: tabular-nums; background: rgba(0,194,168,0.12); color:#007a6a; border: 1px solid rgba(0,194,168,0.18); padding: 6px 8px; border-radius: 999px; }
+
+    .tinyHint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .selectedBody{
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 10px;
+      min-height: 94px;
+    }
+
+    .emptySelect{ color: var(--muted); font-size: 13px; }
+
+    .selTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+
+    .selName{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width:0;
+    }
+
+    .selIcon{
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display:grid;
+      place-items:center;
+      font-size: 22px;
+      background: rgba(108,92,231,0.12);
+      border: 1px solid rgba(108,92,231,0.18);
+      flex: 0 0 auto;
+    }
+
+    .selTitle{
+      font-weight: 1000;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .selLvl{ font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .lvlDots{ display:flex; gap: 4px; margin-top: 6px; }
+    .dot{
+      width: 10px; height:10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(255,255,255,0.7);
+    }
+    .dot.on{ background: rgba(108,92,231,0.9); border-color: rgba(108,92,231,0.25); }
+
+    .selStats{
+      margin-top: 10px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .chip{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.65);
+      border-radius: 14px;
+      padding: 8px 9px;
+    }
+    .chip .k{ font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.35px; }
+    .chip .v{ font-weight: 900; font-variant-numeric: tabular-nums; margin-top: 1px; }
+
+    .upgradeBox{
+      margin-top: 10px;
+      border: 1px dashed rgba(108,92,231,0.32);
+      background: rgba(108,92,231,0.08);
+      border-radius: 16px;
+      padding: 10px;
+    }
+    .upgradeTitle{ font-weight: 950; }
+    .upgradeDesc{ font-size: 12px; color: rgba(27,23,48,0.72); margin-top: 4px; line-height: 1.25; }
+    .upgradeRow{ display:flex; gap: 8px; align-items:center; justify-content:space-between; margin-top: 10px; }
+
+    .nextWave{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+    }
+
+    .enemyPill{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      padding: 8px 10px;
+      box-shadow: 0 10px 18px rgba(18, 12, 40, 0.06);
+    }
+    .enemyIcon{
+      width: 26px; height: 26px;
+      border-radius: 10px;
+      display:grid;
+      place-items:center;
+      background: rgba(0,0,0,0.05);
+      font-size: 14px;
+    }
+    .enemyName{ font-weight: 900; font-size: 12px; }
+    .enemyCount{ margin-left: 6px; font-weight: 1000; color: rgba(27,23,48,0.75); font-variant-numeric: tabular-nums; }
+
+    details.help{
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.60);
+      border-radius: 16px;
+      padding: 10px;
+    }
+    details.help summary{
+      cursor:pointer;
+      font-weight: 900;
+    }
+    .helpBody{
+      margin-top: 8px;
+      color: rgba(27,23,48,0.78);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .helpBody ul{ margin: 8px 0 0 18px; padding:0; }
+
+    footer#footer{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 0 2px;
+    }
+
+    @media (max-width: 980px){
+      #sidebar{ width: 330px; }
+      .brand{ min-width: 200px; }
+      .controls{ min-width: 200px; }
+    }
+
+    @media (max-width: 900px){
+      body{ overflow:hidden; }
+      #main{ flex-direction:column; }
+      #sidebar{
+        width: 100%;
+        max-width: none;
+        flex: 0 0 auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .panel{ flex: 1 1 320px; }
+      #gameWrap{ min-height: 52vh; }
+    }
+
+    @media (max-width: 560px){
+      #app{ padding: 10px; }
+      header#topbar{ flex-direction:column; align-items:stretch; }
+      .brand, .controls{ min-width: 0; justify-content:space-between; }
+      .hud{ justify-content:flex-start; }
+      #gameWrap{ min-height: 48vh; }
+      .shop{ grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      *{ transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">🍭</div>
+        <div>
+          <div class="title">Candy Circuit TD</div>
+          <div class="subtitle" id="seedLabel">Random track • Seed —</div>
+        </div>
+      </div>
+
+      <div class="hud" role="status" aria-live="polite">
+        <div class="stat"><span class="label">Wave</span><div class="value" id="waveLabel">—</div></div>
+        <div class="stat"><span class="label">Lives</span><div class="value" id="livesLabel">—</div></div>
+        <div class="stat"><span class="label">Gold</span><div class="value" id="goldLabel">—</div></div>
+        <div class="stat"><span class="label">Score</span><div class="value" id="scoreLabel">—</div></div>
+      </div>
+
+      <div class="controls">
+        <button id="btnPause" class="btn" type="button">⏸ Pause</button>
+        <button id="btnSpeed" class="btn" type="button">🚀 1x</button>
+        <button id="btnStart" class="btn primary" type="button">▶ Start wave</button>
+      </div>
+    </header>
+
+    <div id="main">
+      <div id="gameWrap">
+        <canvas id="game"></canvas>
+        <div id="overlay">
+          <div id="toast" class="toast hidden"></div>
+          <div id="waveBanner" class="waveBanner hidden"></div>
+          <div id="bigMessage" class="bigMessage hidden"></div>
+        </div>
+      </div>
+
+      <aside id="sidebar">
+        <section class="panel">
+          <div class="panelHeader">
+            <h3>Build</h3>
+            <div class="smallMuted">Planning phase only</div>
+          </div>
+          <div id="shop" class="shop" aria-label="Tower shop"></div>
+          <div class="tinyHint">Controls: <b>1–5</b> pick a tower, <b>Esc</b> cancel, <b>Space</b> start wave, <b>U</b> upgrade selected.</div>
+        </section>
+
+        <section class="panel" id="selectedPanel">
+          <div class="panelHeader">
+            <h3>Selected</h3>
+            <button id="btnSell" class="btn danger small" type="button" disabled>Sell</button>
+          </div>
+          <div id="selectedBody" class="selectedBody"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panelHeader">
+            <h3>Next wave</h3>
+            <div class="smallMuted" id="phaseLabel">Planning</div>
+          </div>
+          <div id="nextWave" class="nextWave"></div>
+
+          <details class="help">
+            <summary>How it works (quick)</summary>
+            <div class="helpBody">
+              <ul>
+                <li>The path is random every refresh. Towers can only be built on grass tiles.</li>
+                <li>You can build and upgrade <b>between</b> waves. During waves, towers fight automatically.</li>
+                <li>Some enemies are fast, some are tanky, some have armor (flat damage reduction).</li>
+                <li>Try mixing slows (🍦) + splash (🫧) + damage (🌱/🔆/🍯).</li>
+              </ul>
+            </div>
+          </details>
+        </section>
+      </aside>
+    </div>
+
+    <footer id="footer">
+      <div class="smallMuted">Pure HTML + Canvas. No downloads. No assets. Refresh = new track.</div>
+      <button id="btnRestart" class="btn small" type="button">↻ New random track</button>
+    </footer>
+  </div>
+
+  <script>
+  (() => {
+    "use strict";
+
+    // ----------------------------
+    // Utility
+    // ----------------------------
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const dist2 = (ax, ay, bx, by) => {
+      const dx = ax - bx, dy = ay - by;
+      return dx*dx + dy*dy;
+    };
+    const fmt = (n) => {
+      if (n >= 1000000) return (n/1000000).toFixed(1) + "M";
+      if (n >= 1000) return (n/1000).toFixed(1) + "k";
+      return String(Math.floor(n));
+    };
+
+    // A tiny deterministic RNG (Mulberry32)
+    function mulberry32(seed){
+      let a = seed >>> 0;
+      return function(){
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function randSeed(){
+      const u = new Uint32Array(1);
+      if (globalThis.crypto && crypto.getRandomValues) {
+        crypto.getRandomValues(u);
+        return u[0] >>> 0;
+      }
+      return (Date.now() ^ (Math.random() * 0xFFFFFFFF)) >>> 0;
+    }
+
+    function weightedPick(options, rng){
+      let total = 0;
+      for (const o of options) total += o.w;
+      let r = rng() * total;
+      for (const o of options) {
+        r -= o.w;
+        if (r <= 0) return o;
+      }
+      return options[options.length - 1];
+    }
+
+    const $ = (sel) => document.querySelector(sel);
+
+    // ----------------------------
+    // DOM refs
+    // ----------------------------
+    const canvas = $("#game");
+    const ctx = canvas.getContext("2d");
+
+    const ui = {
+      seedLabel: $("#seedLabel"),
+      waveLabel: $("#waveLabel"),
+      livesLabel: $("#livesLabel"),
+      goldLabel: $("#goldLabel"),
+      scoreLabel: $("#scoreLabel"),
+      btnPause: $("#btnPause"),
+      btnSpeed: $("#btnSpeed"),
+      btnStart: $("#btnStart"),
+      btnRestart: $("#btnRestart"),
+      shop: $("#shop"),
+      selectedBody: $("#selectedBody"),
+      btnSell: $("#btnSell"),
+      nextWave: $("#nextWave"),
+      phaseLabel: $("#phaseLabel"),
+      toast: $("#toast"),
+      waveBanner: $("#waveBanner"),
+      bigMessage: $("#bigMessage"),
+    };
+
+    // ----------------------------
+    // Game definitions
+    // ----------------------------
+    const GRID_W = 16;
+    const GRID_H = 10;
+    const MAX_UPGRADES = 4;
+    const WAVES_TOTAL = 25;
+
+    const ENEMIES = {
+      gumdrop: {
+        id: "gumdrop",
+        name: "Gumdrop",
+        icon: "🍬",
+        hp: 38,
+        speed: 1.35,
+        armor: 0,
+        reward: 6,
+        cost: 6,
+        leak: 1,
+        size: 0.30,
+        color: "#ff5ea8",
+        accent: "#ffb6d9",
+      },
+      sprinter: {
+        id: "sprinter",
+        name: "Sprinter",
+        icon: "💨",
+        hp: 26,
+        speed: 2.05,
+        armor: 0,
+        reward: 7,
+        cost: 7,
+        leak: 1,
+        size: 0.27,
+        color: "#3bd3ff",
+        accent: "#b8f1ff",
+      },
+      swarmlet: {
+        id: "swarmlet",
+        name: "Swarmlet",
+        icon: "🍡",
+        hp: 14,
+        speed: 1.85,
+        armor: 0,
+        reward: 4,
+        cost: 4,
+        leak: 1,
+        size: 0.22,
+        color: "#ffd54a",
+        accent: "#fff0a8",
+      },
+      shield: {
+        id: "shield",
+        name: "Shield Cookie",
+        icon: "🛡️",
+        hp: 70,
+        speed: 1.35,
+        armor: 2,
+        reward: 10,
+        cost: 11,
+        leak: 1,
+        size: 0.32,
+        color: "#a78bfa",
+        accent: "#e2d6ff",
+      },
+      tank: {
+        id: "tank",
+        name: "Marsh Tank",
+        icon: "🧁",
+        hp: 120,
+        speed: 1.05,
+        armor: 1,
+        reward: 14,
+        cost: 16,
+        leak: 2,
+        size: 0.36,
+        color: "#ff8a5c",
+        accent: "#ffd0bd",
+      },
+      boss: {
+        id: "boss",
+        name: "Boss Donut",
+        icon: "🍩",
+        hp: 420,
+        speed: 1.15,
+        armor: 4,
+        reward: 55,
+        cost: 62,
+        leak: 6,
+        size: 0.50,
+        color: "#9be7a6",
+        accent: "#e9ffe7",
+      }
+    };
+
+    const TOWERS = [
+      {
+        id: "sprout",
+        name: "Sprout Shooter",
+        icon: "🌱",
+        desc: "Fast single‑target shots.",
+        cost: 60,
+        mode: "projectile",
+        base: {
+          damage: 6,
+          range: 2.6,
+          interval: 0.33,
+          bulletSpeed: 6.6,
+          projectiles: 1,
+          critChance: 0,
+          critMult: 1.8,
+          splash: 0,
+        },
+        upgrades: [
+          {
+            name: "Double Peas",
+            cost: 40,
+            desc: "Shoots two peas at once.",
+            apply: (s) => { s.projectiles += 1; s.interval *= 1.05; }
+          },
+          {
+            name: "Vine Sight",
+            cost: 65,
+            desc: "+Range and smarter target focus.",
+            apply: (s, t) => { s.range += 0.65; t.flags.smartAim = true; }
+          },
+          {
+            name: "Thorn Tips",
+            cost: 90,
+            desc: "+Damage (thornier peas).",
+            apply: (s) => { s.damage *= 1.7; s.critChance = 0.08; }
+          },
+          {
+            name: "Sprout Storm",
+            cost: 140,
+            desc: "Every 5th attack becomes a burst.",
+            apply: (s, t) => { t.flags.burstEvery = 5; t.flags.burstBonus = 3; s.interval *= 0.93; }
+          }
+        ]
+      },
+      {
+        id: "frost",
+        name: "Frost Scoop",
+        icon: "🍦",
+        desc: "Slows enemies (and later splashes).",
+        cost: 80,
+        mode: "projectile",
+        base: {
+          damage: 3,
+          range: 2.4,
+          interval: 0.82,
+          bulletSpeed: 5.4,
+          projectiles: 1,
+          slowMult: 0.65,
+          slowTime: 1.5,
+          splash: 0,
+        },
+        upgrades: [
+          {
+            name: "Colder Cream",
+            cost: 55,
+            desc: "Stronger slow and longer chill.",
+            apply: (s) => { s.slowMult = 0.55; s.slowTime = 2.2; s.damage += 1; }
+          },
+          {
+            name: "Bigger Scoop",
+            cost: 75,
+            desc: "Chill splashes to nearby enemies.",
+            apply: (s) => { s.splash = 0.85; }
+          },
+          {
+            name: "Icicle Chips",
+            cost: 110,
+            desc: "Build chill stacks → brief freeze.",
+            apply: (s, t) => { s.damage += 2; t.flags.chillStacks = true; }
+          },
+          {
+            name: "Blizzard Bowl",
+            cost: 160,
+            desc: "Adds a small slowing aura.",
+            apply: (s, t) => { t.flags.auraSlow = { r: 1.6, mult: 0.82 }; s.interval *= 0.88; }
+          }
+        ]
+      },
+      {
+        id: "bubble",
+        name: "Bubble Cannon",
+        icon: "🫧",
+        desc: "Chunky splash damage.",
+        cost: 110,
+        mode: "projectile",
+        base: {
+          damage: 14,
+          range: 2.8,
+          interval: 1.10,
+          bulletSpeed: 5.1,
+          projectiles: 1,
+          splash: 1.1,
+        },
+        upgrades: [
+          {
+            name: "Bouncier Bubbles",
+            cost: 85,
+            desc: "Shots bounce to a second target.",
+            apply: (s) => { s.chain = { jumps: 1, r: 1.7, mult: 0.65 }; }
+          },
+          {
+            name: "Pressure Pump",
+            cost: 120,
+            desc: "Faster firing.",
+            apply: (s) => { s.interval *= 0.77; }
+          },
+          {
+            name: "Seafoam Mix",
+            cost: 150,
+            desc: "Soaks targets → they take more damage.",
+            apply: (s) => { s.vuln = { mult: 1.12, time: 2.5 }; }
+          },
+          {
+            name: "Tsunami Tank",
+            cost: 220,
+            desc: "Bigger splash and a brief speed dip.",
+            apply: (s) => { s.damage += 8; s.splash += 0.6; s.hitSlow = { mult: 0.82, time: 0.9 }; }
+          }
+        ]
+      },
+      {
+        id: "prism",
+        name: "Sunbeam Prism",
+        icon: "🔆",
+        desc: "Beam damage (great vs armor).",
+        cost: 140,
+        mode: "beam",
+        base: {
+          beamDamage: 2.8,
+          tick: 0.12,
+          range: 3.1,
+          beamTargets: 1,
+        },
+        upgrades: [
+          {
+            name: "Polished Prism",
+            cost: 120,
+            desc: "+Range and stronger beam.",
+            apply: (s) => { s.range += 0.6; s.beamDamage *= 1.15; }
+          },
+          {
+            name: "Split Ray",
+            cost: 160,
+            desc: "Beams can hit two enemies.",
+            apply: (s) => { s.beamTargets = 2; s.beamDamage *= 0.92; }
+          },
+          {
+            name: "Hotter Light",
+            cost: 200,
+            desc: "Adds a burn damage‑over‑time.",
+            apply: (s) => { s.burn = { dps: 3.5, time: 3.2 }; }
+          },
+          {
+            name: "Disco Doom",
+            cost: 280,
+            desc: "Three targets + occasional prismatic pop.",
+            apply: (s) => { s.beamTargets = 3; s.beamDamage *= 1.2; s.pop = { chance: 0.25, dmg: 2.2, r: 0.85 }; }
+          }
+        ]
+      },
+      {
+        id: "hive",
+        name: "Honey Hive",
+        icon: "🍯",
+        desc: "Poison + sticky slow.",
+        cost: 95,
+        mode: "projectile",
+        base: {
+          damage: 4,
+          range: 2.6,
+          interval: 0.60,
+          bulletSpeed: 6.2,
+          projectiles: 1,
+          poison: { dps: 2.0, time: 3.2 },
+          hitSlow: { mult: 0.85, time: 0.8 },
+          splash: 0,
+        },
+        upgrades: [
+          {
+            name: "Spicier Honey",
+            cost: 70,
+            desc: "Bigger, longer poison.",
+            apply: (s) => { s.poison = { dps: 3.2, time: 4.2 }; }
+          },
+          {
+            name: "Extra Bees",
+            cost: 90,
+            desc: "Faster shooting.",
+            apply: (s) => { s.interval *= 0.75; }
+          },
+          {
+            name: "Royal Jelly",
+            cost: 140,
+            desc: "Poison splashes nearby on hit.",
+            apply: (s) => { s.poisonSplash = { r: 0.9, mult: 0.6 }; }
+          },
+          {
+            name: "Hive Mind",
+            cost: 210,
+            desc: "Poisoned enemies take extra damage.",
+            apply: (s) => { s.mark = { mult: 1.12, time: 2.5 }; s.damage += 2; }
+          }
+        ]
+      },
+    ];
+
+    const towerById = Object.fromEntries(TOWERS.map(t => [t.id, t]));
+
+    // ----------------------------
+    // Map generation
+    // ----------------------------
+    function generatePath(gridW, gridH, rng){
+      let tries = 0;
+      while (tries++ < 300) {
+        const startY = Math.floor(rng() * gridH);
+        let x = 0, y = startY;
+        const path = [{x,y}];
+        const seen = new Set([`${x},${y}`]);
+
+        let verticalStreak = 0;
+        let safety = 0;
+        while (x < gridW - 1 && safety++ < 1600) {
+          const options = [];
+          // bias to move right
+          if (x < gridW - 1) options.push({dx:1, dy:0, w: (verticalStreak > 2 ? 7 : 5)});
+          if (y > 0) options.push({dx:0, dy:-1, w: 2});
+          if (y < gridH - 1) options.push({dx:0, dy: 1, w: 2});
+
+          const pick = weightedPick(options, rng);
+          const nx = x + pick.dx;
+          const ny = y + pick.dy;
+          const key = `${nx},${ny}`;
+          if (seen.has(key)) {
+            // try again with a nudge: force right
+            if (x < gridW - 1) {
+              const k2 = `${x+1},${y}`;
+              if (!seen.has(k2)) {
+                x += 1;
+                path.push({x,y});
+                seen.add(k2);
+                verticalStreak = 0;
+                continue;
+              }
+            }
+            continue;
+          }
+
+          // avoid silly micro-zigzags: if we just went up then down (or vice versa) in one step.
+          if (path.length >= 2) {
+            const a = path[path.length-2];
+            const b = path[path.length-1];
+            if (a.x === b.x && b.x === nx && a.y === ny) {
+              // immediate reversal in same column
+              continue;
+            }
+          }
+
+          x = nx; y = ny;
+          path.push({x,y});
+          seen.add(key);
+          if (pick.dx === 0) verticalStreak++; else verticalStreak = 0;
+        }
+
+        if (x === gridW - 1 && path.length >= gridW + 5) {
+          return path;
+        }
+      }
+
+      // fallback: a simple straight path
+      const midY = Math.floor(gridH/2);
+      const path = [];
+      for (let x=0; x<gridW; x++) path.push({x, y: midY});
+      return path;
+    }
+
+    function buildWaypoints(pathCells){
+      const wps = [];
+      // start slightly off-map
+      wps.push({x: -0.35, y: pathCells[0].y + 0.5});
+      for (const c of pathCells) wps.push({x: c.x + 0.5, y: c.y + 0.5});
+      // end slightly off-map
+      const last = pathCells[pathCells.length-1];
+      wps.push({x: GRID_W + 0.35, y: last.y + 0.5});
+      return wps;
+    }
+
+    // ----------------------------
+    // Wave generation (25+ distinct, seeded)
+    // ----------------------------
+    function generateWaves(rng){
+      const waves = [];
+      for (let w=1; w<=WAVES_TOTAL; w++) {
+        const budget = Math.floor(18 + w*14 + Math.pow(w, 1.25)*4);
+        const groups = [];
+
+        // Boss waves every 5
+        let remaining = budget;
+        let startDelay = 0;
+
+        if (w % 5 === 0) {
+          const bossCount = (w >= 20 ? 2 : 1);
+          groups.push({ type:"boss", count: bossCount, interval: 2.2, startDelay });
+          remaining -= bossCount * ENEMIES.boss.cost;
+          startDelay += bossCount * 2.2 + 1.0;
+        }
+
+        // Unlock table
+        const unlocked = ["gumdrop"];
+        if (w >= 3) unlocked.push("sprinter");
+        if (w >= 5) unlocked.push("swarmlet");
+        if (w >= 7) unlocked.push("shield");
+        if (w >= 9) unlocked.push("tank");
+
+        const maxGroups = clamp(1 + Math.floor(w/4), 2, 5);
+
+        let guard = 0;
+        while (remaining > 0 && groups.length < maxGroups && guard++ < 30) {
+          // weights evolve with wave
+          const weights = [];
+          for (const id of unlocked) {
+            let wgt = 1;
+            if (id === "gumdrop") wgt = 1.3;
+            if (id === "sprinter") wgt = 1.0 + (w > 10 ? 0.4 : 0);
+            if (id === "swarmlet") wgt = 1.15;
+            if (id === "shield") wgt = 0.9 + (w > 12 ? 0.25 : 0);
+            if (id === "tank") wgt = 0.8 + (w > 14 ? 0.25 : 0);
+            weights.push({ id, w: wgt });
+          }
+
+          const pick = weightedPick(weights.map(o => ({...o, w:o.w})), rng);
+          const def = ENEMIES[pick.id];
+          if (remaining < def.cost) break;
+
+          // Determine count and cadence
+          const maxCount = clamp(Math.floor(remaining / def.cost), 4, 50);
+          let baseCount = 6 + Math.floor(w * 0.8);
+          if (def.id === "swarmlet") baseCount += 6;
+          if (def.id === "tank") baseCount -= 2;
+          if (def.id === "shield") baseCount -= 1;
+          if (def.id === "sprinter") baseCount += 1;
+
+          const count = clamp(Math.floor(lerp(baseCount*0.7, Math.min(maxCount, baseCount*1.2), rng())), 4, maxCount);
+
+          let interval = lerp(0.42, 0.85, rng());
+          if (def.id === "sprinter") interval = lerp(0.34, 0.58, rng());
+          if (def.id === "tank") interval = lerp(0.70, 1.05, rng());
+          if (def.id === "shield") interval = lerp(0.52, 0.85, rng());
+          if (def.id === "swarmlet") interval = lerp(0.28, 0.45, rng());
+
+          groups.push({ type: def.id, count, interval, startDelay });
+          remaining -= count * def.cost;
+          startDelay += count * interval + lerp(0.6, 1.4, rng());
+
+          // Chance to add a second mini-group of another type as a "surprise"
+          if (groups.length < maxGroups && rng() < (0.18 + w*0.006)) {
+            const pick2 = weightedPick(weights.map(o => ({...o, w:o.w})), rng);
+            const def2 = ENEMIES[pick2.id];
+            if (def2.id !== def.id && remaining >= def2.cost*4) {
+              const c2 = clamp(4 + Math.floor(rng()*8), 4, Math.floor(remaining/def2.cost));
+              const i2 = lerp(0.36, 0.78, rng());
+              groups.push({ type: def2.id, count: c2, interval: i2, startDelay: startDelay - lerp(0.1,0.6,rng()) });
+              remaining -= c2 * def2.cost;
+              startDelay += c2 * i2 + lerp(0.2, 0.7, rng());
+            }
+          }
+        }
+
+        // Safety: ensure at least one group
+        if (groups.length === 0) {
+          groups.push({ type:"gumdrop", count: 10 + w*2, interval: 0.6, startDelay: 0 });
+        }
+
+        waves.push({ index: w, groups });
+      }
+      return waves;
+    }
+
+    function expandSpawnEvents(wave){
+      const events = [];
+      for (const g of wave.groups) {
+        for (let i=0; i<g.count; i++) {
+          events.push({ t: g.startDelay + i*g.interval, type: g.type });
+        }
+      }
+      events.sort((a,b)=>a.t-b.t);
+      return events;
+    }
+
+    function summarizeWave(wave){
+      const map = new Map();
+      for (const g of wave.groups) {
+        map.set(g.type, (map.get(g.type) || 0) + g.count);
+      }
+      const arr = [...map.entries()].map(([type, count]) => ({ type, count }));
+      // nice ordering: basic -> fast -> swarm -> armor -> tank -> boss
+      const order = ["gumdrop","sprinter","swarmlet","shield","tank","boss"];
+      arr.sort((a,b)=>order.indexOf(a.type)-order.indexOf(b.type));
+      return arr;
+    }
+
+    // ----------------------------
+    // Core game state
+    // ----------------------------
+    let DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    let viewW = 800, viewH = 600;
+    let cellSize = 40;
+    let mapRect = {x:0,y:0,w:0,h:0};
+
+    let seed = randSeed();
+    let rng = mulberry32(seed);
+
+    let pathCells = [];
+    let pathSet = new Set();
+    let waypoints = [];
+
+    let tileTint = [];
+    let deco = [];
+
+    const state = {
+      phase: "planning", // planning | wave | gameover | victory
+      paused: false,
+      speed: 1,
+      lives: 20,
+      gold: 220,
+      score: 0,
+      nextWaveIndex: 0,
+      waves: [],
+      activeWave: null,
+      spawnEvents: [],
+      spawnCursor: 0,
+      waveTime: 0,
+    };
+
+    let buildPick = null; // tower id
+    let towers = [];
+    let enemies = [];
+    let bullets = [];
+    let fx = [];
+
+    let selectedTower = null;
+
+    const pointer = {
+      px: 0, py: 0, // canvas px (CSS pixels)
+      mx: 0, my: 0, // map coords (tiles)
+      gx: -1, gy: -1,
+      inside: false,
+    };
+
+    // ----------------------------
+    // Entities
+    // ----------------------------
+    let _idCounter = 1;
+    const newId = () => (_idCounter++).toString(36);
+
+    class Enemy {
+      constructor(typeId){
+        const d = ENEMIES[typeId];
+        this.id = newId();
+        this.typeId = typeId;
+        this.def = d;
+        this.maxHp = d.hp;
+        this.hp = d.hp;
+        this.armor = d.armor;
+        this.speed = d.speed;
+        this.leak = d.leak;
+        this.reward = d.reward;
+        this.size = d.size;
+        this.color = d.color;
+        this.accent = d.accent;
+
+        this.pos = { x: waypoints[0].x, y: waypoints[0].y };
+        this.wpIndex = 0;
+        this.progress = 0; // bigger = closer to exit
+
+        // status
+        this.slow = { mult: 1, time: 0 };
+        this.poison = { dps: 0, time: 0 };
+        this.burn = { dps: 0, time: 0 };
+        this.vuln = { mult: 1, time: 0 };
+        this.mark = { mult: 1, time: 0 };
+        this.stun = 0;
+        this.chill = { stacks: 0, time: 0 };
+
+        this.dead = false;
+        this.justLeaked = false;
+      }
+
+      applySlow(mult, time){
+        // smaller mult = stronger slow
+        if (time <= 0) return;
+        if (this.slow.time <= 0 || mult < this.slow.mult) {
+          this.slow.mult = mult;
+        }
+        this.slow.time = Math.max(this.slow.time, time);
+      }
+
+      applyPoison(dps, time){
+        if (time <= 0 || dps <= 0) return;
+        if (this.poison.time <= 0 || dps > this.poison.dps) {
+          this.poison.dps = dps;
+        }
+        this.poison.time = Math.max(this.poison.time, time);
+      }
+
+      applyBurn(dps, time){
+        if (time <= 0 || dps <= 0) return;
+        if (this.burn.time <= 0 || dps > this.burn.dps) {
+          this.burn.dps = dps;
+        }
+        this.burn.time = Math.max(this.burn.time, time);
+      }
+
+      applyVuln(mult, time){
+        if (time <= 0 || mult <= 1) return;
+        if (this.vuln.time <= 0 || mult > this.vuln.mult) {
+          this.vuln.mult = mult;
+        }
+        this.vuln.time = Math.max(this.vuln.time, time);
+      }
+
+      applyMark(mult, time){
+        if (time <= 0 || mult <= 1) return;
+        if (this.mark.time <= 0 || mult > this.mark.mult) {
+          this.mark.mult = mult;
+        }
+        this.mark.time = Math.max(this.mark.time, time);
+      }
+
+      takeDamage(rawDmg, sourceTag=""){
+        if (this.dead) return 0;
+        const mult = (this.vuln.time > 0 ? this.vuln.mult : 1) * (this.mark.time > 0 ? this.mark.mult : 1);
+        let dmg = rawDmg * mult;
+
+        // Armor is flat reduction, but beams ignore half armor for "good vs armor" feel
+        if (sourceTag === "beam") {
+          dmg = Math.max(0.5, dmg - this.armor * 0.5);
+        } else {
+          dmg = Math.max(0.5, dmg - this.armor);
+        }
+
+        this.hp -= dmg;
+        if (this.hp <= 0) {
+          this.dead = true;
+        }
+        return dmg;
+      }
+
+      update(dt){
+        if (this.dead) return;
+
+        // status timers
+        if (this.stun > 0) {
+          this.stun -= dt;
+        }
+
+        if (this.slow.time > 0) {
+          this.slow.time -= dt;
+          if (this.slow.time <= 0) {
+            this.slow.time = 0;
+            this.slow.mult = 1;
+          }
+        }
+
+        if (this.poison.time > 0) {
+          const d = Math.min(this.poison.time, dt);
+          this.poison.time -= dt;
+          this.takeDamage(this.poison.dps * d, "dot");
+          if (this.poison.time <= 0) {
+            this.poison.time = 0;
+            this.poison.dps = 0;
+          }
+        }
+
+        if (this.burn.time > 0) {
+          const d = Math.min(this.burn.time, dt);
+          this.burn.time -= dt;
+          this.takeDamage(this.burn.dps * d, "dot");
+          if (this.burn.time <= 0) {
+            this.burn.time = 0;
+            this.burn.dps = 0;
+          }
+        }
+
+        if (this.vuln.time > 0) {
+          this.vuln.time -= dt;
+          if (this.vuln.time <= 0) {
+            this.vuln.time = 0;
+            this.vuln.mult = 1;
+          }
+        }
+
+        if (this.mark.time > 0) {
+          this.mark.time -= dt;
+          if (this.mark.time <= 0) {
+            this.mark.time = 0;
+            this.mark.mult = 1;
+          }
+        }
+
+        if (this.chill.time > 0) {
+          this.chill.time -= dt;
+          if (this.chill.time <= 0) {
+            this.chill.time = 0;
+            this.chill.stacks = 0;
+          }
+        }
+
+        if (this.dead) return;
+
+        if (this.stun > 0) {
+          this.progress = this.wpIndex;
+          return;
+        }
+
+        const effSpeed = this.speed * (this.slow.time > 0 ? this.slow.mult : 1);
+
+        // move along waypoints
+        let remaining = effSpeed * dt;
+        while (remaining > 0 && this.wpIndex < waypoints.length - 1) {
+          const a = waypoints[this.wpIndex];
+          const b = waypoints[this.wpIndex + 1];
+          const dx = b.x - this.pos.x;
+          const dy = b.y - this.pos.y;
+          const segLen = Math.hypot(dx, dy);
+          if (segLen < 1e-6) {
+            this.wpIndex++;
+            continue;
+          }
+          const toEnd = Math.hypot(b.x - this.pos.x, b.y - this.pos.y);
+          if (remaining >= toEnd) {
+            this.pos.x = b.x;
+            this.pos.y = b.y;
+            remaining -= toEnd;
+            this.wpIndex++;
+          } else {
+            const t = remaining / toEnd;
+            this.pos.x = lerp(this.pos.x, b.x, t);
+            this.pos.y = lerp(this.pos.y, b.y, t);
+            remaining = 0;
+          }
+        }
+
+        // progress: wpIndex + fraction of segment
+        if (this.wpIndex >= waypoints.length - 1) {
+          this.justLeaked = true;
+          this.dead = true;
+        } else {
+          const b = waypoints[this.wpIndex + 1];
+          const d = Math.hypot(b.x - this.pos.x, b.y - this.pos.y);
+          const segLen = Math.hypot(b.x - waypoints[this.wpIndex].x, b.y - waypoints[this.wpIndex].y);
+          const frac = segLen > 0 ? clamp(1 - (d / segLen), 0, 1) : 0;
+          this.progress = this.wpIndex + frac;
+        }
+      }
+
+      draw(ctx){
+        const w = mapToWorld(this.pos);
+        const r = this.size * cellSize;
+
+        // shadow
+        ctx.save();
+        ctx.globalAlpha = 0.20;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(w.x, w.y + r*0.65, r*0.95, r*0.55, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
+        // body
+        ctx.save();
+        ctx.lineWidth = Math.max(1, cellSize*0.06);
+        ctx.strokeStyle = "rgba(27,23,48,0.35)";
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+
+        // highlight blob
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = this.accent;
+        ctx.beginPath();
+        ctx.arc(w.x - r*0.25, w.y - r*0.25, r*0.55, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // eyes
+        const eyeY = w.y - r*0.10;
+        const eyeX = r*0.22;
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.beginPath();
+        ctx.arc(w.x - eyeX, eyeY, r*0.16, 0, Math.PI*2);
+        ctx.arc(w.x + eyeX, eyeY, r*0.16, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(27,23,48,0.8)";
+        const pupilX = r*0.06;
+        ctx.beginPath();
+        ctx.arc(w.x - eyeX + pupilX, eyeY + r*0.02, r*0.07, 0, Math.PI*2);
+        ctx.arc(w.x + eyeX + pupilX, eyeY + r*0.02, r*0.07, 0, Math.PI*2);
+        ctx.fill();
+
+        // status badge (armor)
+        if (this.armor > 0) {
+          ctx.fillStyle = "rgba(27,23,48,0.18)";
+          ctx.beginPath();
+          ctx.roundRect(w.x - r*0.55, w.y - r*1.05, r*1.1, r*0.42, r*0.2);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,0.92)";
+          ctx.font = `${Math.max(10, cellSize*0.26)}px ui-sans-serif, system-ui`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`-${this.armor}`, w.x, w.y - r*0.84);
+        }
+
+        // HP bar
+        const barW = r*1.6;
+        const barH = Math.max(5, r*0.22);
+        const bx = w.x - barW/2;
+        const by = w.y + r*0.95;
+        ctx.fillStyle = "rgba(27,23,48,0.20)";
+        ctx.fillRect(bx, by, barW, barH);
+        ctx.fillStyle = "rgba(0,194,168,0.92)";
+        const hpT = clamp(this.hp / this.maxHp, 0, 1);
+        ctx.fillRect(bx, by, barW*hpT, barH);
+        ctx.strokeStyle = "rgba(27,23,48,0.25)";
+        ctx.strokeRect(bx, by, barW, barH);
+
+        // poison/burn indicator
+        const dots = [];
+        if (this.poison.time > 0) dots.push({c:"rgba(255,200,0,0.9)"});
+        if (this.burn.time > 0) dots.push({c:"rgba(255,90,60,0.9)"});
+        if (this.slow.time > 0) dots.push({c:"rgba(70,190,255,0.9)"});
+        if (dots.length) {
+          const dy = by + barH + r*0.22;
+          let dx2 = w.x - (dots.length-1) * r*0.14;
+          for (const d of dots) {
+            ctx.fillStyle = d.c;
+            ctx.beginPath();
+            ctx.arc(dx2, dy, r*0.10, 0, Math.PI*2);
+            ctx.fill();
+            dx2 += r*0.28;
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+
+    class Tower {
+      constructor(typeId, gx, gy){
+        this.id = newId();
+        this.typeId = typeId;
+        this.def = towerById[typeId];
+        this.gx = gx;
+        this.gy = gy;
+        this.pos = { x: gx + 0.5, y: gy + 0.5 };
+        this.level = 0;
+        this.spent = this.def.cost;
+
+        this.flags = {};
+
+        this.cooldown = 0;
+        this.shotCounter = 0;
+        this.stats = this.computeStats();
+      }
+
+      computeStats(){
+        const base = this.def.base;
+        const s = JSON.parse(JSON.stringify(base)); // safe clone (small object)
+        this.flags = this.flags || {};
+
+        for (let i=0; i<this.level; i++) {
+          const up = this.def.upgrades[i];
+          if (up && up.apply) up.apply(s, this);
+        }
+
+        // sensible floors
+        if (s.interval != null) s.interval = Math.max(0.06, s.interval);
+        if (s.tick != null) s.tick = Math.max(0.06, s.tick);
+        if (s.range != null) s.range = Math.max(1.0, s.range);
+        return s;
+      }
+
+      canUpgrade(){
+        return this.level < MAX_UPGRADES;
+      }
+
+      nextUpgrade(){
+        if (!this.canUpgrade()) return null;
+        return this.def.upgrades[this.level];
+      }
+
+      upgrade(){
+        const up = this.nextUpgrade();
+        if (!up) return false;
+        if (state.phase !== "planning") {
+          toast("Upgrades happen between waves ✨");
+          return false;
+        }
+        if (state.gold < up.cost) {
+          toast("Not enough gold.");
+          return false;
+        }
+        state.gold -= up.cost;
+        this.spent += up.cost;
+        this.level++;
+        this.stats = this.computeStats();
+        fx.push(new PopText(this.pos.x, this.pos.y - 0.3, `+${up.name}`));
+        toast(`${this.def.icon} ${up.name}!`);
+        return true;
+      }
+
+      sellValue(){
+        return Math.floor(this.spent * 0.7);
+      }
+
+      update(dt){
+        // Aura slow (Blizzard Bowl)
+        if (this.flags.auraSlow && state.phase === "wave") {
+          const a = this.flags.auraSlow;
+          const rr = a.r * a.r;
+          for (const e of enemies) {
+            if (e.dead) continue;
+            const d2 = dist2(this.pos.x, this.pos.y, e.pos.x, e.pos.y);
+            if (d2 <= rr) e.applySlow(a.mult, 0.25);
+          }
+        }
+
+        this.cooldown -= dt;
+        if (this.cooldown > 0) return;
+        if (state.phase !== "wave") return;
+
+        if (this.def.mode === "projectile") {
+          const target = pickTarget(this);
+          if (!target) return;
+
+          this.shotCounter++;
+          const s = this.stats;
+
+          let proj = s.projectiles || 1;
+          let bonus = 0;
+          if (this.flags.burstEvery && (this.shotCounter % this.flags.burstEvery === 0)) {
+            bonus = this.flags.burstBonus || 2;
+          }
+          const total = proj + bonus;
+
+          for (let i=0; i<total; i++) {
+            const spread = total > 1 ? (i - (total-1)/2) * 0.10 : 0;
+            bullets.push(new Bullet(this, target, spread));
+          }
+
+          this.cooldown = s.interval;
+        } else if (this.def.mode === "beam") {
+          const s = this.stats;
+          const targets = pickTargetsBeam(this, s.beamTargets || 1);
+          if (!targets.length) return;
+
+          for (const t of targets) {
+            const dealt = t.takeDamage(s.beamDamage, "beam");
+            if (s.burn) t.applyBurn(s.burn.dps, s.burn.time);
+            if (s.pop && Math.random() < s.pop.chance) {
+              // prismatic pop (small AoE)
+              splashAt(t.pos.x, t.pos.y, s.pop.r, s.pop.dmg, { tag:"beam" });
+              fx.push(new Ring(t.pos.x, t.pos.y, s.pop.r, "rgba(255,255,255,0.8)", 0.12));
+            }
+            fx.push(new Beam(this.pos.x, this.pos.y, t.pos.x, t.pos.y));
+            fx.push(new DamageNumber(t.pos.x, t.pos.y - 0.25, dealt));
+          }
+
+          this.cooldown = s.tick;
+        }
+      }
+
+      draw(ctx){
+        const w = mapToWorld(this.pos);
+        const s = cellSize;
+        const r = s * 0.36;
+
+        // base shadow
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(w.x, w.y + r*0.9, r*1.05, r*0.55, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(w.x, w.y);
+
+        // selection highlight
+        if (selectedTower && selectedTower.id === this.id) {
+          ctx.save();
+          ctx.globalAlpha = 0.16;
+          ctx.fillStyle = "rgba(108,92,231,1)";
+          ctx.beginPath();
+          ctx.arc(0, 0, r*1.55, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Draw tower by type
+        const id = this.typeId;
+        if (id === "sprout") drawSproutTower(ctx, r, this.level);
+        if (id === "frost") drawFrostTower(ctx, r, this.level);
+        if (id === "bubble") drawBubbleTower(ctx, r, this.level);
+        if (id === "prism") drawPrismTower(ctx, r, this.level);
+        if (id === "hive") drawHiveTower(ctx, r, this.level);
+
+        // level stars
+        if (this.level > 0) {
+          ctx.save();
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = "rgba(255,200,0,0.95)";
+          ctx.strokeStyle = "rgba(27,23,48,0.35)";
+          ctx.lineWidth = Math.max(1, s*0.04);
+          for (let i=0; i<this.level; i++) {
+            const ox = (i - (this.level-1)/2) * r*0.45;
+            drawStar(ctx, ox, -r*1.25, r*0.16);
+          }
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    class Bullet {
+      constructor(tower, target, spread){
+        this.towerId = tower.id;
+        this.towerType = tower.typeId;
+        this.pos = { x: tower.pos.x, y: tower.pos.y };
+        this.target = target;
+        this.spread = spread || 0;
+
+        const s = tower.stats;
+        this.speed = s.bulletSpeed || 6;
+        this.damage = s.damage || 1;
+        this.splash = s.splash || 0;
+        this.chain = s.chain || null;
+        this.slow = (s.slowMult ? { mult: s.slowMult, time: s.slowTime || 1 } : null);
+        this.poison = s.poison || null;
+        this.poisonSplash = s.poisonSplash || null;
+        this.vuln = s.vuln || null;
+        this.hitSlow = s.hitSlow || null;
+        this.mark = s.mark || null;
+        this.critChance = s.critChance || 0;
+        this.critMult = s.critMult || 1.7;
+        this.smartAim = tower.flags.smartAim || false;
+        this.chillStacks = tower.flags.chillStacks || false;
+
+        this.alive = true;
+        this.ttl = 2.5;
+      }
+
+      update(dt){
+        if (!this.alive) return;
+        this.ttl -= dt;
+        if (this.ttl <= 0) { this.alive = false; return; }
+
+        let tx, ty;
+        if (this.target && !this.target.dead) {
+          tx = this.target.pos.x;
+          ty = this.target.pos.y;
+        } else {
+          // fly straight if no target
+          tx = this.pos.x + 1;
+          ty = this.pos.y;
+        }
+
+        let dx = tx - this.pos.x;
+        let dy = ty - this.pos.y;
+        const d = Math.hypot(dx, dy) || 1e-6;
+        dx /= d; dy /= d;
+
+        // apply spread
+        if (this.spread) {
+          const ang = Math.atan2(dy, dx) + this.spread;
+          dx = Math.cos(ang);
+          dy = Math.sin(ang);
+        }
+
+        this.pos.x += dx * this.speed * dt;
+        this.pos.y += dy * this.speed * dt;
+
+        // hit check
+        if (this.target && !this.target.dead) {
+          const hitR = this.target.size + 0.10;
+          if (dist2(this.pos.x, this.pos.y, this.target.pos.x, this.target.pos.y) <= hitR*hitR) {
+            this.onHit(this.target);
+            this.alive = false;
+          }
+        }
+      }
+
+      onHit(primary){
+        const isCrit = Math.random() < this.critChance;
+        const dmg = isCrit ? this.damage * this.critMult : this.damage;
+
+        const dealt = primary.takeDamage(dmg, "proj");
+        fx.push(new DamageNumber(primary.pos.x, primary.pos.y - 0.25, dealt, isCrit));
+
+        // effects
+        if (this.slow) primary.applySlow(this.slow.mult, this.slow.time);
+        if (this.poison) primary.applyPoison(this.poison.dps, this.poison.time);
+        if (this.vuln) primary.applyVuln(this.vuln.mult, this.vuln.time);
+        if (this.hitSlow) primary.applySlow(this.hitSlow.mult, this.hitSlow.time);
+        if (this.mark) primary.applyMark(this.mark.mult, this.mark.time);
+
+        if (this.chillStacks) {
+          primary.chill.stacks = clamp(primary.chill.stacks + 1, 0, 3);
+          primary.chill.time = 2.2;
+          if (primary.chill.stacks >= 3) {
+            primary.chill.stacks = 0;
+            primary.stun = Math.max(primary.stun, 0.45);
+            fx.push(new PopText(primary.pos.x, primary.pos.y - 0.5, "❄️ Freeze!"));
+          }
+        }
+
+        // splash
+        if (this.splash && this.splash > 0) {
+          splashAt(primary.pos.x, primary.pos.y, this.splash, dmg*0.65, { slow:this.slow, poison:this.poison, vuln:this.vuln, hitSlow:this.hitSlow, mark:this.mark, chillStacks:this.chillStacks });
+          fx.push(new Ring(primary.pos.x, primary.pos.y, this.splash, "rgba(255,255,255,0.9)", 0.10));
+        }
+
+        // poison splash (Hive)
+        if (this.poisonSplash && this.poison) {
+          splashAt(primary.pos.x, primary.pos.y, this.poisonSplash.r, 0, { poison: { dps: this.poison.dps*this.poisonSplash.mult, time: this.poison.time }, mark: this.mark });
+        }
+
+        // chain/bounce
+        if (this.chain && this.chain.jumps > 0) {
+          const next = nearestEnemy(primary, this.chain.r);
+          if (next) {
+            const extraDmg = dmg * this.chain.mult;
+            const dealt2 = next.takeDamage(extraDmg, "proj");
+            if (this.slow) next.applySlow(this.slow.mult, this.slow.time*0.9);
+            if (this.poison) next.applyPoison(this.poison.dps*0.85, this.poison.time);
+            if (this.vuln) next.applyVuln(this.vuln.mult, this.vuln.time);
+            if (this.hitSlow) next.applySlow(this.hitSlow.mult, this.hitSlow.time);
+            if (this.mark) next.applyMark(this.mark.mult, this.mark.time);
+            fx.push(new Beam(primary.pos.x, primary.pos.y, next.pos.x, next.pos.y, true));
+            fx.push(new DamageNumber(next.pos.x, next.pos.y - 0.25, dealt2));
+          }
+        }
+      }
+
+      draw(ctx){
+        const w = mapToWorld(this.pos);
+        ctx.save();
+        ctx.globalAlpha = 0.95;
+        ctx.strokeStyle = "rgba(27,23,48,0.25)";
+        ctx.lineWidth = Math.max(1, cellSize*0.04);
+
+        let fill = "rgba(255,255,255,0.95)";
+        if (this.towerType === "sprout") fill = "rgba(77, 225, 134, 0.95)";
+        if (this.towerType === "frost") fill = "rgba(130, 220, 255, 0.95)";
+        if (this.towerType === "bubble") fill = "rgba(160, 190, 255, 0.95)";
+        if (this.towerType === "hive") fill = "rgba(255, 200, 0, 0.95)";
+
+        ctx.fillStyle = fill;
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, cellSize*0.10, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // ----------------------------
+    // FX
+    // ----------------------------
+    class Beam {
+      constructor(ax, ay, bx, by, alt=false){
+        this.ax = ax; this.ay = ay;
+        this.bx = bx; this.by = by;
+        this.ttl = alt ? 0.10 : 0.08;
+        this.alt = alt;
+      }
+      update(dt){ this.ttl -= dt; }
+      draw(ctx){
+        const a = mapToWorld({x:this.ax,y:this.ay});
+        const b = mapToWorld({x:this.bx,y:this.by});
+        ctx.save();
+        ctx.globalAlpha = clamp(this.ttl / 0.10, 0, 1);
+        ctx.lineWidth = Math.max(2, cellSize*0.08);
+        ctx.lineCap = "round";
+        ctx.strokeStyle = this.alt ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 240, 120, 0.9)";
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+
+        ctx.globalAlpha *= 0.5;
+        ctx.lineWidth = Math.max(1, cellSize*0.03);
+        ctx.strokeStyle = "rgba(27,23,48,0.25)";
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    class Ring {
+      constructor(x, y, r, color, ttl){
+        this.x=x; this.y=y; this.r=r;
+        this.color=color;
+        this.ttl=ttl;
+        this.max=ttl;
+      }
+      update(dt){ this.ttl -= dt; }
+      draw(ctx){
+        const p = mapToWorld({x:this.x,y:this.y});
+        const t = clamp(this.ttl/this.max, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = t;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = Math.max(1.5, cellSize*0.06);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, this.r*cellSize*(1 + (1-t)*0.08), 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    class DamageNumber {
+      constructor(x, y, dmg, crit=false){
+        this.x=x; this.y=y;
+        this.dmg=dmg;
+        this.crit=crit;
+        this.ttl=0.7;
+      }
+      update(dt){
+        this.ttl -= dt;
+        this.y -= dt * 0.30;
+      }
+      draw(ctx){
+        const p = mapToWorld({x:this.x,y:this.y});
+        ctx.save();
+        const t = clamp(this.ttl/0.7, 0, 1);
+        ctx.globalAlpha = t;
+        ctx.font = `${this.crit ? "900" : "800"} ${Math.max(12, cellSize*0.26)}px ui-sans-serif, system-ui`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = this.crit ? "rgba(255,77,109,0.95)" : "rgba(27,23,48,0.78)";
+        ctx.strokeStyle = "rgba(255,255,255,0.85)";
+        ctx.lineWidth = Math.max(2, cellSize*0.06);
+        const text = Math.max(1, this.dmg).toFixed(this.dmg >= 10 ? 0 : 1);
+        ctx.strokeText(text, p.x, p.y);
+        ctx.fillText(text, p.x, p.y);
+        ctx.restore();
+      }
+    }
+
+    class PopText {
+      constructor(x, y, text){
+        this.x=x; this.y=y; this.text=text;
+        this.ttl=1.0;
+      }
+      update(dt){ this.ttl -= dt; this.y -= dt*0.25; }
+      draw(ctx){
+        const p = mapToWorld({x:this.x,y:this.y});
+        ctx.save();
+        const t = clamp(this.ttl/1.0, 0, 1);
+        ctx.globalAlpha = t;
+        ctx.font = `900 ${Math.max(12, cellSize*0.26)}px ui-sans-serif, system-ui`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(108,92,231,0.92)";
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = Math.max(2, cellSize*0.06);
+        ctx.strokeText(this.text, p.x, p.y);
+        ctx.fillText(this.text, p.x, p.y);
+        ctx.restore();
+      }
+    }
+
+    // ----------------------------
+    // Combat helpers
+    // ----------------------------
+    function pickTarget(tower){
+      const s = tower.stats;
+      const rr = s.range * s.range;
+      let best = null;
+      let bestScore = -1e9;
+      for (const e of enemies) {
+        if (e.dead) continue;
+        const d2 = dist2(tower.pos.x, tower.pos.y, e.pos.x, e.pos.y);
+        if (d2 > rr) continue;
+        // score by progress (closer to exit), with slight preference to nearer targets
+        const nearBias = 1 / (1 + d2);
+        let score = e.progress * 10 + nearBias;
+        if (tower.flags.smartAim) score += 0.8 * nearBias; // extra stability
+        if (score > bestScore) { bestScore = score; best = e; }
+      }
+      return best;
+    }
+
+    function pickTargetsBeam(tower, n){
+      const s = tower.stats;
+      const rr = s.range * s.range;
+      const candidates = [];
+      for (const e of enemies) {
+        if (e.dead) continue;
+        const d2 = dist2(tower.pos.x, tower.pos.y, e.pos.x, e.pos.y);
+        if (d2 > rr) continue;
+        candidates.push({ e, score: e.progress*10 - d2*0.02 });
+      }
+      candidates.sort((a,b)=>b.score-a.score);
+      return candidates.slice(0, n).map(o=>o.e);
+    }
+
+    function nearestEnemy(fromEnemy, r){
+      const rr = r*r;
+      let best = null;
+      let bestD2 = 1e9;
+      for (const e of enemies) {
+        if (e.dead || e === fromEnemy) continue;
+        const d2 = dist2(fromEnemy.pos.x, fromEnemy.pos.y, e.pos.x, e.pos.y);
+        if (d2 <= rr && d2 < bestD2) { bestD2 = d2; best = e; }
+      }
+      return best;
+    }
+
+    function splashAt(x, y, r, dmg, effects){
+      const rr = r*r;
+      for (const e of enemies) {
+        if (e.dead) continue;
+        const d2 = dist2(x, y, e.pos.x, e.pos.y);
+        if (d2 <= rr) {
+          if (dmg > 0) {
+            const dealt = e.takeDamage(dmg, effects && effects.tag === "beam" ? "beam" : "proj");
+            fx.push(new DamageNumber(e.pos.x, e.pos.y - 0.25, dealt));
+          }
+          if (effects) {
+            if (effects.slow) e.applySlow(effects.slow.mult, effects.slow.time);
+            if (effects.poison) e.applyPoison(effects.poison.dps, effects.poison.time);
+            if (effects.vuln) e.applyVuln(effects.vuln.mult, effects.vuln.time);
+            if (effects.hitSlow) e.applySlow(effects.hitSlow.mult, effects.hitSlow.time);
+            if (effects.mark) e.applyMark(effects.mark.mult, effects.mark.time);
+            if (effects.chillStacks) {
+              e.chill.stacks = clamp(e.chill.stacks + 1, 0, 3);
+              e.chill.time = 2.2;
+              if (e.chill.stacks >= 3) {
+                e.chill.stacks = 0;
+                e.stun = Math.max(e.stun, 0.45);
+                fx.push(new PopText(e.pos.x, e.pos.y - 0.5, "❄️ Freeze!"));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ----------------------------
+    // Rendering helpers
+    // ----------------------------
+    function mapToWorld(p){
+      return {
+        x: mapRect.x + p.x * cellSize,
+        y: mapRect.y + p.y * cellSize,
+      };
+    }
+
+    function worldToMap(px, py){
+      return {
+        x: (px - mapRect.x) / cellSize,
+        y: (py - mapRect.y) / cellSize,
+      };
+    }
+
+    function isOnMap(mx, my){
+      return mx >= 0 && my >= 0 && mx < GRID_W && my < GRID_H;
+    }
+
+    function isBuildable(gx, gy){
+      if (gx < 0 || gy < 0 || gx >= GRID_W || gy >= GRID_H) return false;
+      if (pathSet.has(`${gx},${gy}`)) return false;
+      for (const t of towers) {
+        if (t.gx === gx && t.gy === gy) return false;
+      }
+      return true;
+    }
+
+    // Cute tower drawings
+    function drawStar(ctx, x, y, r){
+      const spikes = 5;
+      const step = Math.PI / spikes;
+      let rot = -Math.PI/2;
+      ctx.beginPath();
+      for (let i=0; i<spikes*2; i++) {
+        const rad = (i % 2 === 0) ? r : r*0.5;
+        ctx.lineTo(x + Math.cos(rot) * rad, y + Math.sin(rot) * rad);
+        rot += step;
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawSproutTower(ctx, r, lvl){
+      // pot
+      ctx.save();
+      ctx.lineWidth = Math.max(1, cellSize*0.05);
+      ctx.strokeStyle = "rgba(27,23,48,0.35)";
+      ctx.fillStyle = "rgba(180, 105, 60, 0.95)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.65, r*0.15, r*1.3, r*0.85, r*0.25);
+      ctx.fill();
+      ctx.stroke();
+
+      // soil
+      ctx.fillStyle = "rgba(120, 70, 40, 0.95)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.55, r*0.15, r*1.1, r*0.35, r*0.22);
+      ctx.fill();
+
+      // sprout
+      ctx.fillStyle = "rgba(77, 225, 134, 0.95)";
+      ctx.beginPath();
+      ctx.arc(0, -r*0.10, r*0.26, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(-r*0.22, -r*0.30, r*0.26, r*0.16, -0.5, 0, Math.PI*2);
+      ctx.ellipse(r*0.22, -r*0.30, r*0.26, r*0.16, 0.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // pea nozzle(s)
+      const nozzles = 1 + (lvl >= 1 ? 1 : 0);
+      ctx.fillStyle = "rgba(27,23,48,0.15)";
+      for (let i=0;i<nozzles;i++){
+        const ox = (i - (nozzles-1)/2)*r*0.22;
+        ctx.beginPath();
+        ctx.arc(ox, -r*0.55, r*0.12, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawFrostTower(ctx, r, lvl){
+      ctx.save();
+      ctx.lineWidth = Math.max(1, cellSize*0.05);
+      ctx.strokeStyle = "rgba(27,23,48,0.35)";
+
+      // cone
+      ctx.fillStyle = "rgba(240, 190, 120, 0.95)";
+      ctx.beginPath();
+      ctx.moveTo(-r*0.6, r*0.9);
+      ctx.lineTo(r*0.6, r*0.9);
+      ctx.lineTo(0, -r*0.15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // scoop
+      ctx.fillStyle = "rgba(130, 220, 255, 0.95)";
+      ctx.beginPath();
+      ctx.arc(0, -r*0.15, r*0.62, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // sprinkles (upgrade flair)
+      const spr = 2 + lvl;
+      for (let i=0;i<spr;i++){
+        const ang = (i/spr)*Math.PI*2;
+        const px = Math.cos(ang)*r*0.35;
+        const py = -r*0.15 + Math.sin(ang)*r*0.25;
+        ctx.fillStyle = i%2?"rgba(255,90,120,0.9)":"rgba(255,220,80,0.9)";
+        ctx.beginPath();
+        ctx.roundRect(px - r*0.06, py - r*0.02, r*0.12, r*0.04, r*0.02);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawBubbleTower(ctx, r, lvl){
+      ctx.save();
+      ctx.lineWidth = Math.max(1, cellSize*0.05);
+      ctx.strokeStyle = "rgba(27,23,48,0.35)";
+
+      // base
+      ctx.fillStyle = "rgba(160, 190, 255, 0.90)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.75, r*0.25, r*1.5, r*0.70, r*0.24);
+      ctx.fill();
+      ctx.stroke();
+
+      // barrel
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.2, -r*0.55, r*1.05, r*0.45, r*0.20);
+      ctx.fill();
+      ctx.stroke();
+
+      // nozzle
+      ctx.fillStyle = "rgba(27,23,48,0.20)";
+      ctx.beginPath();
+      ctx.arc(r*0.86, -r*0.33, r*0.13, 0, Math.PI*2);
+      ctx.fill();
+
+      // bubbles (upgrade)
+      const b = 1 + Math.floor(lvl/2);
+      for (let i=0;i<b;i++){
+        const px = -r*0.55 + i*r*0.35;
+        const py = -r*0.55 - i*r*0.08;
+        ctx.globalAlpha = 0.65;
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.arc(px, py, r*(0.16 + i*0.04), 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "rgba(108,92,231,0.22)";
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawPrismTower(ctx, r, lvl){
+      ctx.save();
+      ctx.lineWidth = Math.max(1, cellSize*0.05);
+      ctx.strokeStyle = "rgba(27,23,48,0.35)";
+
+      // base pedestal
+      ctx.fillStyle = "rgba(255,255,255,0.80)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.75, r*0.35, r*1.5, r*0.60, r*0.24);
+      ctx.fill();
+      ctx.stroke();
+
+      // crystal
+      ctx.fillStyle = "rgba(255, 240, 120, 0.9)";
+      ctx.beginPath();
+      ctx.moveTo(0, -r*1.05);
+      ctx.lineTo(r*0.65, -r*0.15);
+      ctx.lineTo(0, r*0.25);
+      ctx.lineTo(-r*0.65, -r*0.15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // inner shine
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.moveTo(0, -r*0.95);
+      ctx.lineTo(r*0.28, -r*0.20);
+      ctx.lineTo(0, r*0.10);
+      ctx.lineTo(-r*0.28, -r*0.20);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // lenses
+      const lenses = 1 + Math.floor(lvl/2);
+      for (let i=0;i<lenses;i++){
+        const ox = (i - (lenses-1)/2) * r*0.35;
+        ctx.fillStyle = "rgba(108,92,231,0.22)";
+        ctx.beginPath();
+        ctx.arc(ox, r*0.48, r*0.12, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(27,23,48,0.22)";
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawHiveTower(ctx, r, lvl){
+      ctx.save();
+      ctx.lineWidth = Math.max(1, cellSize*0.05);
+      ctx.strokeStyle = "rgba(27,23,48,0.35)";
+
+      // base stump
+      ctx.fillStyle = "rgba(190, 150, 110, 0.95)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.75, r*0.30, r*1.5, r*0.65, r*0.24);
+      ctx.fill();
+      ctx.stroke();
+
+      // honeycomb
+      ctx.fillStyle = "rgba(255, 200, 0, 0.92)";
+      ctx.beginPath();
+      ctx.roundRect(-r*0.65, -r*0.85, r*1.3, r*1.05, r*0.25);
+      ctx.fill();
+      ctx.stroke();
+
+      // drips
+      ctx.fillStyle = "rgba(255, 170, 0, 0.85)";
+      const drips = 1 + Math.floor(lvl/2);
+      for (let i=0;i<drips;i++){
+        const ox = (i - (drips-1)/2) * r*0.35;
+        ctx.beginPath();
+        ctx.arc(ox, r*0.10, r*0.18, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // tiny bee
+      ctx.fillStyle = "rgba(27,23,48,0.75)";
+      ctx.beginPath();
+      ctx.arc(r*0.15, -r*0.60, r*0.10, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      ctx.arc(r*0.08, -r*0.65, r*0.06, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // ----------------------------
+    // UI
+    // ----------------------------
+    let toastTimer = 0;
+    function toast(msg){
+      ui.toast.textContent = msg;
+      ui.toast.classList.remove("hidden");
+      toastTimer = 1.4;
+    }
+
+    function showBanner(msg){
+      ui.waveBanner.textContent = msg;
+      ui.waveBanner.classList.remove("hidden");
+      setTimeout(()=>ui.waveBanner.classList.add("hidden"), 900);
+    }
+
+    function setBigMessage(title, body){
+      ui.bigMessage.innerHTML = `<h2>${title}</h2><p>${body}</p>`;
+      ui.bigMessage.classList.remove("hidden");
+    }
+    function hideBigMessage(){
+      ui.bigMessage.classList.add("hidden");
+    }
+
+    function renderShop(){
+      ui.shop.innerHTML = "";
+      TOWERS.forEach((t, idx) => {
+        const el = document.createElement("div");
+        el.className = "shopItem";
+        el.tabIndex = 0;
+        el.dataset.tower = t.id;
+        el.innerHTML = `
+          <div class="shopIcon" aria-hidden="true">${t.icon}</div>
+          <div class="shopMeta">
+            <div class="shopName">${t.name}</div>
+            <div class="shopDesc">${t.desc}</div>
+          </div>
+          <div class="shopCost">${t.cost}</div>
+        `;
+        const activate = () => {
+          if (state.phase !== "planning") {
+            toast("Building happens between waves 🧠");
+            return;
+          }
+          buildPick = (buildPick === t.id) ? null : t.id;
+          updateShopSelection();
+          if (buildPick) toast(`Placing: ${t.icon} ${t.name}`);
+        };
+        el.addEventListener("click", activate);
+        el.addEventListener("keydown", (e)=>{
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); }
+        });
+        ui.shop.appendChild(el);
+      });
+    }
+
+    function updateShopSelection(){
+      ui.shop.querySelectorAll(".shopItem").forEach(el => {
+        el.classList.toggle("active", el.dataset.tower === buildPick);
+      });
+    }
+
+    function renderSelected(){
+      ui.btnSell.disabled = !selectedTower;
+      if (!selectedTower) {
+        ui.selectedBody.innerHTML = `<div class="emptySelect">Tap a tower to see upgrades.</div>`;
+        return;
+      }
+
+      const t = selectedTower;
+      const def = t.def;
+      const s = t.stats;
+
+      const dots = [];
+      for (let i=0;i<MAX_UPGRADES;i++) dots.push(`<div class="dot ${t.level>i?"on":""}"></div>`);
+
+      const dps = (def.mode === "beam")
+        ? (s.beamDamage / s.tick) * (s.beamTargets || 1)
+        : (s.damage / s.interval) * (s.projectiles || 1);
+
+      const next = t.nextUpgrade();
+      const canUpgrade = !!next && state.phase === "planning" && state.gold >= next.cost;
+      const upgradeDisabledReason = !next
+        ? "Maxed"
+        : state.phase !== "planning"
+          ? "Between waves"
+          : state.gold < next.cost
+            ? "Need gold"
+            : "";
+
+      ui.selectedBody.innerHTML = `
+        <div class="selTop">
+          <div class="selName">
+            <div class="selIcon" aria-hidden="true">${def.icon}</div>
+            <div style="min-width:0">
+              <div class="selTitle">${def.name}</div>
+              <div class="selLvl">Level ${t.level}/${MAX_UPGRADES}</div>
+              <div class="lvlDots" aria-hidden="true">${dots.join("")}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="smallMuted">Sell</div>
+            <div style="font-weight:1000">+${t.sellValue()}</div>
+          </div>
+        </div>
+
+        <div class="selStats">
+          <div class="chip"><div class="k">Range</div><div class="v">${s.range.toFixed(2)} tiles</div></div>
+          <div class="chip"><div class="k">DPS</div><div class="v">${dps.toFixed(1)}</div></div>
+          <div class="chip"><div class="k">Rate</div><div class="v">${(def.mode === "beam" ? (1/s.tick) : (1/s.interval)).toFixed(1)}/s</div></div>
+          <div class="chip"><div class="k">Special</div><div class="v">${towerSpecialText(t)}</div></div>
+        </div>
+
+        <div class="upgradeBox">
+          ${next ? `
+            <div class="upgradeTitle">Next: ${next.name}</div>
+            <div class="upgradeDesc">${next.desc}</div>
+            <div class="upgradeRow">
+              <div class="shopCost" style="margin-left:0">${next.cost}</div>
+              <button id="btnUpgrade" class="btn primary small" type="button" ${canUpgrade?"":"disabled"}>
+                ${canUpgrade?"Upgrade":"${upgradeDisabledReason}"}
+              </button>
+            </div>
+          ` : `
+            <div class="upgradeTitle">Fully upgraded ✨</div>
+            <div class="upgradeDesc">This tower is at max level. Consider building a new one for more coverage.</div>
+          `}
+        </div>
+      `;
+
+      const btn = ui.selectedBody.querySelector("#btnUpgrade");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          if (selectedTower) {
+            selectedTower.upgrade();
+            renderSelected();
+            updateHUD();
+          }
+        });
+      }
+    }
+
+    function towerSpecialText(t){
+      const id = t.typeId;
+      const s = t.stats;
+      if (id === "sprout") {
+        const p = s.projectiles || 1;
+        const crit = s.critChance ? ` • Crit ${(s.critChance*100).toFixed(0)}%` : "";
+        const burst = t.flags.burstEvery ? ` • Burst` : "";
+        return `${p} shot${p>1?"s":""}${crit}${burst}`;
+      }
+      if (id === "frost") {
+        const slowPct = Math.round((1 - s.slowMult)*100);
+        const splash = s.splash ? ` • Splash` : "";
+        const aura = t.flags.auraSlow ? ` • Aura` : "";
+        const freeze = t.flags.chillStacks ? ` • Freeze` : "";
+        return `Slow ${slowPct}%${splash}${freeze}${aura}`;
+      }
+      if (id === "bubble") {
+        const splash = s.splash ? `Splash ${s.splash.toFixed(1)}` : "";
+        const chain = s.chain ? ` • Bounce` : "";
+        const vuln = s.vuln ? ` • Soak` : "";
+        return `${splash}${chain}${vuln}`;
+      }
+      if (id === "prism") {
+        const targets = s.beamTargets || 1;
+        const burn = s.burn ? ` • Burn` : "";
+        const pop = s.pop ? ` • Pop` : "";
+        return `${targets} beam${targets>1?"s":""}${burn}${pop}`;
+      }
+      if (id === "hive") {
+        const p = s.poison ? `Poison` : "";
+        const splash = s.poisonSplash ? ` • Splash` : "";
+        const mark = s.mark ? ` • Mark` : "";
+        return `${p}${splash}${mark}`;
+      }
+      return "—";
+    }
+
+    function renderNextWave(){
+      const idx = state.nextWaveIndex;
+      ui.nextWave.innerHTML = "";
+      if (idx >= state.waves.length) {
+        ui.nextWave.innerHTML = `<div class="smallMuted">No more waves. If you're seeing this, you've already won.</div>`;
+        return;
+      }
+      const wave = state.waves[idx];
+      const sum = summarizeWave(wave);
+      for (const item of sum) {
+        const d = ENEMIES[item.type];
+        const pill = document.createElement("div");
+        pill.className = "enemyPill";
+        pill.innerHTML = `
+          <div class="enemyIcon" aria-hidden="true">${d.icon}</div>
+          <div class="enemyName">${d.name}</div>
+          <div class="enemyCount">×${item.count}</div>
+        `;
+        ui.nextWave.appendChild(pill);
+      }
+    }
+
+    function updateHUD(){
+      const waveText = (() => {
+        if (state.phase === "wave" && state.activeWave) {
+          return `${state.activeWave.index}/${state.waves.length}`;
+        }
+        const next = Math.min(state.nextWaveIndex + 1, state.waves.length);
+        return `${next}/${state.waves.length}`;
+      })();
+
+      ui.waveLabel.textContent = waveText;
+      ui.livesLabel.textContent = String(state.lives);
+      ui.goldLabel.textContent = String(state.gold);
+      ui.scoreLabel.textContent = fmt(state.score);
+
+      ui.phaseLabel.textContent = state.phase === "planning" ? "Planning" :
+        state.phase === "wave" ? "Wave in progress" :
+        state.phase === "victory" ? "Victory" :
+        "Game over";
+
+      ui.btnStart.disabled = !(state.phase === "planning" && state.nextWaveIndex < state.waves.length);
+      ui.btnStart.textContent = state.phase === "planning" ? "▶ Start wave" : "⏳ In wave";
+
+      ui.btnPause.textContent = state.paused ? "▶ Resume" : "⏸ Pause";
+      ui.btnSpeed.textContent = state.speed > 1 ? `🚀 ${state.speed.toFixed(1)}x` : "🚀 1x";
+
+      if (selectedTower) ui.btnSell.disabled = false;
+      else ui.btnSell.disabled = true;
+
+      updateShopSelection();
+    }
+
+    // ----------------------------
+    // Game control
+    // ----------------------------
+    function resetGame(newSeed){
+      seed = (newSeed != null) ? (newSeed >>> 0) : randSeed();
+      rng = mulberry32(seed);
+
+      ui.seedLabel.textContent = `Random track • Seed ${seed}`;
+
+      // fresh map
+      pathCells = generatePath(GRID_W, GRID_H, rng);
+      pathSet = new Set(pathCells.map(c => `${c.x},${c.y}`));
+      waypoints = buildWaypoints(pathCells);
+
+      // grass tint + decor
+      tileTint = [];
+      deco = [];
+      for (let y=0; y<GRID_H; y++) {
+        tileTint[y] = [];
+        for (let x=0; x<GRID_W; x++) {
+          const r = rng();
+          tileTint[y][x] = r;
+          if (!pathSet.has(`${x},${y}`) && r < 0.08) {
+            deco.push({ x, y, kind: rng() < 0.5 ? "flower" : "spark" , a: rng()*Math.PI*2 });
+          }
+        }
+      }
+
+      // state
+      state.phase = "planning";
+      state.paused = false;
+      state.speed = 1;
+      state.lives = 20;
+      state.gold = 220;
+      state.score = 0;
+      state.nextWaveIndex = 0;
+      state.waves = generateWaves(rng);
+      state.activeWave = null;
+      state.spawnEvents = [];
+      state.spawnCursor = 0;
+      state.waveTime = 0;
+
+      // entities
+      towers = [];
+      enemies = [];
+      bullets = [];
+      fx = [];
+
+      buildPick = null;
+      selectedTower = null;
+
+      hideBigMessage();
+      renderSelected();
+      renderNextWave();
+      updateHUD();
+      toast("New track! Build towers, then start wave 1.");
+    }
+
+    function startWave(){
+      if (state.phase !== "planning") return;
+      if (state.nextWaveIndex >= state.waves.length) return;
+
+      state.activeWave = state.waves[state.nextWaveIndex];
+      state.nextWaveIndex++;
+
+      state.spawnEvents = expandSpawnEvents(state.activeWave);
+      state.spawnCursor = 0;
+      state.waveTime = 0;
+      state.phase = "wave";
+      buildPick = null;
+      updateShopSelection();
+
+      showBanner(`Wave ${state.activeWave.index}`);
+      toast(`Wave ${state.activeWave.index} started!`);
+      renderNextWave();
+      updateHUD();
+    }
+
+    function endWave(){
+      if (state.phase !== "wave") return;
+      state.phase = "planning";
+      state.activeWave = null;
+      state.spawnEvents = [];
+      state.spawnCursor = 0;
+      state.waveTime = 0;
+
+      // wave clear bonus
+      const bonus = 14 + Math.floor(state.nextWaveIndex * 3);
+      state.gold += bonus;
+      fx.push(new PopText(GRID_W*0.5, -0.1, `+${bonus} bonus`));
+
+      toast(`Wave cleared! +${bonus} gold`);
+      renderNextWave();
+      renderSelected();
+      updateHUD();
+
+      if (state.nextWaveIndex >= state.waves.length) {
+        // if no more waves, you already won (should have been handled)
+      }
+    }
+
+    function triggerGameOver(){
+      state.phase = "gameover";
+      state.paused = true;
+      setBigMessage("Game Over", "The candy convoy slipped through. Hit ↻ New random track to try again.");
+      toast("Game over.");
+      updateHUD();
+    }
+
+    function triggerVictory(){
+      state.phase = "victory";
+      state.paused = true;
+      setBigMessage("Victory!", `You survived all ${state.waves.length} waves. Refresh for a new random track.`);
+      toast("Victory! 🍭");
+      updateHUD();
+    }
+
+    // ----------------------------
+    // Input
+    // ----------------------------
+    function onPointerMove(e){
+      const rect = canvas.getBoundingClientRect();
+      pointer.px = e.clientX - rect.left;
+      pointer.py = e.clientY - rect.top;
+      const m = worldToMap(pointer.px, pointer.py);
+      pointer.mx = m.x;
+      pointer.my = m.y;
+      pointer.inside = isOnMap(m.x, m.y);
+      pointer.gx = Math.floor(m.x);
+      pointer.gy = Math.floor(m.y);
+    }
+
+    function pickTowerAt(mx, my){
+      for (const t of towers) {
+        if (Math.abs(mx - t.pos.x) <= 0.45 && Math.abs(my - t.pos.y) <= 0.45) {
+          const d2 = dist2(mx, my, t.pos.x, t.pos.y);
+          if (d2 <= 0.32*0.32) return t;
+        }
+      }
+      return null;
+    }
+
+    function onPointerDown(e){
+      if (e.button != null && e.button !== 0) return;
+      onPointerMove(e);
+      if (!pointer.inside) return;
+
+      const gx = pointer.gx;
+      const gy = pointer.gy;
+
+      // select tower if clicked
+      const hitTower = pickTowerAt(pointer.mx, pointer.my);
+      if (hitTower) {
+        selectedTower = hitTower;
+        renderSelected();
+        updateHUD();
+        return;
+      }
+
+      // place tower
+      if (state.phase !== "planning") {
+        toast("Build between waves 🧠");
+        return;
+      }
+      if (!buildPick) {
+        selectedTower = null;
+        renderSelected();
+        updateHUD();
+        return;
+      }
+
+      if (!isBuildable(gx, gy)) {
+        toast("Can't build there.");
+        return;
+      }
+
+      const def = towerById[buildPick];
+      if (state.gold < def.cost) {
+        toast("Not enough gold.");
+        return;
+      }
+
+      const t = new Tower(def.id, gx, gy);
+      towers.push(t);
+      state.gold -= def.cost;
+      state.score += 1;
+      fx.push(new PopText(t.pos.x, t.pos.y - 0.35, `${def.icon}`));
+
+      selectedTower = t;
+      renderSelected();
+      updateHUD();
+    }
+
+    // Keyboard shortcuts
+    function onKeyDown(e){
+      if (e.key === "Escape") {
+        buildPick = null;
+        updateShopSelection();
+        toast("Placement cancelled.");
+      }
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        if (state.phase === "planning") startWave();
+        return;
+      }
+      if (e.key.toLowerCase() === "u") {
+        if (selectedTower) {
+          selectedTower.upgrade();
+          renderSelected();
+          updateHUD();
+        }
+      }
+      if (e.key.toLowerCase() === "p") {
+        togglePause();
+      }
+
+      // number keys = pick towers
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= 5) {
+        const t = TOWERS[n-1];
+        if (!t) return;
+        if (state.phase !== "planning") {
+          toast("Pick towers between waves.");
+          return;
+        }
+        buildPick = (buildPick === t.id) ? null : t.id;
+        updateShopSelection();
+        if (buildPick) toast(`Placing: ${t.icon} ${t.name}`);
+      }
+    }
+
+    // ----------------------------
+    // Buttons
+    // ----------------------------
+    function togglePause(){
+      if (state.phase === "gameover" || state.phase === "victory") return;
+      state.paused = !state.paused;
+      updateHUD();
+    }
+
+    function toggleSpeed(){
+      state.speed = (state.speed >= 1.8) ? 1 : 1.8;
+      updateHUD();
+    }
+
+    ui.btnPause.addEventListener("click", togglePause);
+    ui.btnSpeed.addEventListener("click", toggleSpeed);
+    ui.btnStart.addEventListener("click", startWave);
+    ui.btnRestart.addEventListener("click", () => resetGame());
+
+    ui.btnSell.addEventListener("click", () => {
+      if (!selectedTower) return;
+      if (state.phase !== "planning") {
+        toast("Sell between waves.");
+        return;
+      }
+      const val = selectedTower.sellValue();
+      state.gold += val;
+      towers = towers.filter(t => t.id !== selectedTower.id);
+      toast(`Sold for +${val} gold`);
+      selectedTower = null;
+      renderSelected();
+      updateHUD();
+    });
+
+    // Canvas events
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown, { passive: false });
+
+    // ----------------------------
+    // Resize
+    // ----------------------------
+    function resize(){
+      const rect = canvas.getBoundingClientRect();
+      DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      viewW = rect.width;
+      viewH = rect.height;
+      canvas.width = Math.max(1, Math.floor(viewW * DPR));
+      canvas.height = Math.max(1, Math.floor(viewH * DPR));
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      // map fit
+      const pad = 18;
+      const usableW = Math.max(200, viewW - pad*2);
+      const usableH = Math.max(200, viewH - pad*2);
+      cellSize = Math.floor(Math.min(usableW/GRID_W, usableH/GRID_H));
+      cellSize = clamp(cellSize, 26, 76);
+
+      mapRect.w = cellSize * GRID_W;
+      mapRect.h = cellSize * GRID_H;
+      mapRect.x = Math.floor((viewW - mapRect.w)/2);
+      mapRect.y = Math.floor((viewH - mapRect.h)/2);
+    }
+
+    window.addEventListener("resize", resize);
+
+    // ----------------------------
+    // Update + Draw
+    // ----------------------------
+    function update(dt){
+      // toast timer
+      if (toastTimer > 0) {
+        toastTimer -= dt;
+        if (toastTimer <= 0) ui.toast.classList.add("hidden");
+      }
+
+      if (state.phase === "wave") {
+        state.waveTime += dt;
+
+        // spawn
+        while (state.spawnCursor < state.spawnEvents.length && state.spawnEvents[state.spawnCursor].t <= state.waveTime) {
+          const ev = state.spawnEvents[state.spawnCursor++];
+          enemies.push(new Enemy(ev.type));
+        }
+
+        // towers
+        for (const t of towers) t.update(dt);
+
+        // bullets
+        for (const b of bullets) b.update(dt);
+        bullets = bullets.filter(b => b.alive);
+
+        // enemies
+        for (const e of enemies) e.update(dt);
+
+        // process leaks & kills
+        for (const e of enemies) {
+          if (e.justLeaked) {
+            state.lives -= e.leak;
+            fx.push(new PopText(e.pos.x, e.pos.y - 0.25, `-${e.leak} ❤️`));
+            e.justLeaked = false;
+          }
+          if (e.dead && !e._counted) {
+            e._counted = true;
+            if (e.hp <= 0) {
+              state.gold += e.reward;
+              state.score += Math.floor(e.maxHp + e.def.cost*2);
+              fx.push(new PopText(e.pos.x, e.pos.y - 0.15, `+${e.reward}`));
+            }
+          }
+        }
+
+        enemies = enemies.filter(e => !(e.dead && e._counted && e.hp <= 0 && e._fadeDone));
+        // For simplicity: remove dead enemies after a short fade timer
+        for (const e of enemies) {
+          if (e.dead) {
+            e._fade = (e._fade ?? 0) + dt;
+            if (e._fade > 0.18) e._fadeDone = true;
+          }
+        }
+        enemies = enemies.filter(e => !e._fadeDone);
+
+        // fx
+        for (const f of fx) f.update(dt);
+        fx = fx.filter(f => f.ttl == null ? true : f.ttl > 0);
+
+        // game over check
+        if (state.lives <= 0) {
+          triggerGameOver();
+        }
+
+        // wave end check
+        const spawnsDone = state.spawnCursor >= state.spawnEvents.length;
+        const livingEnemies = enemies.some(e => !e.dead);
+        if (spawnsDone && !livingEnemies) {
+          if (state.nextWaveIndex >= state.waves.length) {
+            triggerVictory();
+          } else {
+            endWave();
+          }
+        }
+      } else {
+        // planning phase: still animate gentle fx
+        for (const f of fx) f.update(dt);
+        fx = fx.filter(f => f.ttl == null ? true : f.ttl > 0);
+      }
+
+      // Keep UI reasonably fresh
+      updateHUD();
+    }
+
+    function draw(){
+      // background
+      ctx.clearRect(0,0,viewW,viewH);
+
+      // soft map backdrop
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,0.40)";
+      ctx.strokeStyle = "rgba(27,23,48,0.10)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(mapRect.x - 10, mapRect.y - 10, mapRect.w + 20, mapRect.h + 20, 22);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      drawGrassAndGrid();
+      drawPath();
+      drawDecor();
+
+      // placement preview
+      if (state.phase === "planning" && buildPick && pointer.inside) {
+        const gx = pointer.gx, gy = pointer.gy;
+        const ok = isBuildable(gx, gy);
+        const center = mapToWorld({x: gx+0.5, y: gy+0.5});
+        const def = towerById[buildPick];
+
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = ok ? "rgba(0,194,168,1)" : "rgba(255,77,109,1)";
+        ctx.beginPath();
+        ctx.roundRect(mapRect.x + gx*cellSize, mapRect.y + gy*cellSize, cellSize, cellSize, 10);
+        ctx.fill();
+        ctx.restore();
+
+        // range ring
+        ctx.save();
+        ctx.globalAlpha = 0.10;
+        ctx.strokeStyle = ok ? "rgba(0,194,168,1)" : "rgba(255,77,109,1)";
+        ctx.lineWidth = Math.max(2, cellSize*0.05);
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, def.base.range*cellSize, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+
+        // ghost tower
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.translate(center.x, center.y);
+        const r = cellSize*0.36;
+        if (def.id === "sprout") drawSproutTower(ctx, r, 0);
+        if (def.id === "frost") drawFrostTower(ctx, r, 0);
+        if (def.id === "bubble") drawBubbleTower(ctx, r, 0);
+        if (def.id === "prism") drawPrismTower(ctx, r, 0);
+        if (def.id === "hive") drawHiveTower(ctx, r, 0);
+        ctx.restore();
+      }
+
+      // range ring for selected
+      if (selectedTower) {
+        const s = selectedTower.stats;
+        const c = mapToWorld(selectedTower.pos);
+        ctx.save();
+        ctx.globalAlpha = 0.10;
+        ctx.strokeStyle = "rgba(108,92,231,1)";
+        ctx.lineWidth = Math.max(2, cellSize*0.06);
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, s.range*cellSize, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // towers
+      for (const t of towers) t.draw(ctx);
+
+      // bullets
+      for (const b of bullets) b.draw(ctx);
+
+      // enemies
+      for (const e of enemies) {
+        if (!e.dead) e.draw(ctx);
+      }
+
+      // fx
+      for (const f of fx) {
+        if (f.draw) f.draw(ctx);
+      }
+
+      // HUD overlay bits (tiny)
+      drawCornerHints();
+    }
+
+    function drawGrassAndGrid(){
+      // grass tiles
+      for (let y=0; y<GRID_H; y++) {
+        for (let x=0; x<GRID_W; x++) {
+          const px = mapRect.x + x*cellSize;
+          const py = mapRect.y + y*cellSize;
+          const tint = tileTint[y]?.[x] ?? 0.5;
+
+          const base = pathSet.has(`${x},${y}`) ? "rgba(255, 245, 220, 0.65)" : "rgba(210, 255, 224, 0.58)";
+          ctx.fillStyle = base;
+          ctx.fillRect(px, py, cellSize, cellSize);
+
+          // subtle variation
+          ctx.globalAlpha = 0.10;
+          ctx.fillStyle = tint < 0.5 ? "rgba(27,23,48,1)" : "rgba(255,255,255,1)";
+          ctx.fillRect(px, py, cellSize, cellSize);
+          ctx.globalAlpha = 1;
+
+          // grid line
+          ctx.strokeStyle = "rgba(27,23,48,0.06)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px, py, cellSize, cellSize);
+        }
+      }
+    }
+
+    function drawPath(){
+      // draw a thick candy road along waypoints
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      const pts = waypoints.map(p => mapToWorld(p));
+
+      // outline
+      ctx.strokeStyle = "rgba(27,23,48,0.18)";
+      ctx.lineWidth = cellSize*0.82;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+
+      // fill
+      ctx.strokeStyle = "rgba(255, 235, 200, 0.92)";
+      ctx.lineWidth = cellSize*0.70;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+
+      // sprinkle center line
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = "rgba(255, 155, 200, 0.9)";
+      ctx.lineWidth = cellSize*0.10;
+      ctx.setLineDash([cellSize*0.22, cellSize*0.24]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
+      // spawn + base markers
+      const start = mapToWorld(waypoints[1]);
+      const end = mapToWorld(waypoints[waypoints.length-2]);
+
+      drawMarker(start.x - cellSize*0.55, start.y, "START");
+      drawMarker(end.x + cellSize*0.55, end.y, "BASE");
+
+      ctx.restore();
+    }
+
+    function drawMarker(x, y, label){
+      ctx.save();
+      ctx.translate(x, y);
+      const w = cellSize*0.82;
+      const h = cellSize*0.46;
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      ctx.strokeStyle = "rgba(27,23,48,0.22)";
+      ctx.lineWidth = Math.max(1, cellSize*0.05);
+      ctx.beginPath();
+      ctx.roundRect(-w/2, -h/2, w, h, h/2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(27,23,48,0.70)";
+      ctx.font = `900 ${Math.max(10, cellSize*0.22)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+
+    function drawDecor(){
+      // simple flowers/sparkles on grass
+      for (const d of deco) {
+        const x = mapRect.x + (d.x+0.5)*cellSize;
+        const y = mapRect.y + (d.y+0.5)*cellSize;
+        const r = cellSize*0.08;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(d.a);
+        if (d.kind === "flower") {
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = "rgba(255, 155, 200, 0.85)";
+          for (let i=0;i<5;i++){
+            ctx.beginPath();
+            ctx.ellipse(Math.cos(i*1.256)*r*2.1, Math.sin(i*1.256)*r*2.1, r*1.2, r*0.8, i*0.2, 0, Math.PI*2);
+            ctx.fill();
+          }
+          ctx.fillStyle = "rgba(255, 220, 80, 0.9)";
+          ctx.beginPath();
+          ctx.arc(0,0,r*1.2,0,Math.PI*2);
+          ctx.fill();
+        } else {
+          ctx.globalAlpha = 0.25;
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = Math.max(1, cellSize*0.03);
+          ctx.beginPath();
+          ctx.moveTo(-r*2, 0);
+          ctx.lineTo(r*2, 0);
+          ctx.moveTo(0, -r*2);
+          ctx.lineTo(0, r*2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawCornerHints(){
+      ctx.save();
+      ctx.font = `800 ${Math.max(11, cellSize*0.21)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "rgba(27,23,48,0.55)";
+      const pad = 12;
+      const msg = state.phase === "planning" ? "Planning: build/upgrade" : "Wave: defend!";
+      ctx.fillText(msg, pad, pad);
+
+      if (state.phase === "wave" && state.activeWave) {
+        const total = state.spawnEvents.length;
+        const spawned = state.spawnCursor;
+        const alive = enemies.filter(e=>!e.dead).length;
+        const text = `Spawned ${spawned}/${total} • Alive ${alive}`;
+        ctx.fillText(text, pad, pad + Math.max(14, cellSize*0.25));
+      }
+      ctx.restore();
+    }
+
+    // ----------------------------
+    // Bootstrap
+    // ----------------------------
+    // roundRect polyfill for older browsers
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+        r = Math.min(r, w/2, h/2);
+        this.beginPath();
+        this.moveTo(x+r, y);
+        this.arcTo(x+w, y, x+w, y+h, r);
+        this.arcTo(x+w, y+h, x, y+h, r);
+        this.arcTo(x, y+h, x, y, r);
+        this.arcTo(x, y, x+w, y, r);
+        this.closePath();
+        return this;
+      };
+    }
+
+    renderShop();
+    resetGame(seed);
+    resize();
+
+    let last = performance.now();
+    function frame(now){
+      const raw = (now - last) / 1000;
+      last = now;
+      const dt = clamp(raw, 0, 0.05);
+      if (!state.paused) update(dt * state.speed);
+      draw();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+  })();
+  </script>
+</body>
+</html>
