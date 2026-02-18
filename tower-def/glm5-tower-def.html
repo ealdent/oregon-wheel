@@ -37,16 +37,25 @@
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            width: 100%;
+            padding: 12px;
         }
 
         #gameContainer {
             position: relative;
             margin: 20px;
+            width: min(100%, 1000px);
         }
 
         #gameCanvas {
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.4), inset 0 0 100px rgba(0,0,0,0.2);
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 5 / 3;
+            touch-action: none;
         }
 
         #topUI {
@@ -329,6 +338,44 @@
 
         .bouncing {
             animation: bounce 0.5s ease infinite;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 8px;
+            }
+
+            #topUI {
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+                padding: 10px;
+            }
+
+            #bottomUI {
+                flex-direction: column;
+            }
+
+            #controlPanel {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .control-btn {
+                flex: 1 1 180px;
+            }
+
+            #upgradePanel {
+                position: fixed;
+                left: 50% !important;
+                top: auto !important;
+                bottom: 10px;
+                transform: translateX(-50%);
+                width: min(94vw, 320px);
+                z-index: 300;
+            }
         }
     </style>
 </head>
@@ -659,8 +706,12 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            canvas.addEventListener('click', handleCanvasClick);
-            canvas.addEventListener('mousemove', handleCanvasHover);
+            canvas.addEventListener('pointerdown', (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                if (e.pointerType === 'touch') e.preventDefault();
+                handleCanvasClick(e);
+            });
+            canvas.addEventListener('pointermove', handleCanvasHover);
             
             document.getElementById('startWaveBtn').addEventListener('click', startWave);
             document.getElementById('speedBtn').addEventListener('click', toggleSpeed);
@@ -673,11 +724,21 @@
             });
         }
 
+        function getCanvasPoint(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
         // Handle canvas click
         function handleCanvasClick(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const point = getCanvasPoint(e);
+            const x = point.x;
+            const y = point.y;
             const gridX = Math.floor(x / TILE_SIZE);
             const gridY = Math.floor(y / TILE_SIZE);
 
@@ -698,9 +759,9 @@
         // Handle canvas hover
         let hoveredTile = null;
         function handleCanvasHover(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const point = getCanvasPoint(e);
+            const x = point.x;
+            const y = point.y;
             const gridX = Math.floor(x / TILE_SIZE);
             const gridY = Math.floor(y / TILE_SIZE);
             

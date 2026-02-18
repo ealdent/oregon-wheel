@@ -3,229 +3,454 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kingdom's Last Stand 🏰</title>
+<title>Candy Kingdom Defense</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+:root{
+  --bg-sky:#d8f3ff;
+  --bg-cloud:#f7fdff;
+  --bg-hill:#b7efc5;
+  --panel:#fffdf6;
+  --panel-2:#fff6e5;
+  --panel-border:#c4dff5;
+  --ink:#2e4e65;
+  --sub:#5f7f93;
+  --accent:#42a9f8;
+  --accent-2:#4fce99;
+  --gold:#f6b51d;
+  --danger:#ff5d6c;
+  --button:#ff8c5a;
+}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#1a1a2e;font-family:'Nunito',sans-serif;overflow:auto;user-select:none;min-height:100vh;width:100%;}
-#app{display:flex;min-height:100vh;width:100%;}
+body{
+  min-height:100vh;
+  width:100%;
+  overflow:hidden;
+  user-select:none;
+  color:var(--ink);
+  font-family:"Avenir Next","Trebuchet MS","Segoe UI",sans-serif;
+  background:
+    radial-gradient(circle at 10% 10%,var(--bg-cloud) 0 8%,transparent 9%),
+    radial-gradient(circle at 80% 18%,var(--bg-cloud) 0 7%,transparent 8%),
+    radial-gradient(circle at 92% 60%,#fff8ef 0 6%,transparent 7%),
+    linear-gradient(180deg,var(--bg-sky),#b8e8ff 42%,var(--bg-hill));
+}
+#app{
+  height:100vh;
+  width:100%;
+  display:flex;
+  gap:12px;
+  padding:12px;
+}
 
 /* SIDEBAR */
 #sidebar{
-  width:270px;min-width:270px;
-  background:linear-gradient(180deg,#0d1117 0%,#161b22 100%);
-  border-right:3px solid #30363d;
-  display:flex;flex-direction:column;
-  overflow-y:auto;overflow-x:hidden;
-  padding:10px;gap:8px;
+  width:310px;
+  min-width:310px;
+  background:linear-gradient(180deg,var(--panel),var(--panel-2));
+  border:2px solid var(--panel-border);
+  border-radius:22px;
+  box-shadow:0 14px 28px rgba(31,91,125,0.18);
+  display:flex;
+  flex-direction:column;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:14px;
+  gap:10px;
 }
-#sidebar::-webkit-scrollbar{width:4px;}
-#sidebar::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;}
+#sidebar::-webkit-scrollbar{width:8px;}
+#sidebar::-webkit-scrollbar-thumb{background:#c7dff1;border-radius:99px;}
 
-.logo{
-  text-align:center;padding:8px 0 4px;
-  font-family:'Fredoka One',cursive;
+.logo{text-align:center;padding:4px 0;}
+.logo-title{
+  font-size:28px;
+  font-weight:900;
+  letter-spacing:0.4px;
+  color:#245677;
+  text-shadow:0 2px 0 rgba(255,255,255,0.75);
 }
-.logo-title{font-size:22px;color:#f0c040;text-shadow:0 2px 8px rgba(240,192,64,0.5);letter-spacing:1px;}
-.logo-sub{font-size:10px;color:#8b949e;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.logo-sub{
+  margin-top:3px;
+  font-size:11px;
+  font-weight:800;
+  color:#5e8099;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+}
 
 .sec-title{
-  font-size:10px;font-weight:800;color:#58a6ff;
-  text-transform:uppercase;letter-spacing:1.5px;
-  padding:4px 2px 4px;border-bottom:1px solid #21262d;
-  margin-top:4px;
+  margin-top:2px;
+  padding:4px 4px 6px;
+  border-bottom:1px dashed #bfd7ea;
+  color:#4d7fa5;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-transform:uppercase;
 }
 
 /* TOWER CARDS */
 .tower-card{
-  background:rgba(255,255,255,0.04);
-  border:2px solid #21262d;border-radius:10px;
-  padding:8px 10px;cursor:pointer;
-  transition:all 0.15s ease;
-  display:flex;align-items:center;gap:10px;
-  position:relative;
+  background:#ffffff;
+  border:2px solid #d5e7f4;
+  border-radius:14px;
+  padding:9px 10px;
+  cursor:pointer;
+  transition:all 0.16s ease;
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
-.tower-card:hover{background:rgba(255,255,255,0.08);border-color:#58a6ff;transform:translateX(2px);}
-.tower-card.selected{background:rgba(88,166,255,0.12);border-color:#58a6ff;}
-.tower-card.no-gold{opacity:0.45;cursor:not-allowed;}
+.tower-card:hover{
+  transform:translateY(-1px);
+  border-color:#8bc5f0;
+  box-shadow:0 7px 16px rgba(66,169,248,0.16);
+}
+.tower-card.selected{
+  border-color:var(--accent);
+  background:#edf8ff;
+}
+.tower-card.no-gold{opacity:0.5;cursor:not-allowed;}
 .t-icon{
-  width:38px;height:38px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;flex-shrink:0;
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  border:1px solid rgba(255,255,255,0.55);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08);
+  flex-shrink:0;
 }
 .t-body{flex:1;min-width:0;}
-.t-name{color:#e6edf3;font-size:12px;font-weight:800;}
+.t-name{color:#315c7a;font-size:12px;font-weight:900;}
 .t-cost{
-  display:inline-block;color:#f0c040;font-size:11px;font-weight:700;
-  background:rgba(240,192,64,0.12);border-radius:4px;padding:0 5px;margin-top:1px;
+  display:inline-block;
+  margin-top:2px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#fff4d5;
+  color:#926200;
+  font-size:11px;
+  font-weight:800;
 }
-.t-desc{color:#8b949e;font-size:10px;margin-top:2px;line-height:1.3;}
+.t-desc{
+  margin-top:3px;
+  color:#64859d;
+  font-size:10px;
+  line-height:1.3;
+}
 
 /* INFO PANEL */
 #infoPanel{
-  background:rgba(0,0,0,0.3);border-radius:10px;
-  padding:10px;border:1px solid #21262d;flex:1;min-height:0;
+  background:#fff;
+  border:2px solid #d5e7f4;
+  border-radius:16px;
+  padding:11px;
+  flex:1;
+  min-height:0;
 }
-#infoTitle{color:#e6edf3;font-size:13px;font-weight:800;margin-bottom:6px;}
-#infoStats{color:#8b949e;font-size:11px;line-height:1.8;}
+#infoTitle{
+  color:#315c7a;
+  font-size:14px;
+  font-weight:900;
+  margin-bottom:7px;
+}
+#infoStats{color:#5f7f93;font-size:11px;line-height:1.8;}
 .stat-row{display:flex;justify-content:space-between;align-items:center;}
-.stat-label{color:#8b949e;}
-.stat-value{color:#58a6ff;font-weight:700;}
-
+.stat-label{color:#62849c;}
+.stat-value{color:#2c90d9;font-weight:800;}
 #upgradeArea{margin-top:8px;}
+
 .upg-btn{
-  width:100%;padding:7px 10px;margin-top:5px;
-  background:linear-gradient(135deg,#7c3aed,#6d28d9);
-  color:white;font-size:11px;font-weight:800;font-family:'Nunito',sans-serif;
-  border:none;border-radius:7px;cursor:pointer;
-  transition:all 0.15s;text-align:left;
+  width:100%;
+  margin-top:5px;
+  padding:8px 10px;
+  background:linear-gradient(135deg,#44b2ff,#2f9bea);
+  color:white;
+  border:none;
+  border-radius:11px;
+  cursor:pointer;
+  text-align:left;
+  font-size:11px;
+  font-weight:900;
+  font-family:inherit;
+  transition:all 0.16s;
 }
-.upg-btn:hover:not(:disabled){filter:brightness(1.15);transform:translateY(-1px);}
-.upg-btn:disabled{background:#21262d;color:#8b949e;cursor:not-allowed;transform:none;}
-.upg-btn .upg-name{font-weight:800;font-size:12px;}
-.upg-btn .upg-detail{font-size:10px;opacity:0.8;}
+.upg-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px);}
+.upg-btn:disabled{
+  background:#ced9e2;
+  color:#6f8698;
+  cursor:not-allowed;
+}
+.upg-btn .upg-name{font-size:12px;font-weight:900;}
+.upg-btn .upg-detail{font-size:10px;opacity:0.9;}
 #sellBtn{
-  width:100%;padding:7px;margin-top:5px;
-  background:linear-gradient(135deg,#dc2626,#b91c1c);
-  color:white;font-size:11px;font-weight:800;font-family:'Nunito',sans-serif;
-  border:none;border-radius:7px;cursor:pointer;transition:all 0.15s;
+  width:100%;
+  margin-top:6px;
+  padding:8px;
+  background:linear-gradient(135deg,#ff6b77,#f24c60);
+  color:white;
+  font-size:11px;
+  font-weight:900;
+  font-family:inherit;
+  border:none;
+  border-radius:11px;
+  cursor:pointer;
+  transition:all 0.16s;
 }
-#sellBtn:hover{filter:brightness(1.15);}
+#sellBtn:hover{filter:brightness(1.08);}
 .max-badge{
-  display:inline-block;background:#f0c040;color:#1a1a2e;
-  font-size:10px;font-weight:800;border-radius:4px;padding:1px 6px;margin-top:5px;
+  display:inline-block;
+  margin-top:5px;
+  padding:2px 7px;
+  border-radius:6px;
+  background:#ffe9a0;
+  color:#835800;
+  font-size:10px;
+  font-weight:900;
 }
 
 /* GAME AREA */
 #gameArea{
-  flex:1;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  gap:8px;padding:8px;
-  background:radial-gradient(ellipse at 50% 50%,#0d1117,#020408);
+  flex:1;
   min-width:0;
+  background:linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0.18));
+  border:2px solid #b9dbef;
+  border-radius:22px;
+  box-shadow:0 14px 28px rgba(31,91,125,0.17);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:12px;
 }
 
 /* TOP BAR */
 #topBar{
-  display:flex;align-items:center;gap:10px;
-  background:#161b22;border-radius:12px;
-  padding:8px 16px;border:2px solid #30363d;
   width:100%;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:linear-gradient(135deg,#ffffff,#eff8ff);
+  border:2px solid #c8e2f2;
+  border-radius:18px;
+  padding:8px 12px;
+  flex-wrap:wrap;
 }
 .hud-stat{
-  display:flex;align-items:center;gap:5px;
-  background:rgba(255,255,255,0.04);border-radius:8px;
-  padding:4px 10px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:5px 10px;
+  border-radius:12px;
+  background:#f4fbff;
+  border:1px solid #d8ebf7;
 }
-.hud-icon{font-size:16px;}
-.hud-label{color:#8b949e;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;}
-.hud-val{color:#e6edf3;font-size:15px;font-weight:800;font-family:'Fredoka One',cursive;}
-.hud-val.gold{color:#f0c040;}
-.hud-val.lives{color:#ef4444;}
-.hud-val.wave{color:#58a6ff;}
+.hud-icon{font-size:17px;}
+.hud-label{
+  color:#7391a5;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+.hud-val{
+  color:#2f607f;
+  font-size:16px;
+  line-height:1;
+  font-weight:900;
+}
+.hud-val.gold{color:#a96d00;}
+.hud-val.lives{color:#d22e47;}
+.hud-val.wave{color:#2c90d9;}
 
 .speed-group{display:flex;gap:4px;margin-left:auto;}
 .spd-btn{
-  padding:5px 11px;background:rgba(255,255,255,0.06);
-  color:#8b949e;font-size:11px;font-weight:800;font-family:'Nunito',sans-serif;
-  border:1px solid #30363d;border-radius:20px;cursor:pointer;transition:all 0.15s;
+  padding:6px 11px;
+  border-radius:999px;
+  border:1px solid #bfd9ed;
+  background:#ffffff;
+  color:#5d7c95;
+  font-size:11px;
+  font-weight:900;
+  font-family:inherit;
+  cursor:pointer;
+  transition:all 0.14s;
 }
-.spd-btn:hover{background:rgba(255,255,255,0.12);color:#e6edf3;}
-.spd-btn.active{background:#58a6ff;border-color:#58a6ff;color:white;}
+.spd-btn:hover{background:#edf7ff;color:#2c607e;}
+.spd-btn.active{
+  background:#39abff;
+  border-color:#39abff;
+  color:#fff;
+}
 
 #waveBtn{
-  padding:8px 20px;
-  background:linear-gradient(135deg,#059669,#047857);
-  color:white;font-size:13px;font-weight:800;font-family:'Nunito',sans-serif;
-  border:none;border-radius:20px;cursor:pointer;
-  box-shadow:0 4px 14px rgba(5,150,105,0.4);
-  transition:all 0.2s;white-space:nowrap;
+  padding:9px 18px;
+  background:linear-gradient(135deg,#ff9967,#ff7f4a);
+  color:white;
+  border:none;
+  border-radius:999px;
+  cursor:pointer;
+  white-space:nowrap;
+  font-size:13px;
+  font-weight:900;
+  font-family:inherit;
+  box-shadow:0 5px 0 #dc6a3d;
+  transition:all 0.14s;
 }
-#waveBtn:hover:not(:disabled){transform:scale(1.05);box-shadow:0 6px 20px rgba(5,150,105,0.5);}
-#waveBtn:disabled{background:#21262d;color:#8b949e;box-shadow:none;cursor:not-allowed;}
+#waveBtn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.04);}
+#waveBtn:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #dc6a3d;}
+#waveBtn:disabled{
+  background:#d5dde4;
+  color:#798ea0;
+  box-shadow:none;
+  cursor:not-allowed;
+}
 
 #waveInfo{
-  color:#8b949e;font-size:11px;text-align:center;
-  background:rgba(88,166,255,0.08);border-radius:6px;padding:3px 8px;
+  color:#5f8094;
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
   white-space:nowrap;
+  padding:4px 9px;
+  border-radius:9px;
+  background:#edf8ff;
+  border:1px dashed #b5d9f1;
 }
 
 /* CANVAS */
 #canvas{
-  border-radius:10px;border:2px solid #30363d;
-  cursor:crosshair;display:block;
-  box-shadow:0 8px 32px rgba(0,0,0,0.6);
-  width:min(100%,960px);max-width:100%;height:auto;
-  aspect-ratio:3 / 2;touch-action:none;
+  width:min(100%,960px);
+  height:auto;
+  aspect-ratio:24 / 16;
+  border-radius:16px;
+  border:2px solid #9cc7e2;
+  cursor:crosshair;
+  display:block;
+  touch-action:none;
+  background:#89d57f;
+  box-shadow:0 14px 26px rgba(23,88,124,0.22);
 }
 
 /* OVERLAYS */
 .overlay{
-  position:fixed;top:0;left:0;right:0;bottom:0;
-  background:rgba(0,0,0,0.85);
-  display:none;align-items:center;justify-content:center;
-  z-index:200;flex-direction:column;gap:16px;
-  backdrop-filter:blur(4px);
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(27,62,84,0.58);
+  backdrop-filter:blur(5px);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:200;
 }
 .overlay.show{display:flex;}
 .ov-card{
-  background:#161b22;border:2px solid #30363d;
-  border-radius:20px;padding:40px;
-  text-align:center;max-width:480px;width:90%;
+  background:linear-gradient(180deg,#ffffff,#f6fbff);
+  border:2px solid #bbdff7;
+  border-radius:26px;
+  box-shadow:0 20px 40px rgba(18,84,120,0.3);
+  padding:34px 32px;
+  text-align:center;
+  max-width:520px;
+  width:92%;
 }
-.ov-emoji{font-size:64px;margin-bottom:8px;}
-.ov-title{font-family:'Fredoka One',cursive;font-size:42px;color:#e6edf3;margin-bottom:8px;}
-.ov-msg{color:#8b949e;font-size:16px;line-height:1.5;margin-bottom:24px;}
+.ov-emoji{font-size:62px;margin-bottom:8px;}
+.ov-title{
+  color:#2e5f80;
+  font-size:42px;
+  font-weight:900;
+  line-height:1;
+  margin-bottom:10px;
+}
+.ov-msg{
+  color:#5a7c92;
+  font-size:16px;
+  line-height:1.5;
+  margin-bottom:22px;
+}
 .ov-btn{
-  padding:14px 40px;font-size:16px;font-weight:800;font-family:'Nunito',sans-serif;
-  background:linear-gradient(135deg,#58a6ff,#1d6ae5);
-  color:white;border:none;border-radius:30px;cursor:pointer;
-  box-shadow:0 4px 20px rgba(88,166,255,0.4);transition:all 0.2s;
+  padding:14px 34px;
+  border:none;
+  border-radius:999px;
+  background:linear-gradient(135deg,#48b2ff,#2f9bea);
+  color:#fff;
+  font-size:16px;
+  font-weight:900;
+  font-family:inherit;
+  cursor:pointer;
+  box-shadow:0 5px 0 #2381c8;
+  transition:all 0.16s;
 }
-.ov-btn:hover{transform:scale(1.05);}
+.ov-btn:hover{filter:brightness(1.05);}
+.ov-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #2381c8;}
 .ov-stat-row{display:flex;justify-content:space-between;margin:4px 0;}
-.ov-stat-lbl{color:#8b949e;font-size:14px;}
-.ov-stat-val{color:#58a6ff;font-weight:800;font-size:14px;}
+.ov-stat-lbl{color:#6788a0;font-size:14px;}
+.ov-stat-val{color:#2c8fd8;font-weight:900;font-size:14px;}
 
 /* WAVE COMPLETE BANNER */
 #waveBanner{
-  position:fixed;top:80px;left:50%;transform:translateX(-50%);
-  background:linear-gradient(135deg,#059669,#047857);
-  color:white;padding:10px 30px;border-radius:30px;
-  font-family:'Fredoka One',cursive;font-size:20px;
-  box-shadow:0 4px 20px rgba(5,150,105,0.5);
-  pointer-events:none;opacity:0;transition:opacity 0.4s;
-  z-index:100;white-space:nowrap;
+  position:fixed;
+  top:82px;
+  left:50%;
+  transform:translateX(-50%);
+  background:linear-gradient(135deg,#4fce99,#2ebc82);
+  color:white;
+  padding:10px 28px;
+  border-radius:999px;
+  font-size:20px;
+  font-weight:900;
+  box-shadow:0 6px 18px rgba(37,162,110,0.4);
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 0.4s;
+  z-index:100;
+  white-space:nowrap;
 }
 #waveBanner.show{opacity:1;}
 
 /* TOOLTIP */
 #tooltip{
-  position:fixed;background:#1c2128;border:1px solid #30363d;
-  border-radius:8px;padding:8px 12px;pointer-events:none;
-  color:#e6edf3;font-size:12px;z-index:300;display:none;max-width:200px;
+  position:fixed;
+  z-index:300;
+  display:none;
+  max-width:220px;
+  background:#ffffff;
+  border:1px solid #bfd7e8;
+  color:#325b76;
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:12px;
+  pointer-events:none;
+  box-shadow:0 8px 20px rgba(37,96,129,0.2);
 }
 
-@media (max-width: 1100px){
-  #app{flex-direction:column;}
-  #sidebar{
-    width:100%;min-width:0;max-height:none;
-    border-right:none;border-bottom:3px solid #30363d;
-    order:2;
+@media (max-width:1220px){
+  body{overflow:auto;}
+  #app{
+    height:auto;
+    min-height:100vh;
+    flex-direction:column;
   }
-  #gameArea{order:1;padding:10px;}
-  #topBar{
-    flex-wrap:wrap;justify-content:center;
-    padding:8px 10px;gap:8px;
+  #sidebar{
+    width:100%;
+    min-width:0;
+    max-height:360px;
   }
   .speed-group{margin-left:0;}
-  #waveInfo{width:100%;}
 }
-
-@media (max-width: 700px){
-  #gameArea{padding:8px;}
+@media (max-width:720px){
+  #app{padding:8px;gap:8px;}
+  #sidebar{padding:10px;border-radius:16px;}
+  #gameArea{padding:8px;border-radius:16px;}
+  #topBar{padding:8px;gap:6px;}
   .hud-stat{padding:4px 8px;}
-  #waveBtn{width:100%;}
+  .logo-title{font-size:24px;}
+  #waveBtn{padding:8px 14px;font-size:12px;}
+  .ov-title{font-size:34px;}
+  .ov-msg{font-size:14px;}
 }
 </style>
 </head>
@@ -234,8 +459,8 @@ body{background:#1a1a2e;font-family:'Nunito',sans-serif;overflow:auto;user-selec
 <div id="app">
   <div id="sidebar">
     <div class="logo">
-      <div class="logo-title">🏰 Last Stand</div>
-      <div class="logo-sub">Kingdom Tower Defense</div>
+      <div class="logo-title">🍬 Candy Kingdom</div>
+      <div class="logo-sub">Cartoon Tower Defense</div>
     </div>
 
     <div class="sec-title">🗼 Build Towers</div>
@@ -243,7 +468,7 @@ body{background:#1a1a2e;font-family:'Nunito',sans-serif;overflow:auto;user-selec
 
     <div class="sec-title">ℹ️ Selected Tower</div>
     <div id="infoPanel">
-      <div id="infoTitle" style="color:#8b949e">Click a cell to place a tower</div>
+      <div id="infoTitle" style="color:#5f8094">Click a grass tile to build a tower</div>
       <div id="infoStats"></div>
       <div id="upgradeArea"></div>
     </div>
@@ -272,7 +497,7 @@ body{background:#1a1a2e;font-family:'Nunito',sans-serif;overflow:auto;user-selec
           <div class="hud-val" id="killVal">0</div>
         </div>
       </div>
-      <div id="waveInfo">Wave 0 / 25</div>
+      <div id="waveInfo">Wave 0 / --</div>
       <div class="speed-group">
         <button class="spd-btn active" id="spd1" onclick="setSpeed(1)">1×</button>
         <button class="spd-btn" id="spd2" onclick="setSpeed(2)">2×</button>
@@ -287,14 +512,14 @@ body{background:#1a1a2e;font-family:'Nunito',sans-serif;overflow:auto;user-selec
 <!-- Start Screen -->
 <div class="overlay show" id="startOverlay">
   <div class="ov-card">
-    <div class="ov-emoji">🏰</div>
-    <div class="ov-title">Kingdom's Last Stand</div>
+    <div class="ov-emoji">🧁</div>
+    <div class="ov-title">Candy Kingdom Defense</div>
     <div class="ov-msg">
       Defend your kingdom with <strong>5 unique towers</strong>, each with 4 upgrades.<br>
-      Survive <strong>25 waves</strong> of increasingly fierce enemies.<br><br>
-      <em style="color:#58a6ff">🖱 Click the grid to place towers · Click towers to upgrade or sell</em>
+      Survive <strong>25 varied waves</strong> of enemies on a <strong>random map every run</strong>.<br><br>
+      <em style="color:#2f9bea">🖱 Build on grass · Select towers to upgrade or sell between waves</em>
     </div>
-    <button class="ov-btn" onclick="closeStartScreen()">⚔️ Begin Campaign</button>
+    <button class="ov-btn" onclick="closeStartScreen()">🎮 Start Defending</button>
   </div>
 </div>
 
@@ -440,6 +665,7 @@ const WAVES = [
   [{t:'boss_troll',n:1, iv:0,    d:0   },{t:'boss_orc',n:1,  iv:0,    d:6000},{t:'dragon',n:4,iv:4000,d:10000}],
   [{t:'boss_troll',n:2, iv:15000,d:0   },{t:'boss_orc',n:2,  iv:8000, d:5000},{t:'dragon',n:5,iv:3500,d:10000},{t:'golem',n:5,iv:3000,d:14000}],
 ];
+const TOTAL_WAVES = WAVES.length;
 
 // ═══════════════════════════════════════════════════════════════
 // GAME STATE
@@ -550,13 +776,10 @@ function init() {
   buildTowerList();
   updateHUD();
   buildInfoPanel(null);
+  document.getElementById('waveInfo').textContent = `Wave 0 / ${TOTAL_WAVES}`;
 
-  canvas.addEventListener('pointerdown', (e) => {
-    if (e.button !== undefined && e.button !== 0) return;
-    if (e.pointerType === 'touch') e.preventDefault();
-    onCanvasClick(e);
-  });
-  canvas.addEventListener('pointermove', onCanvasMove);
+  canvas.addEventListener('click', onCanvasClick);
+  canvas.addEventListener('mousemove', onCanvasMove);
   canvas.addEventListener('mouseleave', () => { hovCell = null; });
 
   requestAnimationFrame(gameLoop);
@@ -578,7 +801,7 @@ function restartGame() {
   document.getElementById('gameOverlay').classList.remove('show');
   document.getElementById('waveBtn').textContent = '▶ Start Wave 1';
   document.getElementById('waveBtn').disabled = false;
-  document.getElementById('waveInfo').textContent = 'Wave 0 / 25';
+  document.getElementById('waveInfo').textContent = `Wave 0 / ${TOTAL_WAVES}`;
   setSpeed(1);
 }
 
@@ -726,7 +949,8 @@ function fireProjectile(tower, tx, ty, target, lv) {
     // fallback target position for cannons
     tx: target.x, ty: target.y,
     // for pierce: direction vector after first hit
-    vx: 0, vy: 0, freefly: false
+    vx: 0, vy: 0, freefly: false,
+    angle: Math.atan2(target.y - ty, target.x - tx)
   });
 }
 
@@ -765,6 +989,7 @@ function updateProjectiles(dt) {
       // Piercing arrow continuing past first target
       p.x += p.vx * p.spd * dt / 1000;
       p.y += p.vy * p.spd * dt / 1000;
+      p.angle = Math.atan2(p.vy, p.vx);
       // check if off screen
       if (p.x < -20 || p.x > CW+20 || p.y < -20 || p.y > CH+20) { p.dead = true; continue; }
       // check hits
@@ -806,6 +1031,7 @@ function updateProjectiles(dt) {
     const dx = target.x - p.x, dy = target.y - p.y;
     const dist = Math.sqrt(dx*dx+dy*dy);
     const mv = p.spd * dt / 1000;
+    p.angle = Math.atan2(dy, dx);
 
     if (dist < mv + target.sz) {
       applyHit(target, p);
@@ -814,6 +1040,7 @@ function updateProjectiles(dt) {
         p.hitIds.add(target.id);
         const len = Math.sqrt(dx*dx+dy*dy) || 1;
         p.vx = dx/len; p.vy = dy/len;
+        p.angle = Math.atan2(p.vy, p.vx);
         p.freefly = true; p.pierce--;
       } else {
         p.dead = true;
@@ -895,7 +1122,7 @@ function startNextWave() {
   const btn = document.getElementById('waveBtn');
   btn.disabled = true;
   btn.textContent = `⚔️ Wave ${waveIdx+1} in progress...`;
-  document.getElementById('waveInfo').textContent = `Wave ${waveIdx+1} / 25`;
+  document.getElementById('waveInfo').textContent = `Wave ${waveIdx+1} / ${TOTAL_WAVES}`;
 }
 
 function updateWave(dt) {
@@ -927,7 +1154,7 @@ function updateWave(dt) {
     const btn = document.getElementById('waveBtn');
     btn.disabled = false;
     btn.textContent = `▶ Start Wave ${waveIdx+1}`;
-    document.getElementById('waveInfo').textContent = `Wave ${waveIdx} ✓ / 25`;
+    document.getElementById('waveInfo').textContent = `Wave ${waveIdx} ✓ / ${TOTAL_WAVES}`;
     updateHUD();
   }
 }
@@ -936,15 +1163,15 @@ function triggerGameOver(won) {
   gameOver = true; waveActive = false;
   const ov = document.getElementById('gameOverlay');
   document.getElementById('ovEmoji').textContent = won ? '🏆' : '💀';
-  document.getElementById('ovTitle').textContent = won ? 'Victory!' : 'Kingdom Fallen';
+  document.getElementById('ovTitle').textContent = won ? 'Sweet Victory!' : 'Kingdom Crushed';
   document.getElementById('ovMsg').innerHTML = won
-    ? `You defended the kingdom through all 25 waves!<br>
+    ? `You defended the kingdom through all ${TOTAL_WAVES} waves!<br>
        <div style="margin-top:12px">
          <div class="ov-stat-row"><span class="ov-stat-lbl">Total Kills</span><span class="ov-stat-val">${kills}</span></div>
          <div class="ov-stat-row"><span class="ov-stat-lbl">Gold Remaining</span><span class="ov-stat-val">${gold} 🪙</span></div>
          <div class="ov-stat-row"><span class="ov-stat-lbl">Lives Remaining</span><span class="ov-stat-val">${lives} ❤️</span></div>
        </div>`
-    : `The kingdom has fallen after wave ${waveIdx}...<br><em style="color:#8b949e">You defeated ${kills} enemies.</em>`;
+    : `The kingdom fell after wave ${waveIdx}...<br><em style="color:#5f8094">You defeated ${kills} enemies.</em>`;
   ov.classList.add('show');
 }
 
@@ -971,41 +1198,48 @@ function drawGrass() {
       const x = c*CELL, y = r*CELL;
 
       if (isPath) {
-        // Dirt road
-        ctx.fillStyle = '#a07850';
+        // Candy dirt road
+        ctx.fillStyle = ((c + r) % 2 === 0) ? '#dec299' : '#d5b587';
         ctx.fillRect(x, y, CELL, CELL);
-        // Road texture
-        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        ctx.fillStyle = 'rgba(120,88,42,0.08)';
         ctx.fillRect(x+2, y+2, CELL-4, CELL-4);
-        // Road edge highlight
-        ctx.strokeStyle = 'rgba(160,120,70,0.5)';
+        ctx.strokeStyle = 'rgba(177,132,74,0.46)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1);
+        if ((c*3 + r*5) % 11 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.28)';
+          ctx.beginPath();
+          ctx.arc(x+10, y+12, 2.2, 0, Math.PI*2);
+          ctx.fill();
+        }
       } else {
-        // Grass with slight variation
-        const shade = ((c+r)%2 === 0) ? '#2d5a27' : '#2a5224';
+        const shade = ((c+r)%2 === 0) ? '#9cdb82' : '#91d679';
         ctx.fillStyle = shade;
         ctx.fillRect(x, y, CELL, CELL);
 
-        // Grid lines
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.strokeStyle = 'rgba(49,110,63,0.18)';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x+0.5, y+0.5, CELL-1, CELL-1);
 
-        // Grass tufts
         if ((c*7+r*13)%11 === 0) {
-          ctx.fillStyle = 'rgba(80,180,60,0.25)';
+          ctx.fillStyle = 'rgba(62,149,55,0.24)';
           ctx.beginPath();
           ctx.arc(x+12, y+22, 4, 0, Math.PI*2);
+          ctx.fill();
+        }
+        if ((c*9 + r*4) % 17 === 0) {
+          ctx.fillStyle = 'rgba(255,244,181,0.78)';
+          ctx.beginPath();
+          ctx.arc(x+27, y+14, 2.5, 0, Math.PI*2);
           ctx.fill();
         }
       }
     }
   }
 
-  // Path arrows (direction indicators)
+  // Path arrows
   if (pathPts.length > 4) {
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
     for (let i = 4; i < pathPts.length; i += 6) {
       const prev = pathPts[i-1], curr = pathPts[i];
       const angle = Math.atan2(curr.y - prev.y, curr.x - prev.x);
@@ -1023,18 +1257,19 @@ function drawGrass() {
 function drawPath() {
   // Start and end markers
   if (pathPts.length) {
-    // Start
     const s = pathPts[0];
-    ctx.fillStyle = '#22c55e';
+    ctx.fillStyle = '#37c68f';
     ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'white'; ctx.font = 'bold 11px Nunito'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('IN', s.x, s.y);
-    // End
+    ctx.fillStyle = 'white';
+    ctx.font = '900 10px "Avenir Next","Trebuchet MS",sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('GO', s.x, s.y);
     const e = pathPts[pathPts.length-1];
-    ctx.fillStyle = '#ef4444';
+    ctx.fillStyle = '#ff6476';
     ctx.beginPath(); ctx.arc(e.x, e.y, 14, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = 'white';
-    ctx.fillText('OUT', e.x, e.y);
+    ctx.fillText('HOME', e.x, e.y);
   }
 }
 
@@ -1049,7 +1284,7 @@ function drawTowers() {
       // Level pips
       if (t.lv > 0) {
         for (let i = 0; i < t.lv; i++) {
-          ctx.fillStyle = '#f0c040';
+          ctx.fillStyle = '#f6b51d';
           ctx.beginPath();
           ctx.arc(x + 6 + i*7, y + CELL - 5, 2.5, 0, Math.PI*2);
           ctx.fill();
@@ -1058,7 +1293,7 @@ function drawTowers() {
 
       // Selected ring
       if (selCell && selCell.col === c && selCell.row === r) {
-        ctx.strokeStyle = '#58a6ff';
+        ctx.strokeStyle = '#2f9bea';
         ctx.lineWidth = 2.5;
         ctx.strokeRect(x+1.5, y+1.5, CELL-3, CELL-3);
       }
@@ -1362,10 +1597,7 @@ function drawProjectiles() {
     } else {
       // Archer arrow
       ctx.save(); ctx.translate(p.x, p.y);
-      const ang = Math.atan2(
-        (p.freefly ? p.vy : 1), (p.freefly ? p.vx : 1)
-      );
-      ctx.rotate(ang);
+      ctx.rotate(p.angle || 0);
       ctx.fillStyle = p.pierce > 0 ? '#f0c040' : '#c4a265';
       ctx.fillRect(-6, -1.5, 12, 3);
       ctx.fillStyle = '#ef4444'; // tip
@@ -1417,15 +1649,15 @@ function drawRangePreview() {
     const hx = hovCell.col*CELL+CELL/2, hy = hovCell.row*CELL+CELL/2;
     const canAfford = gold >= def.cost;
     // Range ring
-    ctx.strokeStyle = canAfford ? 'rgba(88,166,255,0.5)' : 'rgba(239,68,68,0.4)';
-    ctx.fillStyle   = canAfford ? 'rgba(88,166,255,0.06)' : 'rgba(239,68,68,0.05)';
+    ctx.strokeStyle = canAfford ? 'rgba(47,155,234,0.54)' : 'rgba(255,93,108,0.45)';
+    ctx.fillStyle   = canAfford ? 'rgba(47,155,234,0.08)' : 'rgba(255,93,108,0.08)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 4]);
     ctx.beginPath(); ctx.arc(hx, hy, lv.range*CELL, 0, Math.PI*2);
     ctx.fill(); ctx.stroke();
     ctx.setLineDash([]);
     // Cell highlight
-    ctx.fillStyle = canAfford ? 'rgba(88,166,255,0.12)' : 'rgba(239,68,68,0.1)';
+    ctx.fillStyle = canAfford ? 'rgba(47,155,234,0.14)' : 'rgba(255,93,108,0.12)';
     ctx.fillRect(hovCell.col*CELL, hovCell.row*CELL, CELL, CELL);
   }
 
@@ -1435,8 +1667,8 @@ function drawRangePreview() {
     if (t) {
       const def = TDEFS[t.type]; const lv = def.levels[t.lv];
       const sx = selCell.col*CELL+CELL/2, sy = selCell.row*CELL+CELL/2;
-      ctx.strokeStyle = 'rgba(88,166,255,0.6)';
-      ctx.fillStyle   = 'rgba(88,166,255,0.07)';
+      ctx.strokeStyle = 'rgba(47,155,234,0.62)';
+      ctx.fillStyle   = 'rgba(47,155,234,0.10)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);
       ctx.beginPath(); ctx.arc(sx, sy, lv.range*CELL, 0, Math.PI*2);
@@ -1486,14 +1718,14 @@ function buildInfoPanel(tower) {
     const def = TDEFS[selType];
     const lv0 = def.levels[0];
     title.textContent = `${def.emoji} ${def.name}`;
-    title.style.color = '#e6edf3';
+    title.style.color = '#315c7a';
     stats.innerHTML = `
       <div class="stat-row"><span class="stat-label">💢 Damage</span><span class="stat-value">${lv0.dmg}</span></div>
       <div class="stat-row"><span class="stat-label">🎯 Range</span><span class="stat-value">${lv0.range} cells</span></div>
       <div class="stat-row"><span class="stat-label">⚡ Fire Rate</span><span class="stat-value">${(1000/lv0.rate).toFixed(1)}/s</span></div>
       <div class="stat-row"><span class="stat-label">🪙 Cost</span><span class="stat-value">${def.cost} gold</span></div>
-      <div style="margin-top:6px;color:#8b949e;font-size:10px">${lv0.desc}</div>`;
-    upgArea.innerHTML = '<div style="color:#8b949e;font-size:10px;margin-top:4px">Click empty cell to place</div>';
+      <div style="margin-top:6px;color:#5f8094;font-size:10px">${lv0.desc}</div>`;
+    upgArea.innerHTML = '<div style="color:#5f8094;font-size:10px;margin-top:4px">Click empty grass tile to build</div>';
     return;
   }
 
@@ -1506,7 +1738,7 @@ function buildInfoPanel(tower) {
     <div class="stat-row"><span class="stat-label">🎯 Range</span><span class="stat-value">${lv.range} cells</span></div>
     <div class="stat-row"><span class="stat-label">⚡ Fire Rate</span><span class="stat-value">${(1000/lv.rate).toFixed(1)}/s</span></div>
     <div class="stat-row"><span class="stat-label">💰 Invested</span><span class="stat-value">${tower.totalCost} gold</span></div>
-    <div style="margin-top:4px;color:#8b949e;font-size:10px">${lv.desc}</div>`;
+    <div style="margin-top:4px;color:#5f8094;font-size:10px">${lv.desc}</div>`;
 
   upgArea.innerHTML = '';
   if (tower.lv < def.levels.length - 1) {
@@ -1558,20 +1790,13 @@ function setSpeed(s) {
 // ═══════════════════════════════════════════════════════════════
 // INPUT
 // ═══════════════════════════════════════════════════════════════
-function getCanvasPoint(e) {
+function onCanvasClick(e) {
+  if (gameOver) return;
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
-  return {
-    x: (e.clientX - rect.left) * scaleX,
-    y: (e.clientY - rect.top) * scaleY
-  };
-}
-
-function onCanvasClick(e) {
-  if (gameOver) return;
-  const pt = getCanvasPoint(e);
-  const mx = pt.x, my = pt.y;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
   const col = Math.floor(mx / CELL), row = Math.floor(my / CELL);
   if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
 
@@ -1592,8 +1817,11 @@ function onCanvasClick(e) {
 }
 
 function onCanvasMove(e) {
-  const pt = getCanvasPoint(e);
-  const mx = pt.x, my = pt.y;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
   const col = Math.floor(mx / CELL), row = Math.floor(my / CELL);
   if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
     hovCell = {col, row};
