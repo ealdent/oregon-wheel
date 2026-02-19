@@ -28,6 +28,8 @@
             --glow-teal: 0 0 20px rgba(20, 184, 166, 0.6);
             --neon-indigo: #6c5ce7;
             --glow-indigo: 0 0 20px rgba(108, 92, 231, 0.6);
+            --neon-emerald: #10b981;
+            --glow-emerald: 0 0 20px rgba(16, 185, 129, 0.6);
         }
 
         * {
@@ -232,6 +234,11 @@
             box-shadow: var(--glow-indigo), inset 0 0 30px rgba(108, 92, 231, 0.05);
         }
 
+        .game-card:nth-child(9):hover {
+            border-color: var(--neon-emerald);
+            box-shadow: var(--glow-emerald), inset 0 0 30px rgba(16, 185, 129, 0.05);
+        }
+
         .game-card-corner {
             position: absolute;
             width: 20px;
@@ -272,6 +279,10 @@
 
         .game-card:nth-child(8) .game-card-corner {
             border-color: var(--neon-indigo);
+        }
+
+        .game-card:nth-child(9) .game-card-corner {
+            border-color: var(--neon-emerald);
         }
 
         .game-card-icon {
@@ -380,6 +391,16 @@
         .game-card:nth-child(8):hover .launch-badge {
             background: rgba(108, 92, 231, 0.1);
             box-shadow: 0 0 15px rgba(108, 92, 231, 0.3);
+        }
+
+        .game-card:nth-child(9) .launch-badge {
+            border-color: var(--neon-emerald);
+            color: var(--neon-emerald);
+        }
+
+        .game-card:nth-child(9):hover .launch-badge {
+            background: rgba(16, 185, 129, 0.1);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
         }
 
         .footer {
@@ -583,6 +604,16 @@
                 <div class="game-card-icon">◐</div>
                 <h2>Candy Circuit TD</h2>
                 <p>Sweet circuits. Candy towers, pastel paths. No dependencies. Pure vanilla defense.</p>
+                <span class="launch-badge">Launch</span>
+            </a>
+            <a href="gem31pro-tower-def.html" class="game-card">
+                <span class="game-card-corner tl"></span>
+                <span class="game-card-corner tr"></span>
+                <span class="game-card-corner bl"></span>
+                <span class="game-card-corner br"></span>
+                <div class="game-card-icon">🏰</div>
+                <h2>Emoji Tower Defense</h2>
+                <p>Emoji towers on grass and dirt. Place defenses, stop the waves. Defend with style.</p>
                 <span class="launch-badge">Launch</span>
             </a>
         </nav>
