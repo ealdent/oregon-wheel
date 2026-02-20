@@ -19,6 +19,8 @@
             --ocean-light: #3a7a9e;
             --twilight: #4a2c6a;
             --twilight-light: #7b4a9e;
+            --deepsea: #0d4d4d;
+            --deepsea-light: #2a8b8b;
         }
 
         * { box-sizing: border-box; }
@@ -145,6 +147,7 @@
         .badge--forest::before { background: linear-gradient(90deg, var(--forest), var(--forest-light)); }
         .badge--ocean::before { background: linear-gradient(90deg, var(--ocean), var(--ocean-light)); }
         .badge--twilight::before { background: linear-gradient(90deg, var(--twilight), var(--twilight-light)); }
+        .badge--deepsea::before { background: linear-gradient(90deg, var(--deepsea), var(--deepsea-light)); }
 
         .badge-icon {
             width: 56px;
@@ -161,6 +164,7 @@
         .badge--forest .badge-icon { background: linear-gradient(135deg, var(--forest), var(--forest-light)); }
         .badge--ocean .badge-icon { background: linear-gradient(135deg, var(--ocean), var(--ocean-light)); }
         .badge--twilight .badge-icon { background: linear-gradient(135deg, var(--twilight), var(--twilight-light)); }
+        .badge--deepsea .badge-icon { background: linear-gradient(135deg, var(--deepsea), var(--deepsea-light)); }
 
         .badge-title {
             font-family: "Quicksand", sans-serif;
@@ -239,6 +243,13 @@
                 <div class="badge-icon" aria-hidden="true">⛵</div>
                 <h2 class="badge-title">Shattersea Drift</h2>
                 <p class="badge-desc">Sail across the endless seas. Navigate through waves and discover what lies beyond the horizon.</p>
+                <span class="badge-cta">Play now</span>
+            </a>
+
+            <a href="sonnet-4.6-svg-forest.html" class="badge badge--deepsea">
+                <div class="badge-icon" aria-hidden="true">🐙</div>
+                <h2 class="badge-title">Bioluminescent Deep Sea Drift</h2>
+                <p class="badge-desc">Dive into the dark depths. Explore glowing underwater worlds and mysterious sea creatures.</p>
                 <span class="badge-cta">Play now</span>
             </a>
         </nav>

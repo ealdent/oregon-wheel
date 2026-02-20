@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bioluminescent Deep Sea Drift</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #game-container {
+    width: 100vw; height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+  #world-svg {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  #hud {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(100,255,220,0.7);
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(100,255,220,0.9);
+    pointer-events: none;
+  }
+  /* Joystick containers */
+  .joystick-zone {
+    position: absolute;
+    bottom: 30px;
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: rgba(100,255,220,0.06);
+    border: 1.5px solid rgba(100,255,220,0.2);
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none;
+  }
+  #joystick-left  { left: 30px; }
+  #joystick-right { right: 30px; }
+  .joystick-knob {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(100,255,220,0.5), rgba(0,180,140,0.25));
+    border: 1.5px solid rgba(100,255,220,0.5);
+    box-shadow: 0 0 12px rgba(100,255,220,0.4);
+    pointer-events: none;
+    transition: transform 0.05s;
+  }
+  #kb-hint {
+    position: absolute;
+    bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(100,255,220,0.35);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <svg id="world-svg" xmlns="http://www.w3.org/2000/svg">
+    <defs id="svg-defs"></defs>
+    <!-- Sky/ocean background layer -->
+    <rect id="sky-rect" x="0" y="0" width="100%" height="100%"/>
+    <!-- Ground layer -->
+    <rect id="ground-rect" x="0" y="50%" width="100%" height="50%"/>
+    <!-- Caustic light rays group -->
+    <g id="caustic-group"></g>
+    <!-- World objects rendered here (back to front) -->
+    <g id="world-group"></g>
+    <!-- Fog / depth overlay -->
+    <rect id="fog-rect" x="0" y="0" width="100%" height="100%" pointer-events="none"/>
+    <!-- Scan-line atmosphere -->
+    <rect id="vignette-rect" x="0" y="0" width="100%" height="100%" pointer-events="none"/>
+    <!-- Particle group (bubbles) -->
+    <g id="particle-group"></g>
+    <!-- Head-bob anchor (everything in world shifts slightly) -->
+  </svg>
+  <div id="hud">⬡ BIOLUMINESCENT DEEP SEA DRIFT ⬡</div>
+  <div class="joystick-zone" id="joystick-left"><div class="joystick-knob" id="knob-left"></div></div>
+  <div class="joystick-zone" id="joystick-right"><div class="joystick-knob" id="knob-right"></div></div>
+  <div id="kb-hint">WASD / ARROWS · DRAG TO LOOK</div>
+</div>
+<script>
+(function() {
+"use strict";
+
+// ─── SVG NS ───────────────────────────────────────────────────────────────────
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs||{})) el.setAttribute(k, v);
+  return el;
+}
+
+// ─── CANVAS SIZE ──────────────────────────────────────────────────────────────
+let W = window.innerWidth, H = window.innerHeight;
+const svg = document.getElementById('world-svg');
+
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  buildBackground();
+  buildFog();
+}
+
+// ─── BACKGROUND GRADIENT (deep ocean) ────────────────────────────────────────
+function buildBackground() {
+  const defs = document.getElementById('svg-defs');
+  // Sky gradient (water column above horizon)
+  let sg = document.getElementById('grad-sky');
+  if (!sg) { sg = svgEl('linearGradient', {id:'grad-sky', x1:'0',y1:'0',x2:'0',y2:'1'}); defs.appendChild(sg); }
+  sg.innerHTML = `
+    <stop offset="0%" stop-color="#000814"/>
+    <stop offset="40%" stop-color="#001a2e"/>
+    <stop offset="100%" stop-color="#002b4a"/>
+  `;
+  document.getElementById('sky-rect').setAttribute('fill','url(#grad-sky)');
+
+  // Ground gradient (sandy/silt ocean floor)
+  let gg = document.getElementById('grad-ground');
+  if (!gg) { gg = svgEl('linearGradient', {id:'grad-ground', x1:'0',y1:'0',x2:'0',y2:'1'}); defs.appendChild(gg); }
+  gg.innerHTML = `
+    <stop offset="0%" stop-color="#0a1a10"/>
+    <stop offset="50%" stop-color="#061208"/>
+    <stop offset="100%" stop-color="#020a04"/>
+  `;
+  document.getElementById('ground-rect').setAttribute('fill','url(#grad-ground)');
+  document.getElementById('ground-rect').setAttribute('y', H*0.5);
+  document.getElementById('ground-rect').setAttribute('height', H*0.5);
+  document.getElementById('sky-rect').setAttribute('height', H);
+
+  buildCaustics();
+}
+
+// ─── CAUSTIC LIGHT RAYS ───────────────────────────────────────────────────────
+let causticTime = 0;
+const causticCount = 6;
+const causticData = [];
+function buildCaustics() {
+  const grp = document.getElementById('caustic-group');
+  grp.innerHTML = '';
+  for (let i = 0; i < causticCount; i++) {
+    const x = W * (0.1 + i * 0.15 + Math.random()*0.05);
+    const width = 30 + Math.random()*60;
+    const grad = svgEl('linearGradient', {id:`cg${i}`, x1:'0.5',y1:'0',x2:'0.5',y2:'1', gradientUnits:'objectBoundingBox'});
+    grad.innerHTML = `<stop offset="0%" stop-color="rgba(80,200,180,0.18)"/>
+                      <stop offset="100%" stop-color="rgba(80,200,180,0)"/>`;
+    document.getElementById('svg-defs').appendChild(grad);
+    const poly = svgEl('polygon', {fill:`url(#cg${i})`});
+    grp.appendChild(poly);
+    causticData[i] = {x, width, poly, phase: Math.random()*Math.PI*2};
+  }
+}
+function updateCaustics(dt) {
+  causticTime += dt;
+  const hy = H * 0.5;
+  for (let i = 0; i < causticCount; i++) {
+    const c = causticData[i];
+    if (!c) continue;
+    const sway = Math.sin(causticTime*0.4 + c.phase)*20;
+    const px = c.x + sway;
+    const hw = c.width * 0.5;
+    const topW = hw * 0.3;
+    c.poly.setAttribute('points',
+      `${px - topW},0 ${px + topW},0 ${px + hw},${hy} ${px - hw},${hy}`
+    );
+  }
+}
+
+// ─── FOG & VIGNETTE ───────────────────────────────────────────────────────────
+function buildFog() {
+  const defs = document.getElementById('svg-defs');
+  let fg = document.getElementById('grad-fog');
+  if (!fg) { fg = svgEl('radialGradient', {id:'grad-fog', cx:'50%',cy:'50%',r:'70%'}); defs.appendChild(fg); }
+  fg.innerHTML = `<stop offset="0%" stop-color="rgba(0,20,40,0)"/>
+                  <stop offset="100%" stop-color="rgba(0,10,25,0.6)"/>`;
+  document.getElementById('fog-rect').setAttribute('fill','url(#grad-fog)');
+
+  let vg = document.getElementById('grad-vignette');
+  if (!vg) { vg = svgEl('radialGradient', {id:'grad-vignette', cx:'50%',cy:'50%',r:'70%'}); defs.appendChild(vg); }
+  vg.innerHTML = `<stop offset="55%" stop-color="rgba(0,0,0,0)"/>
+                  <stop offset="100%" stop-color="rgba(0,0,0,0.65)"/>`;
+  document.getElementById('vignette-rect').setAttribute('fill','url(#grad-vignette)');
+}
+
+// ─── WORLD DEFINITION ────────────────────────────────────────────────────────
+// Object types:
+// 0: Tube worm cluster (tall, glowing tendrils)
+// 1: Giant mushroom coral (flat cap, bioluminescent rim)
+// 2: Crystalline vent spire (sharp geometric)
+// 3: Jellyfish (floating, transparent bell)
+// 4: Sea anemone (radial tentacles)
+// 5: Bubble cluster (small ambient)
+
+const WORLD_RADIUS = 120; // number of "cells" in world grid
+const CELL_SIZE = 8;      // world units per cell
+const HORIZON_DIST = 60;  // max render distance
+const FOV = Math.PI / 2.2;
+
+// Seeded random for deterministic world
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) & 0x7fffffff;
+    return (s & 0x7fffffff) / 0x7fffffff;
+  };
+}
+
+// Generate world objects
+const worldObjects = [];
+const rng = seededRand(42);
+const objectTypeWeights = [3, 3, 2, 1.5, 2.5, 1]; // relative frequency
+const totalWeight = objectTypeWeights.reduce((a,b)=>a+b,0);
+
+function pickType() {
+  let r = rng() * totalWeight;
+  for (let i=0; i<objectTypeWeights.length; i++) {
+    r -= objectTypeWeights[i];
+    if (r <= 0) return i;
+  }
+  return 0;
+}
+
+// Place objects in world (polar-ish distribution)
+for (let i = 0; i < 900; i++) {
+  const angle = rng() * Math.PI * 2;
+  const dist = 3 + rng() * WORLD_RADIUS * CELL_SIZE;
+  const wx = Math.cos(angle) * dist;
+  const wz = Math.sin(angle) * dist;
+  const type = pickType();
+  const scale = 0.5 + rng() * 1.2;
+  const hueShift = rng() * 0.4 - 0.2; // slight color variation
+  worldObjects.push({ wx, wz, type, scale, hueShift, seed: Math.floor(rng()*10000) });
+}
+
+// ─── PLAYER STATE ─────────────────────────────────────────────────────────────
+const player = {
+  x: 0, z: 0,
+  angle: 0,
+  bobPhase: 0,
+  bobAmt: 0,
+  moveSpeed: 4,
+  turnSpeed: 1.8
+};
+const keys = {};
+let mouseDrag = false, lastMouseX = 0;
+let moveForward = 0, moveTurn = 0; // joystick axes
+
+// ─── OBJECT RENDERING ─────────────────────────────────────────────────────────
+// Project world (x,z) to screen (sx, sy, scale)
+function project(wx, wz) {
+  // Transform to player-relative coords
+  const dx = wx - player.x;
+  const dz = wz - player.z;
+  // Rotate by -player.angle
+  const ca = Math.cos(-player.angle);
+  const sa = Math.sin(-player.angle);
+  const rx = dx*ca - dz*sa;
+  const rz = dx*sa + dz*ca;
+  if (rz <= 0.5) return null; // behind player
+  if (rz > HORIZON_DIST) return null;
+  // Project
+  const screenX = W*0.5 + (rx/rz) * (W * 0.5 / Math.tan(FOV*0.5));
+  const bobY = Math.sin(player.bobPhase) * player.bobAmt * 6;
+  const screenY = H*0.5 + bobY;
+  const scale = (H * 0.55) / rz;
+  const dist = Math.sqrt(dx*dx + dz*dz);
+  const alpha = Math.max(0, 1 - rz/HORIZON_DIST);
+  return { sx: screenX, sy: screenY, scale, dist, rz, alpha };
+}
+
+// Color helpers
+function glowColor(r,g,b,a) { return `rgba(${r},${g},${b},${a})`; }
+
+// ─── OBJECT BUILDERS ──────────────────────────────────────────────────────────
+// Returns an SVG group element for an object
+function buildTubeWorm(scale, hueShift, seed, alpha, proj) {
+  const r = seededRand(seed);
+  const g = svgEl('g', {});
+  const count = 4 + Math.floor(r()*5);
+  const h = 80 * scale;
+  const baseY = proj.sy;
+  const sx = proj.sx;
+  for (let i=0; i<count; i++) {
+    const ox = (r()-0.5) * 30 * scale;
+    const ow = 4 + r()*6;
+    const oh = h * (0.6 + r()*0.5);
+    // Stem
+    const stem = svgEl('path', {
+      d: `M${sx+ox} ${baseY} Q${sx+ox+(r()-0.5)*15*scale} ${baseY-oh*0.5} ${sx+ox+(r()-0.5)*8*scale} ${baseY-oh}`,
+      stroke: glowColor(30,220,160,alpha*0.9),
+      'stroke-width': ow * scale * 0.5,
+      fill: 'none',
+      'stroke-linecap': 'round'
+    });
+    // Feathery tip
+    const tipX = sx+ox+(r()-0.5)*8*scale;
+    const tipY = baseY-oh;
+    const tipR = (8+r()*12)*scale*0.3;
+    const glow = svgEl('circle', {
+      cx: tipX, cy: tipY, r: tipR,
+      fill: glowColor(80,255,200, alpha*0.7),
+      filter: `blur(${2*scale}px)`
+    });
+    // Halo
+    const halo = svgEl('circle', {
+      cx: tipX, cy: tipY, r: tipR*2,
+      fill: glowColor(40,180,140, alpha*0.2)
+    });
+    g.appendChild(halo);
+    g.appendChild(stem);
+    g.appendChild(glow);
+  }
+  return g;
+}
+
+function buildMushroomCoral(scale, hueShift, seed, alpha, proj) {
+  const r = seededRand(seed);
+  const g = svgEl('g', {});
+  const sx = proj.sx, sy = proj.sy;
+  const stemH = 35*scale;
+  const capW = 60*scale;
+  const capH = 22*scale;
+  // Hue variation: shift toward pink/purple
+  const rCol = Math.floor(120 + hueShift*200);
+  const gCol = Math.floor(40 + hueShift*60);
+  const bCol = Math.floor(200 + hueShift*55);
+  // Stem
+  const stem = svgEl('rect', {
+    x: sx-4*scale, y: sy-stemH, width: 8*scale, height: stemH,
+    fill: glowColor(rCol*0.4, gCol*0.4, bCol*0.6, alpha*0.85),
+    rx: 3*scale
+  });
+  // Cap
+  const capGrad = `mcap${seed}`;
+  const defs = document.getElementById('svg-defs');
+  let cg = document.getElementById(capGrad);
+  if (!cg) {
+    cg = svgEl('radialGradient', {id:capGrad, cx:'50%',cy:'60%',r:'55%'});
+    cg.innerHTML = `<stop offset="0%" stop-color="rgba(${rCol},${gCol},${bCol},0.9)"/>
+                    <stop offset="70%" stop-color="rgba(${rCol*0.7|0},${gCol*0.3|0},${bCol*0.8|0},0.7)"/>
+                    <stop offset="100%" stop-color="rgba(${rCol},${gCol},${bCol},0.15)"/>`;
+    defs.appendChild(cg);
+  }
+  const cap = svgEl('ellipse', {
+    cx: sx, cy: sy-stemH, rx: capW, ry: capH,
+    fill: `url(#${capGrad})`,
+    opacity: alpha
+  });
+  // Rim glow
+  const rim = svgEl('ellipse', {
+    cx: sx, cy: sy-stemH, rx: capW+4*scale, ry: capH+2*scale,
+    fill: 'none',
+    stroke: glowColor(rCol, gCol+100, bCol, alpha*0.6),
+    'stroke-width': 2*scale
+  });
+  // Spots
+  for (let i=0; i<5+Math.floor(r()*5); i++) {
+    const spx = sx + (r()-0.5)*capW*1.4;
+    const spy = sy-stemH + (r()-0.5)*capH*1.2;
+    const sr = 3+r()*5;
+    g.appendChild(svgEl('circle', {cx:spx, cy:spy, r:sr*scale*0.4,
+      fill: glowColor(255,200,rCol*0.8|0, alpha*0.5)}));
+  }
+  g.appendChild(stem);
+  g.appendChild(cap);
+  g.appendChild(rim);
+  return g;
+}
+
+function buildVentSpire(scale, hueShift, seed, alpha, proj) {
+  const r = seededRand(seed);
+  const g = svgEl('g', {});
+  const sx = proj.sx, sy = proj.sy;
+  const count = 2 + Math.floor(r()*3);
+  for (let i=0; i<count; i++) {
+    const ox = (r()-0.5)*40*scale;
+    const h = (40+r()*60)*scale;
+    const w = (8+r()*12)*scale;
+    // Crystal facets
+    const pts = [
+      `${sx+ox},${sy-h}`,
+      `${sx+ox-w*0.3},${sy-h*0.6}`,
+      `${sx+ox-w},${sy}`,
+      `${sx+ox+w},${sy}`,
+      `${sx+ox+w*0.3},${sy-h*0.6}`
+    ].join(' ');
+    const lum = 180 + hueShift*50;
+    const crystal = svgEl('polygon', {
+      points: pts,
+      fill: glowColor(20, lum*0.5|0, lum, alpha*0.75),
+      stroke: glowColor(100, 220, 255, alpha*0.8),
+      'stroke-width': 1
+    });
+    // Crack lines
+    const crack = svgEl('line', {
+      x1: sx+ox, y1: sy-h,
+      x2: sx+ox+(r()-0.5)*w, y2: sy,
+      stroke: glowColor(150,240,255, alpha*0.4),
+      'stroke-width': 0.5
+    });
+    // Vent glow at base
+    const vg = svgEl('ellipse', {
+      cx: sx+ox, cy: sy, rx: w*0.6, ry: 4*scale,
+      fill: glowColor(255,80,20, alpha*0.6)
+    });
+    const smoke = svgEl('ellipse', {
+      cx: sx+ox, cy: sy-h*0.8, rx: w*0.3, ry: w*0.2,
+      fill: glowColor(80,80,80, alpha*0.15)
+    });
+    g.appendChild(crystal);
+    g.appendChild(crack);
+    g.appendChild(vg);
+    g.appendChild(smoke);
+  }
+  return g;
+}
+
+function buildJellyfish(scale, hueShift, seed, alpha, proj) {
+  const r = seededRand(seed);
+  const g = svgEl('g', {});
+  const sx = proj.sx;
+  // Jellies float above floor - vary height based on seed
+  const floatY = proj.sy - (30 + r()*60)*scale;
+  const bellW = (25+r()*20)*scale;
+  const bellH = (20+r()*15)*scale;
+  const rr = Math.floor(200+hueShift*55);
+  const gg2 = Math.floor(100+hueShift*100);
+  const bb = Math.floor(220+hueShift*35);
+  // Bell
+  const bellPath = `M${sx-bellW},${floatY} Q${sx-bellW*0.5},${floatY-bellH*1.4} ${sx},${floatY-bellH*1.5} Q${sx+bellW*0.5},${floatY-bellH*1.4} ${sx+bellW},${floatY} Q${sx},${floatY+bellH*0.2} ${sx-bellW},${floatY}`;
+  const bell = svgEl('path', {
+    d: bellPath,
+    fill: glowColor(rr, gg2, bb, alpha*0.35),
+    stroke: glowColor(rr, gg2+30, bb, alpha*0.7),
+    'stroke-width': 1.5
+  });
+  // Inner glow
+  const innerGlow = svgEl('ellipse', {
+    cx: sx, cy: floatY-bellH*0.5, rx: bellW*0.4, ry: bellH*0.4,
+    fill: glowColor(rr, gg2+50, bb, alpha*0.4)
+  });
+  // Tentacles
+  const tentacleCount = 6+Math.floor(r()*6);
+  for (let i=0; i<tentacleCount; i++) {
+    const tx = sx + (i/(tentacleCount-1)-0.5)*bellW*1.6;
+    const tlen = (40+r()*60)*scale;
+    const wave = (r()-0.5)*20*scale;
+    const tent = svgEl('path', {
+      d: `M${tx},${floatY} Q${tx+wave},${floatY+tlen*0.5} ${tx+wave*0.5},${floatY+tlen}`,
+      fill:'none',
+      stroke: glowColor(rr, gg2, bb, alpha*0.45),
+      'stroke-width': 1+r()*1.5
+    });
+    g.appendChild(tent);
+  }
+  g.appendChild(bell);
+  g.appendChild(innerGlow);
+  return g;
+}
+
+function buildAnemone(scale, hueShift, seed, alpha, proj) {
+  const r = seededRand(seed);
+  const g = svgEl('g', {});
+  const sx = proj.sx, sy = proj.sy;
+  const tentCount = 12 + Math.floor(r()*12);
+  const radius = (20+r()*20)*scale;
+  const rr = Math.floor(255*Math.abs(hueShift+0.5));
+  const gg2 = Math.floor(120+hueShift*80);
+  const bb = Math.floor(180+hueShift*75);
+  // Base disc
+  const disc = svgEl('ellipse', {
+    cx: sx, cy: sy, rx: radius*0.7, ry: radius*0.2,
+    fill: glowColor(rr*0.5|0, gg2*0.5|0, bb*0.5|0, alpha*0.8)
+  });
+  g.appendChild(disc);
+  // Tentacles radiate outward
+  for (let i=0; i<tentCount; i++) {
+    const a = (i/tentCount)*Math.PI*2;
+    const baseR = radius*0.2;
+    const tipR = radius;
+    const bx = sx + Math.cos(a)*baseR;
+    const by = sy - Math.sin(a)*baseR*0.3;
+    const tx = sx + Math.cos(a)*tipR;
+    const ty = sy - (radius*0.8) - Math.sin(a)*tipR*0.3;
+    const ctrl1x = bx + Math.cos(a)*tipR*0.3;
+    const ctrl1y = by - (radius*0.5);
+    const tent = svgEl('path', {
+      d: `M${bx},${by} Q${ctrl1x},${ctrl1y} ${tx},${ty}`,
+      fill: 'none',
+      stroke: glowColor(rr, gg2, bb, alpha*0.65),
+      'stroke-width': (1.5+r())*scale*0.5,
+      'stroke-linecap': 'round'
+    });
+    // Bulb tip
+    const bulb = svgEl('circle', {
+      cx: tx, cy: ty, r: (3+r()*3)*scale*0.3,
+      fill: glowColor(255, gg2+50, bb, alpha*0.8)
+    });
+    g.appendChild(tent);
+    g.appendChild(bulb);
+  }
+  return g;
+}
+
+function buildBubbles(scale, hueShift, seed, alpha, proj) {
+  const r = seededRand(seed);
+  const g = svgEl('g', {});
+  const sx = proj.sx, sy = proj.sy;
+  const count = 3+Math.floor(r()*5);
+  for (let i=0; i<count; i++) {
+    const bx = sx + (r()-0.5)*30*scale;
+    const by = sy - r()*80*scale;
+    const br = (2+r()*8)*scale*0.4;
+    const bubble = svgEl('circle', {
+      cx: bx, cy: by, r: br,
+      fill: glowColor(100,220,255, alpha*0.12),
+      stroke: glowColor(150,240,255, alpha*0.5),
+      'stroke-width': 0.5
+    });
+    g.appendChild(bubble);
+  }
+  return g;
+}
+
+const builders = [
+  buildTubeWorm,
+  buildMushroomCoral,
+  buildVentSpire,
+  buildJellyfish,
+  buildAnemone,
+  buildBubbles
+];
+
+// ─── AMBIENT PARTICLES (bubbles) ──────────────────────────────────────────────
+const ambientBubbles = [];
+for (let i=0; i<40; i++) {
+  ambientBubbles.push({
+    x: (Math.random()-0.5)*8,  // offset from player
+    z: Math.random()*30+2,
+    oy: Math.random()*H,
+    vy: -(0.3+Math.random()*0.8),
+    r: 1.5+Math.random()*4,
+    phase: Math.random()*Math.PI*2
+  });
+}
+
+function updateAmbientBubbles(dt) {
+  const grp = document.getElementById('particle-group');
+  grp.innerHTML = '';
+  for (const b of ambientBubbles) {
+    b.oy += b.vy * dt * 60;
+    b.phase += dt * 1.5;
+    if (b.oy < -20) {
+      b.oy = H + 20;
+      b.x = (Math.random()-0.5)*8;
+      b.z = Math.random()*30+2;
+    }
+    const proj = project(player.x + b.x, player.z + b.z);
+    if (!proj) continue;
+    const sx = proj.sx + Math.sin(b.phase)*8;
+    const sy = b.oy; // screen-space Y drift
+    const sr = b.r * proj.scale * 0.08;
+    if (sr < 0.5) continue;
+    const el = svgEl('circle', {
+      cx: sx, cy: sy, r: sr,
+      fill: glowColor(120,230,255, proj.alpha*0.18),
+      stroke: glowColor(180,240,255, proj.alpha*0.5),
+      'stroke-width': 0.5
+    });
+    grp.appendChild(el);
+  }
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+let renderTime = 0;
+
+function render(dt) {
+  renderTime += dt;
+  const grp = document.getElementById('world-group');
+  grp.innerHTML = '';
+
+  // Sort objects by distance (back to front)
+  const visible = [];
+  for (const obj of worldObjects) {
+    const proj = project(obj.wx, obj.wz);
+    if (!proj) continue;
+    // Cull if off screen horizontally (with margin)
+    if (proj.sx < -200 || proj.sx > W+200) continue;
+    visible.push({obj, proj});
+  }
+  visible.sort((a,b) => b.proj.rz - a.proj.rz);
+
+  for (const {obj, proj} of visible) {
+    const el = builders[obj.type](obj.scale, obj.hueShift, obj.seed, proj.alpha, proj);
+    if (el) grp.appendChild(el);
+  }
+
+  updateAmbientBubbles(dt);
+  updateCaustics(dt);
+}
+
+// ─── GAME LOOP ────────────────────────────────────────────────────────────────
+let lastTime = 0;
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  // Keyboard input
+  let kFwd = 0, kTurn = 0;
+  if (keys['ArrowUp']   || keys['w'] || keys['W']) kFwd  =  1;
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) kFwd  = -1;
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) kTurn = -1;
+  if (keys['ArrowRight']|| keys['d'] || keys['D']) kTurn =  1;
+
+  // Combine keyboard + joystick
+  const fwd   = kFwd   || moveForward;
+  const turn  = kTurn  || moveTurn;
+
+  const moving = Math.abs(fwd) > 0.01;
+
+  // Update player
+  player.angle += turn * player.turnSpeed * dt;
+  player.x += Math.sin(player.angle) * fwd * player.moveSpeed * dt;
+  player.z += Math.cos(player.angle) * fwd * player.moveSpeed * dt;
+
+  // Head bob
+  if (moving) {
+    player.bobPhase += dt * 6;
+    player.bobAmt = Math.min(player.bobAmt + dt*4, 1);
+  } else {
+    player.bobAmt = Math.max(player.bobAmt - dt*3, 0);
+  }
+
+  render(dt);
+  requestAnimationFrame(gameLoop);
+}
+
+// ─── INPUT: KEYBOARD ──────────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ─── INPUT: MOUSE DRAG ────────────────────────────────────────────────────────
+const container = document.getElementById('game-container');
+container.addEventListener('mousedown', e => {
+  // Only if not on joystick
+  if (e.target.closest('.joystick-zone')) return;
+  mouseDrag = true;
+  lastMouseX = e.clientX;
+});
+window.addEventListener('mousemove', e => {
+  if (!mouseDrag) return;
+  const dx = e.clientX - lastMouseX;
+  player.angle += dx * 0.003;
+  lastMouseX = e.clientX;
+});
+window.addEventListener('mouseup', () => { mouseDrag = false; });
+
+// ─── INPUT: VIRTUAL JOYSTICKS ─────────────────────────────────────────────────
+function makeJoystick(zoneId, knobId, onMove) {
+  const zone = document.getElementById(zoneId);
+  const knob = document.getElementById(knobId);
+  const maxR = 33;
+  let active = false;
+  let touchId = null;
+  let originX = 0, originY = 0;
+
+  function getCenter() {
+    const r = zone.getBoundingClientRect();
+    return { cx: r.left + r.width/2, cy: r.top + r.height/2 };
+  }
+
+  function handleStart(clientX, clientY, id) {
+    active = true;
+    touchId = id;
+    const c = getCenter();
+    originX = c.cx;
+    originY = c.cy;
+    handleMove(clientX, clientY);
+  }
+
+  function handleMove(clientX, clientY) {
+    if (!active) return;
+    let dx = clientX - originX;
+    let dy = clientY - originY;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist > maxR) { dx = dx/dist*maxR; dy = dy/dist*maxR; }
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    onMove(dx/maxR, dy/maxR);
+  }
+
+  function handleEnd() {
+    active = false;
+    touchId = null;
+    knob.style.transform = '';
+    onMove(0, 0);
+  }
+
+  zone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    handleStart(t.clientX, t.clientY, t.identifier);
+  }, {passive:false});
+
+  // Listen on window for move/end to handle dragging outside zone
+  window.addEventListener('touchmove', e => {
+    if (!active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === touchId) {
+        e.preventDefault();
+        handleMove(t.clientX, t.clientY);
+        break;
+      }
+    }
+  }, {passive:false});
+
+  window.addEventListener('touchend', e => {
+    if (!active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === touchId) { handleEnd(); break; }
+    }
+  });
+  window.addEventListener('touchcancel', e => {
+    if (!active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === touchId) { handleEnd(); break; }
+    }
+  });
+}
+
+makeJoystick('joystick-left',  'knob-left',  (x, y) => { moveForward = -y; });
+makeJoystick('joystick-right', 'knob-right', (x, y) => { moveTurn    =  x; });
+
+// Prevent all default touch behaviors on the game container
+container.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
+container.addEventListener('touchmove',  e => e.preventDefault(), {passive:false});
+
+// ─── RESIZE ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resize);
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+resize();
+requestAnimationFrame(ts => {
+  lastTime = ts;
+  requestAnimationFrame(gameLoop);
+});
+
+})();
+</script>
+</body>
+</html>
