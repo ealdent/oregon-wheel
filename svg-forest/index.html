@@ -3,128 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG Forest — Haunted Forest 3D</title>
+    <title>SVG Adventure — Choose Your Quest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --ink: #1a1520;
+            --cream: #f5f0e8;
+            --gold: #e8b84a;
+            --gold-dim: #c9a03d;
+            --forest: #2d5a3d;
+            --forest-light: #4a8b5e;
+            --ocean: #1e4d6b;
+            --ocean-light: #3a7a9e;
+            --twilight: #4a2c6a;
+            --twilight-light: #7b4a9e;
+        }
+
         * { box-sizing: border-box; }
         html {
             -webkit-text-size-adjust: 100%;
+            scroll-behavior: smooth;
         }
+
         body {
             margin: 0;
-            padding: clamp(1rem, 5vw, 2rem);
-            padding-left: max(clamp(1rem, 5vw, 2rem), env(safe-area-inset-left));
-            padding-right: max(clamp(1rem, 5vw, 2rem), env(safe-area-inset-right));
-            padding-bottom: max(clamp(1rem, 5vw, 2rem), env(safe-area-inset-bottom));
-            font-family: Georgia, serif;
-            background: #1a0f2e;
-            color: #bfa1db;
-            line-height: 1.6;
-            max-width: 640px;
-            margin: 0 auto;
             min-height: 100vh;
-            overflow-wrap: break-word;
+            font-family: "Crimson Text", Georgia, serif;
+            background: linear-gradient(165deg, #d4e4f0 0%, #e8dcc8 35%, #f0e6d8 100%);
+            color: var(--ink);
+            line-height: 1.6;
+            overflow-x: hidden;
         }
-        h1 {
-            color: #e6d4f5;
-            font-size: clamp(1.5rem, 5vw, 1.75rem);
-            margin-bottom: 0.5rem;
+
+        /* Decorative sky/stars */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.5) 50%, transparent),
+                radial-gradient(2px 2px at 60% 70%, rgba(255,255,255,0.4) 50%, transparent),
+                radial-gradient(2px 2px at 80% 20%, rgba(255,255,255,0.5) 50%, transparent),
+                radial-gradient(2px 2px at 40% 80%, rgba(255,255,255,0.3) 50%, transparent);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.6;
         }
-        .subtitle {
-            color: #8b7a9e;
-            font-size: clamp(0.875rem, 2.5vw, 0.95rem);
-            margin-bottom: 2rem;
+
+        .page {
+            position: relative;
+            z-index: 1;
+            padding: clamp(1.5rem, 5vw, 3rem);
+            padding-left: max(clamp(1.5rem, 5vw, 3rem), env(safe-area-inset-left));
+            padding-right: max(clamp(1.5rem, 5vw, 3rem), env(safe-area-inset-right));
+            padding-bottom: max(clamp(1.5rem, 5vw, 3rem), env(safe-area-inset-bottom));
+            max-width: 900px;
+            margin: 0 auto;
         }
-        a {
-            color: #39ff14;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .play-link {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background: #2c1d3b;
-            border: 2px solid #5c3a82;
-            border-radius: 8px;
-            color: #e6d4f5;
-            font-weight: bold;
-            margin-bottom: 2rem;
-            transition: background 0.2s;
-            width: 100%;
+
+        header {
             text-align: center;
+            margin-bottom: clamp(2rem, 6vw, 3.5rem);
         }
-        @media (min-width: 400px) {
-            .play-link {
-                width: auto;
-            }
+
+        .logo {
+            font-family: "Quicksand", sans-serif;
+            font-weight: 700;
+            font-size: clamp(2rem, 8vw, 3rem);
+            color: var(--ink);
+            margin: 0;
+            padding: 0.5rem 0;
+            letter-spacing: 0.02em;
+            text-shadow: 2px 2px 0 rgba(255,255,255,0.5);
         }
-        .play-link:hover {
-            background: #3d2655;
+
+        .logo-icon {
+            font-size: 2rem;
+            margin: 0 0 0.5rem;
+            opacity: 0.8;
+        }
+
+        .tagline {
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            color: var(--twilight);
+            font-style: italic;
+            margin: 0.25rem 0 0;
+            max-width: 28ch;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .badge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+            gap: clamp(1.25rem, 4vw, 2rem);
+            padding: 0;
+        }
+
+        .badge {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            background: var(--cream);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow:
+                0 4px 6px rgba(0,0,0,0.08),
+                0 1px 3px rgba(0,0,0,0.06),
+                inset 0 1px 0 rgba(255,255,255,0.9);
+            border: 2px solid rgba(255,255,255,0.8);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .badge::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            border-radius: 18px 18px 0 0;
+        }
+
+        .badge:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 12px 24px rgba(0,0,0,0.12),
+                0 4px 8px rgba(0,0,0,0.08),
+                inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+
+        .badge:active {
+            transform: translateY(-1px);
+        }
+
+        /* Badge variants */
+        .badge--forest::before { background: linear-gradient(90deg, var(--forest), var(--forest-light)); }
+        .badge--ocean::before { background: linear-gradient(90deg, var(--ocean), var(--ocean-light)); }
+        .badge--twilight::before { background: linear-gradient(90deg, var(--twilight), var(--twilight-light)); }
+
+        .badge-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 0.75rem;
+            line-height: 1;
+        }
+
+        .badge--forest .badge-icon { background: linear-gradient(135deg, var(--forest), var(--forest-light)); }
+        .badge--ocean .badge-icon { background: linear-gradient(135deg, var(--ocean), var(--ocean-light)); }
+        .badge--twilight .badge-icon { background: linear-gradient(135deg, var(--twilight), var(--twilight-light)); }
+
+        .badge-title {
+            font-family: "Quicksand", sans-serif;
+            font-weight: 600;
+            font-size: 1.25rem;
+            margin: 0 0 0.35rem;
+            color: var(--ink);
+        }
+
+        .badge-desc {
+            font-size: 0.95rem;
+            color: #4a4a4a;
+            margin: 0 0 1rem;
+            line-height: 1.5;
+        }
+
+        .badge-cta {
+            font-family: "Quicksand", sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--gold-dim);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .badge:hover .badge-cta {
+            color: var(--gold);
+        }
+
+        .badge-cta::after {
+            content: "→";
+            transition: transform 0.2s ease;
+        }
+
+        .badge:hover .badge-cta::after {
+            transform: translateX(4px);
+        }
+
+        footer {
+            margin-top: clamp(2.5rem, 8vw, 4rem);
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(0,0,0,0.08);
+            text-align: center;
+            font-size: 0.9rem;
+            color: #5a5a5a;
+        }
+
+        footer a {
+            color: var(--ocean);
             text-decoration: none;
         }
-        h2 {
-            color: #d4c4e8;
-            font-size: clamp(1rem, 3vw, 1.1rem);
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-        ul {
-            padding-left: 1.25rem;
-            margin: 0.5rem 0;
-        }
-        li {
-            margin-bottom: 0.25rem;
-        }
-        code {
-            background: rgba(0,0,0,0.3);
-            padding: 0.1em 0.4em;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        footer {
-            margin-top: 2.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid #3d2655;
-            font-size: 0.85rem;
-            color: #6b5b7e;
+
+        footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <h1>SVG Forest</h1>
-    <p class="subtitle">A haunted forest exploration game built entirely with SVG</p>
+    <div class="page">
+        <header>
+            <p class="logo-icon" aria-hidden="true">🗺️</p>
+            <h1 class="logo">SVG Adventure</h1>
+            <p class="tagline">Choose your quest. Each adventure awaits.</p>
+        </header>
 
-    <a href="svg-forest.html" class="play-link">▶ Play Haunted Forest 3D</a>
+        <nav class="badge-grid" aria-label="Game selection">
+            <a href="svg-forest.html" class="badge badge--forest">
+                <div class="badge-icon" aria-hidden="true">🌲</div>
+                <h2 class="badge-title">Haunted Forest 3D</h2>
+                <p class="badge-desc">Wander through spooky woods in first-person. Endless procedurally generated trees and glowing mushrooms.</p>
+                <span class="badge-cta">Play now</span>
+            </a>
 
-    <h2>About</h2>
-    <p>
-        Explore an endless, procedurally generated haunted forest in first-person perspective. Wander through spooky woods filled with twisted trees and glowing mushrooms. The world extends infinitely in all directions—there’s always more to discover.
-    </p>
+            <a href="gpt-5.3-codex-xhigh-svg-forest.html" class="badge badge--ocean">
+                <div class="badge-icon" aria-hidden="true">⛵</div>
+                <h2 class="badge-title">Shattersea Drift</h2>
+                <p class="badge-desc">Sail across the endless seas. Navigate through waves and discover what lies beyond the horizon.</p>
+                <span class="badge-cta">Play now</span>
+            </a>
+        </nav>
 
-    <h2>Controls</h2>
-    <ul>
-        <li><strong>Walk:</strong> <code>W</code> / <code>S</code> to move forward and backward</li>
-        <li><strong>Turn:</strong> <code>A</code> / <code>D</code> or click and drag with the mouse</li>
-        <li>Arrow keys also work for movement and turning</li>
-    </ul>
-
-    <h2>Features</h2>
-    <ul>
-        <li>First-person 3D perspective (fake 3D via SVG projection)</li>
-        <li>Infinite procedurally generated forest</li>
-        <li>Spooky trees and glowing mushrooms</li>
-        <li>Pure SVG—no canvas, no external libraries</li>
-        <li>Works on desktop and mobile</li>
-    </ul>
-
-    <h2>Tech</h2>
-    <p>
-        Built with vanilla HTML, CSS, and JavaScript. Uses perspective projection math to render a 3D-style view with SVG elements. New chunks of the world are generated as you explore. No build step, no dependencies—just open the file and play.
-    </p>
-
-    <footer>
-        Part of the <a href="..">oregon-wheel</a> collection.
-    </footer>
+        <footer>
+            Part of the <a href="..">oregon-wheel</a> collection. All games built with pure SVG—no canvas, no plugins.
+        </footer>
+    </div>
 </body>
 </html>
