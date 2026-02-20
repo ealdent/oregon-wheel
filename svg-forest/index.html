@@ -24,6 +24,8 @@
             --deepsea-light: #34a7b8;
             --cavern: #24513f;
             --cavern-light: #4da67d;
+            --fungi: #2b4f7a;
+            --fungi-light: #56a5d9;
         }
 
         * { box-sizing: border-box; }
@@ -235,11 +237,13 @@
         .badge--ocean::after { background: linear-gradient(90deg, var(--ocean), var(--ocean-light)); }
         .badge--deepsea::after { background: linear-gradient(90deg, var(--deepsea), var(--deepsea-light)); }
         .badge--cavern::after { background: linear-gradient(90deg, var(--cavern), var(--cavern-light)); }
+        .badge--fungi::after { background: linear-gradient(90deg, var(--fungi), var(--fungi-light)); }
 
         .badge--forest .badge-icon { background: linear-gradient(135deg, var(--forest), var(--forest-light)); }
         .badge--ocean .badge-icon { background: linear-gradient(135deg, var(--ocean), var(--ocean-light)); }
         .badge--deepsea .badge-icon { background: linear-gradient(135deg, var(--deepsea), var(--deepsea-light)); }
         .badge--cavern .badge-icon { background: linear-gradient(135deg, var(--cavern), var(--cavern-light)); }
+        .badge--fungi .badge-icon { background: linear-gradient(135deg, var(--fungi), var(--fungi-light)); }
 
         footer {
             margin-top: clamp(2rem, 6vw, 3rem);
@@ -307,6 +311,14 @@
                 <div class="badge-icon" aria-hidden="true">💎</div>
                 <h2 class="badge-title">Luminous Depths</h2>
                 <p class="badge-desc">Explore bioluminescent caverns. Discover glowing caves and hidden underground wonders.</p>
+                <span class="badge-cta">Play now</span>
+            </a>
+
+            <a href="gemini-3.1-pro-svg-forest.html" class="badge badge--fungi">
+                <span class="badge-ribbon">Mystic Grove</span>
+                <div class="badge-icon" aria-hidden="true">🍄</div>
+                <h2 class="badge-title">Bioluminescent Fungi Forest</h2>
+                <p class="badge-desc">Roam a glowing mushroom forest lit by magical spores and otherworldly neon flora.</p>
                 <span class="badge-cta">Play now</span>
             </a>
         </nav>
