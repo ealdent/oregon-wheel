@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D FPS Tower Defense - Fixed</title>
+    <title>3D FPS Tower Defense</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #000; font-family: 'Segoe UI', sans-serif;
+            background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden; user-select: none;
         }
 
@@ -18,24 +18,23 @@
             pointer-events: none;
         }
 
-        /* Center Crosshair */
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 4px; height: 4px; background: #fff;
+            width: 8px; height: 8px; background: white;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 4px #000; border-radius: 50%;
-            z-index: 10;
+            box-shadow: 0 0 5px rgba(0,0,0,0.8); border-radius: 50%;
+            z-index: 10; transition: background 0.1s;
         }
 
         .hud-panel {
-            background: rgba(20, 20, 20, 0.85); color: white;
-            padding: 15px; border-radius: 8px; border: 1px solid #444;
+            background: rgba(20, 25, 30, 0.85); color: white;
+            padding: 15px 25px; border-radius: 12px; border: 1px solid #444;
             pointer-events: auto; text-shadow: 1px 1px 0 #000;
         }
 
         #stats-hud {
             position: absolute; top: 20px; left: 20px;
-            font-size: 18px; font-weight: bold;
+            font-size: 20px; font-weight: bold;
         }
         .stat-val { color: #55efc4; }
         .stat-danger { color: #ff7675; }
@@ -43,33 +42,36 @@
         #tool-hud {
             position: absolute; bottom: 20px; left: 50%;
             transform: translateX(-50%);
-            display: flex; gap: 10px;
+            display: flex; gap: 12px;
         }
 
         .tool-btn {
-            padding: 10px; border-radius: 6px; border: 2px solid #555;
-            background: rgba(0,0,0,0.7); color: white;
-            text-align: center; font-size: 14px; transition: 0.1s;
+            padding: 12px; border-radius: 8px; border: 2px solid #555;
+            background: rgba(0,0,0,0.8); color: white;
+            text-align: center; font-size: 15px; font-weight: bold; transition: 0.1s;
         }
-        .tool-btn.active { border-color: #0984e3; background: rgba(9, 132, 227, 0.3); transform: scale(1.05); }
+        .tool-btn.active { border-color: #0984e3; background: rgba(9, 132, 227, 0.4); transform: translateY(-5px); }
+        .tool-cost { display: block; font-size: 13px; font-weight: normal; margin-top: 4px; }
 
         #target-hud {
             position: absolute; top: 55%; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); color: white; padding: 8px 16px;
-            border-radius: 4px; font-size: 14px; display: none; text-align: center;
+            background: rgba(0,0,0,0.9); color: white; padding: 10px 20px;
+            border-radius: 8px; font-size: 16px; display: none; text-align: center;
+            border: 1px solid #555;
         }
 
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.8); display: flex; flex-direction: column;
+            background: rgba(15, 20, 25, 0.9); display: flex; flex-direction: column;
             justify-content: center; align-items: center; color: white; pointer-events: auto; z-index: 20;
         }
 
         button.start-btn {
-            background: #0984e3; color: white; padding: 15px 30px; border: none;
-            border-radius: 4px; font-size: 20px; cursor: pointer; font-weight: bold;
+            background: #00b894; color: white; padding: 15px 40px; border: none;
+            border-radius: 30px; font-size: 22px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 5px 0 #008f73; transition: 0.1s;
         }
-        button.start-btn:hover { background: #74b9ff; }
+        button.start-btn:active { transform: translateY(5px); box-shadow: none; }
     </style>
 </head>
 <body>
@@ -83,60 +85,59 @@
         Wave: <span id="ui-wave" class="stat-val">1</span> |
         Lives: <span id="ui-lives" class="stat-danger">20</span> |
         Money: <span id="ui-money" class="stat-val">$150</span>
-        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">
-            [WASD] Move | [Mouse] Look | [Space] Start Wave<br>
-            [Left Click] Build | [Q] Upgrade | [F] Sell
+        <div style="font-size: 13px; color: #aaa; margin-top: 8px; font-weight: normal;">
+            <b>[WASD]</b> Walk | <b>[Mouse]</b> Look | <b>[Space]</b> Next Wave<br>
+            <b>[Left Click]</b> Build | <b>[Q]</b> Upgrade | <b>[F]</b> Sell
         </div>
     </div>
 
-    <div id="target-hud">Target</div>
+    <div id="target-hud"></div>
 
     <div id="tool-hud">
-        <div class="tool-btn active" id="tool-1">[1] Pea Cannon<br><span style="color:#55efc4">$50</span></div>
-        <div class="tool-btn" id="tool-2">[2] Sniper<br><span style="color:#55efc4">$120</span></div>
-        <div class="tool-btn" id="tool-3">[3] Blaster<br><span style="color:#55efc4">$200</span></div>
-        <div class="tool-btn" id="tool-4">[4] Frost<br><span style="color:#55efc4">$150</span></div>
-        <div class="tool-btn" id="tool-5">[5] Bomb<br><span style="color:#55efc4">$250</span></div>
+        <div class="tool-btn active" id="tool-1">[1] Pea Cannon<span class="tool-cost" style="color:#fab1a0">$50</span></div>
+        <div class="tool-btn" id="tool-2">[2] Sniper<span class="tool-cost" style="color:#00b894">$120</span></div>
+        <div class="tool-btn" id="tool-3">[3] Blaster<span class="tool-cost" style="color:#fdcb6e">$200</span></div>
+        <div class="tool-btn" id="tool-4">[4] Frost<span class="tool-cost" style="color:#74b9ff">$150</span></div>
+        <div class="tool-btn" id="tool-5">[5] Bomb<span class="tool-cost" style="color:#ff7675">$250</span></div>
     </div>
 </div>
 
 <div id="start-screen">
-    <h1 style="color: #55efc4; font-size: 48px; margin-bottom: 10px;">3D FPS Defense</h1>
-    <p style="font-size: 18px; margin-bottom: 30px;">Solid polygons, working crosshair, and a minimap.</p>
-    <button class="start-btn" id="btn-start">Click to Enter</button>
+    <h1 style="color: #55efc4; font-size: 54px; margin-bottom: 10px;">3D FPS Defense</h1>
+    <p style="font-size: 20px; margin-bottom: 40px;">Look around, build mazes, and survive.</p>
+    <button class="start-btn" id="btn-start">Click to Play</button>
 </div>
 
 <script>
 /**
- * 3D POLYGON FPS TOWER DEFENSE
+ * 3D POLYGON FPS TOWER DEFENSE - FIXED ENGINE
  */
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 let cw, ch;
 
-// Game Config
+// Game Configuration
 const COLS = 16, ROWS = 16;
 const TOWER_TYPES = {
     1: { name: "Pea Cannon", color: '#fab1a0', cost: 50,  range: 3.5, dmg: 10, rate: 30, type: 'norm', pSpd: 0.3 },
     2: { name: "Sniper",     color: '#00b894', cost: 120, range: 7.0, dmg: 50, rate: 90, type: 'norm', pSpd: 0.6 },
     3: { name: "Blaster",    color: '#fdcb6e', cost: 200, range: 3.0, dmg: 4,  rate: 5,  type: 'norm', pSpd: 0.4 },
-    4: { name: "Frost",      color: '#74b9ff', cost: 150, range: 3.0, dmg: 2,  rate: 40, type: 'slow', pSpd: 0.3 },
-    5: { name: "Bomb",       color: '#ff7675', cost: 250, range: 4.0, dmg: 30, rate: 80, type: 'aoe',  pSpd: 0.2 }
+    4: { name: "Frost Gem",  color: '#74b9ff', cost: 150, range: 3.0, dmg: 2,  rate: 40, type: 'slow', pSpd: 0.3 },
+    5: { name: "Bomb Tower", color: '#ff7675', cost: 250, range: 4.0, dmg: 30, rate: 80, type: 'aoe',  pSpd: 0.2 }
 };
 
 // Player & Engine State
-let cam = { x: 8, y: 1.5, z: -2, pitch: 0, yaw: 0 };
+let cam = { x: 8, y: 1.5, z: -2, pitch: -0.2, yaw: 0 };
 let keys = {};
 let isLocked = false;
-let frames = 0;
 
 let gs = {
     money: 150, lives: 20, wave: 1, inWave: false,
     map: [], path: [], towers: [], enemies: [], projectiles: [],
     selTool: 1, targetX: -1, targetZ: -1,
     waveQueue: [], waveTimer: 0,
-    polygons: [] // 3D Render buffer
+    polygons: []
 };
 
 // UI Elements
@@ -144,14 +145,15 @@ const ui = {
     money: document.getElementById('ui-money'),
     lives: document.getElementById('ui-lives'),
     wave: document.getElementById('ui-wave'),
-    target: document.getElementById('target-hud')
+    target: document.getElementById('target-hud'),
+    crosshair: document.getElementById('crosshair')
 };
 
-// --- INIT & MAP ---
+// --- INITIALIZATION ---
 function init() {
     resize(); window.addEventListener('resize', resize);
 
-    // Generate Path
+    // Generate Snake Path
     gs.map = Array(ROWS).fill().map(() => Array(COLS).fill(0));
     let x = 0, z = Math.floor(Math.random() * ROWS);
     gs.path.push({x, z}); gs.map[z][x] = 1;
@@ -174,20 +176,22 @@ function resize() {
     ch = canvas.height = window.innerHeight;
 }
 
-// --- 3D MATH & POLYGONS ---
+// --- 3D MATH & PROJECTION ---
 function project(x, y, z) {
-    // Translate
     let tx = x - cam.x, ty = y - cam.y, tz = z - cam.z;
-    // Rotate Yaw (Y axis)
+
+    // Rotate Yaw (Left/Right)
     let cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
     let rx = tx * cy - tz * sy, rz = tx * sy + tz * cy;
-    // Rotate Pitch (X axis)
+
+    // Rotate Pitch (Up/Down)
     let cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
     let ry = ty * cp - rz * sp, rz2 = ty * sp + rz * cp;
 
-    if (rz2 < 0.1) return null; // Behind camera plane
+    // Behind camera clipping
+    if (rz2 < 0.1) return null;
 
-    let fov = cw * 0.7; // Field of view
+    let fov = cw * 0.7;
     return {
         x: cw/2 + (rx / rz2) * fov,
         y: ch/2 - (ry / rz2) * fov,
@@ -195,23 +199,20 @@ function project(x, y, z) {
     };
 }
 
-// Push a flat colored polygon to the render buffer
 function pushQuad(p1, p2, p3, p4, color) {
     let pr1 = project(p1.x, p1.y, p1.z);
     let pr2 = project(p2.x, p2.y, p2.z);
     let pr3 = project(p3.x, p3.y, p3.z);
     let pr4 = project(p4.x, p4.y, p4.z);
 
-    if (!pr1 || !pr2 || !pr3 || !pr4) return; // Basic near-plane culling
-
+    if (!pr1 || !pr2 || !pr3 || !pr4) return;
     let avgDepth = (pr1.depth + pr2.depth + pr3.depth + pr4.depth) / 4;
     gs.polygons.push({ pts: [pr1, pr2, pr3, pr4], color: color, depth: avgDepth });
 }
 
-// Draw a 3D Box (Towers, Enemies)
 function pushBox(x, y, z, w, h, d, baseColor) {
     let hw = w/2, hd = d/2;
-    // Darken function for fake lighting
+    // Shade calculation for depth
     const shade = (col, amt) => {
         let num = parseInt(col.replace("#",""),16);
         let R = (num >> 16) + amt, G = ((num >> 8) & 0x00FF) + amt, B = (num & 0x0000FF) + amt;
@@ -219,16 +220,12 @@ function pushBox(x, y, z, w, h, d, baseColor) {
     };
 
     let cTop = baseColor, cFront = shade(baseColor, -30), cSide = shade(baseColor, -60);
-
     // Top
     pushQuad({x:x-hw, y:y+h, z:z-hd}, {x:x+hw, y:y+h, z:z-hd}, {x:x+hw, y:y+h, z:z+hd}, {x:x-hw, y:y+h, z:z+hd}, cTop);
-    // Front
+    // Front/Back/Sides
     pushQuad({x:x-hw, y:y+h, z:z+hd}, {x:x+hw, y:y+h, z:z+hd}, {x:x+hw, y:y, z:z+hd}, {x:x-hw, y:y, z:z+hd}, cFront);
-    // Back
     pushQuad({x:x+hw, y:y+h, z:z-hd}, {x:x-hw, y:y+h, z:z-hd}, {x:x-hw, y:y, z:z-hd}, {x:x+hw, y:y, z:z-hd}, cFront);
-    // Left
     pushQuad({x:x-hw, y:y+h, z:z-hd}, {x:x-hw, y:y+h, z:z+hd}, {x:x-hw, y:y, z:z+hd}, {x:x-hw, y:y, z:z-hd}, cSide);
-    // Right
     pushQuad({x:x+hw, y:y+h, z:z+hd}, {x:x+hw, y:y+h, z:z-hd}, {x:x+hw, y:y, z:z-hd}, {x:x+hw, y:y, z:z+hd}, cSide);
 }
 
@@ -267,7 +264,7 @@ class Enemy {
         this.size = type==='BOSS'?0.8:type==='FAST'?0.3:0.5;
         this.pIdx = 0;
         let st = gs.path[0]; this.x = st.x + 0.5; this.z = st.z + 0.5;
-        this.frozen = 0;
+        this.frozen = 0; this.dead = false;
     }
     update() {
         let spd = this.frozen > 0 ? this.speed/2 : this.speed;
@@ -299,7 +296,8 @@ function startWave() {
         if (gs.wave>3 && Math.random()>0.6) type = 'FAST';
         if (gs.wave>5 && Math.random()>0.8) type = 'TANK';
         if (i === count-1 && gs.wave%5===0) type = 'BOSS';
-        gs.waveQueue.push({ t: type, d: i*45 });
+        // Spawn interval is 40 frames
+        gs.waveQueue.push({ t: type, d: i === 0 ? 0 : 40 });
     }
     gs.waveTimer = 0;
 }
@@ -309,26 +307,35 @@ function updateUI() {
     ui.lives.innerText = gs.lives;
     ui.wave.innerText = gs.wave;
 
-    let targetTower = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
-    if (targetTower) {
-        let upCost = Math.floor(TOWER_TYPES[targetTower.type].cost * 0.8 * targetTower.level);
-        let isMax = targetTower.level >= 4;
-        ui.target.style.display = 'block';
-        ui.target.innerHTML = `<b>Lvl ${targetTower.level} Tower</b><br>[Q] Upgrade: ${isMax?'MAX':'$'+upCost} | [F] Sell: $${Math.floor(targetTower.spent*0.6)}`;
-    } else if (gs.targetX >= 0 && gs.map[gs.targetZ][gs.targetX] === 0) {
-        let def = TOWER_TYPES[gs.selTool];
-        ui.target.style.display = 'block';
-        ui.target.innerHTML = `[Click] Build ${def.name} ($${def.cost})`;
+    if (gs.targetX >= 0) {
+        let tTower = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
+        let isPath = gs.map[gs.targetZ][gs.targetX] === 1;
+
+        if (tTower) {
+            ui.crosshair.style.background = '#0984e3'; // Blue for tower
+            ui.target.style.display = 'block';
+            let upCost = Math.floor(TOWER_TYPES[tTower.type].cost * 0.8 * tTower.level);
+            ui.target.innerHTML = `<span style="color:${tTower.color}"><b>${TOWER_TYPES[tTower.type].name} (Lvl ${tTower.level})</b></span><br>[Q] Upgrade: ${tTower.level>=4?'MAX':'$'+upCost} | [F] Sell: $${Math.floor(tTower.spent*0.6)}`;
+        } else if (isPath) {
+            ui.crosshair.style.background = '#ff7675'; // Red for path
+            ui.target.style.display = 'none';
+        } else {
+            ui.crosshair.style.background = '#55efc4'; // Green for buildable
+            ui.target.style.display = 'block';
+            let def = TOWER_TYPES[gs.selTool];
+            ui.target.innerHTML = `[Left Click] Build ${def.name} ($${def.cost})`;
+        }
     } else {
+        ui.crosshair.style.background = 'white';
         ui.target.style.display = 'none';
     }
 }
 
-// --- MAIN LOOP ---
+// --- MAIN RENDER & GAME LOOP ---
 function loop() {
-    // 1. INPUT & MOVEMENT
+    // 1. INPUT & CAMERA MOVEMENT
     if (isLocked) {
-        let spd = 0.1;
+        let spd = 0.12;
         let ax = 0, az = 0;
         if (keys['w']) { ax += Math.sin(cam.yaw); az += Math.cos(cam.yaw); }
         if (keys['s']) { ax -= Math.sin(cam.yaw); az -= Math.cos(cam.yaw); }
@@ -340,18 +347,19 @@ function loop() {
             cam.x += (ax/len) * spd; cam.z += (az/len) * spd;
         }
 
-        // FLAWLESS TARGETING RAYCAST
-        // Ray starts at camera, goes through exact center of screen
+        // Restrict player from flying into the abyss
+        cam.x = Math.max(-2, Math.min(COLS+2, cam.x));
+        cam.z = Math.max(-2, Math.min(ROWS+2, cam.z));
+
+        // RAYCASTING: Find exactly what tile we are looking at
         let dirX = Math.sin(cam.yaw) * Math.cos(cam.pitch);
-        let dirY = -Math.sin(cam.pitch);
+        let dirY = Math.sin(cam.pitch); // Negative means pointing down
         let dirZ = Math.cos(cam.yaw) * Math.cos(cam.pitch);
 
-        // Find intersection with ground (y = 0)
-        // cam.y + t * dirY = 0  => t = -cam.y / dirY
         gs.targetX = -1; gs.targetZ = -1;
-        if (dirY < -0.01) { // Looking down at the ground
-            let t = -cam.y / dirY;
-            if (t > 0 && t < 30) { // Limit reach
+        if (dirY < -0.01) {
+            let t = -cam.y / dirY; // Intersect with y=0 (floor)
+            if (t > 0 && t < 30) {
                 let hx = Math.floor(cam.x + t * dirX);
                 let hz = Math.floor(cam.z + t * dirZ);
                 if (hx >= 0 && hx < COLS && hz >= 0 && hz < ROWS) {
@@ -364,16 +372,17 @@ function loop() {
 
     // 2. GAME STATE UPDATES
     if (gs.lives <= 0) {
-        ctx.fillStyle = 'rgba(255,0,0,0.5)'; ctx.fillRect(0,0,cw,ch);
+        ctx.fillStyle = 'rgba(200,0,0,0.5)'; ctx.fillRect(0,0,cw,ch);
         ctx.fillStyle = 'white'; ctx.font = '50px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText("GAME OVER", cw/2, ch/2); return;
     }
 
+    // Wave Spawner
     if (gs.inWave) {
         gs.waveTimer++;
         if (gs.waveQueue.length > 0 && gs.waveTimer >= gs.waveQueue[0].d) {
             gs.enemies.push(new Enemy(gs.waveQueue.shift().t));
-            gs.waveTimer = 0;
+            gs.waveTimer = 0; // Reset for next enemy delay
         }
         if (gs.waveQueue.length === 0 && gs.enemies.length === 0) { gs.inWave = false; gs.wave++; updateUI(); }
     }
@@ -381,7 +390,7 @@ function loop() {
     gs.towers.forEach(t => t.update());
     gs.enemies.forEach(e => e.update()); gs.enemies = gs.enemies.filter(e => !e.dead);
 
-    // Proj update
+    // Projectiles
     for (let i = gs.projectiles.length-1; i>=0; i--) {
         let p = gs.projectiles[i];
         if (p.tgt.dead) { gs.projectiles.splice(i, 1); continue; }
@@ -402,32 +411,29 @@ function loop() {
     // 3. RENDER 3D SCENE
     ctx.fillStyle = '#2c3e50'; ctx.fillRect(0,0,cw,ch); // Sky
     let horizon = ch/2 + Math.tan(cam.pitch) * (cw*0.7);
-    ctx.fillStyle = '#1e272e'; ctx.fillRect(0, horizon, cw, ch); // Base Ground
+    ctx.fillStyle = '#1e272e'; ctx.fillRect(0, horizon, cw, ch); // Ground Horizon
 
     gs.polygons = [];
 
     // Floor Map
     for(let z=0; z<ROWS; z++) {
         for(let x=0; x<COLS; x++) {
-            let isPath = gs.map[z][x] === 1;
-            let isTarget = (x === gs.targetX && z === gs.targetZ);
-
-            // Only push floor polygons reasonably close to camera to save CPU
-            if (Math.hypot(x-cam.x, z-cam.z) < 25) {
+            if (Math.hypot(x-cam.x, z-cam.z) < 25) { // Render distance
+                let isPath = gs.map[z][x] === 1;
+                let isTarget = (x === gs.targetX && z === gs.targetZ);
                 let color = isTarget ? '#ffeaa7' : (isPath ? '#bdc3c7' : '#27ae60');
-                // Lift path slightly to prevent Z-fighting
-                let y = isPath ? 0.02 : 0;
+                let y = isPath ? 0.02 : 0; // Prevent flickering
                 pushQuad({x:x, y:y, z:z}, {x:x+1, y:y, z:z}, {x:x+1, y:y, z:z+1}, {x:x, y:y, z:z+1}, color);
             }
         }
     }
 
-    // Objects
+    // 3D Objects
     gs.towers.forEach(t => pushBox(t.x, 0, t.z, 0.8, 0.6 + t.level*0.2, 0.8, t.color));
     gs.enemies.forEach(e => pushBox(e.x, e.size/2, e.z, e.size, e.size, e.size, e.color));
     gs.projectiles.forEach(p => pushBox(p.x, p.y, p.z, 0.15, 0.15, 0.15, p.twr.color));
 
-    // Sort and Draw Painter's Algorithm
+    // Painter's Algorithm (Sort back to front)
     gs.polygons.sort((a, b) => b.depth - a.depth);
 
     for (let poly of gs.polygons) {
@@ -438,13 +444,21 @@ function loop() {
         for(let i=1; i<poly.pts.length; i++) ctx.lineTo(poly.pts[i].x, poly.pts[i].y);
         ctx.closePath();
         ctx.fill();
-        if (poly.depth < 15) ctx.stroke(); // Only stroke near objects
+        if (poly.depth < 15) ctx.stroke();
     }
 
-    // 4. DRAW 2D MINIMAP
-    drawMinimap();
+    // Draw Enemy Health Bars
+    gs.enemies.forEach(e => {
+        let p = project(e.x, e.size + 0.4, e.z); // Render above enemy
+        if (p && p.depth < 20) {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(p.x - 15, p.y, 30, 4);
+            ctx.fillStyle = '#55efc4';
+            ctx.fillRect(p.x - 15, p.y, 30 * (e.hp/e.maxHp), 4);
+        }
+    });
 
-    frames++;
+    drawMinimap();
     requestAnimationFrame(loop);
 }
 
@@ -457,7 +471,7 @@ function drawMinimap() {
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, mmSize, mmSize);
     ctx.strokeStyle = '#fff'; ctx.strokeRect(0, 0, mmSize, mmSize);
 
-    // Path & Map
+    // Path
     for(let z=0; z<ROWS; z++) {
         for(let x=0; x<COLS; x++) {
             if(gs.map[z][x]===1) { ctx.fillStyle='#bdc3c7'; ctx.fillRect(x*mmScale, z*mmScale, mmScale, mmScale); }
@@ -468,15 +482,12 @@ function drawMinimap() {
     // Enemies
     ctx.fillStyle = 'red';
     gs.enemies.forEach(e => { ctx.beginPath(); ctx.arc(e.x*mmScale, e.z*mmScale, 2, 0, Math.PI*2); ctx.fill(); });
-    // Player
+    // Camera
     ctx.fillStyle = 'yellow';
     ctx.beginPath(); ctx.arc(cam.x*mmScale, cam.z*mmScale, 3, 0, Math.PI*2); ctx.fill();
-    // View cone
-    ctx.strokeStyle = 'rgba(255,255,0,0.5)';
+    ctx.strokeStyle = 'rgba(255,255,0,0.5)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cam.x*mmScale, cam.z*mmScale);
-    ctx.lineTo((cam.x + Math.sin(cam.yaw - 0.5)*5)*mmScale, (cam.z + Math.cos(cam.yaw - 0.5)*5)*mmScale);
-    ctx.moveTo(cam.x*mmScale, cam.z*mmScale);
-    ctx.lineTo((cam.x + Math.sin(cam.yaw + 0.5)*5)*mmScale, (cam.z + Math.cos(cam.yaw + 0.5)*5)*mmScale);
+    ctx.lineTo((cam.x + Math.sin(cam.yaw)*5)*mmScale, (cam.z + Math.cos(cam.yaw)*5)*mmScale);
     ctx.stroke();
 
     ctx.restore();
@@ -485,6 +496,7 @@ function drawMinimap() {
 // --- INPUT HANDLING ---
 function setupInputs() {
     document.getElementById('btn-start').onclick = () => canvas.requestPointerLock();
+
     document.addEventListener('pointerlockchange', () => {
         isLocked = document.pointerLockElement === canvas;
         document.getElementById('start-screen').style.display = isLocked ? 'none' : 'flex';
@@ -494,7 +506,7 @@ function setupInputs() {
     document.addEventListener('mousemove', e => {
         if (!isLocked) return;
         cam.yaw += e.movementX * 0.003;
-        cam.pitch += e.movementY * 0.003;
+        cam.pitch -= e.movementY * 0.003; // Corrected inverted pitch axis!
         cam.pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, cam.pitch));
     });
 
@@ -502,6 +514,7 @@ function setupInputs() {
         keys[e.key.toLowerCase()] = true;
         if (!isLocked) return;
 
+        // Select Tool
         if (e.key >= '1' && e.key <= '5') {
             gs.selTool = parseInt(e.key);
             for(let i=1; i<=5; i++) document.getElementById(`tool-${i}`).classList.remove('active');
@@ -509,6 +522,7 @@ function setupInputs() {
             updateUI();
         }
 
+        // Upgrade / Sell
         let twr = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
         if (e.key.toLowerCase() === 'q' && twr) {
             let cost = Math.floor(TOWER_TYPES[twr.type].cost * 0.8 * twr.level);
@@ -518,13 +532,22 @@ function setupInputs() {
             gs.money += Math.floor(twr.spent * 0.6);
             gs.towers = gs.towers.filter(t => t !== twr); updateUI();
         }
-        if (e.key === ' ' && !gs.inWave) startWave();
+
+        // Prevent spacebar scrolling and start wave
+        if (e.key === ' ') {
+            e.preventDefault();
+            startWave();
+        }
     });
 
     document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-    document.addEventListener('mousedown', e => {
-        if (!isLocked || e.button !== 0) return;
+    canvas.addEventListener('mousedown', e => {
+        if (!isLocked) {
+            canvas.requestPointerLock();
+            return;
+        }
+        if (e.button !== 0) return; // Only process Left Clicks
 
         if (gs.targetX >= 0 && gs.map[gs.targetZ][gs.targetX] === 0) {
             let existing = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
