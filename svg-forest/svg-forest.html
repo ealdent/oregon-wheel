@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Haunted Forest 3D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Haunted Forest 3D - Mobile</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #0d0614; overflow: hidden; font-family: sans-serif;
+            /* CRITICAL: Prevents mobile pull-to-refresh and swipe navigation */
             touch-action: none;
+            -webkit-user-select: none; user-select: none;
         }
         #game-container { position: relative; width: 100vw; height: 100vh; }
         svg { display: block; width: 100%; height: 100%; }
@@ -22,8 +24,33 @@
             position: absolute; top: 50%; left: 50%;
             width: 4px; height: 4px; background: white;
             border-radius: 50%; transform: translate(-50%, -50%);
-            opacity: 0.5; z-index: 10;
+            opacity: 0.5; z-index: 10; pointer-events: none;
         }
+
+        /* Virtual Joysticks CSS */
+        .joy-base {
+            width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            position: absolute; bottom: 40px;
+            z-index: 20;
+        }
+        #joy-left { left: 40px; }
+        #joy-right { right: 40px; }
+
+        .joy-knob {
+            width: 50px; height: 50px;
+            background: rgba(191, 161, 219, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px; left: 35px; /* Centered in the 120px base */
+            pointer-events: none; /* Let the base handle the touch events */
+            transition: transform 0.05s linear;
+        }
+
+        /* Hide instructions on very small screens to save space */
+        @media (max-width: 600px) { #instructions p { display: none; } }
     </style>
 </head>
 <body>
@@ -31,10 +58,13 @@
 <div id="game-container">
     <div id="instructions">
         <h3>Spooky Woods 3D</h3>
-        <p>• <b>W / S</b> to walk forward and backward.</p>
-        <p>• <b>A / D</b> (or Mouse Drag) to turn.</p>
+        <p>• <b>Desktop:</b> WASD to move, Mouse to look.</p>
+        <p>• <b>Mobile:</b> Left joystick to walk, Right joystick to turn.</p>
     </div>
     <div id="crosshair"></div>
+
+    <div id="joy-left" class="joy-base"><div id="knob-left" class="joy-knob"></div></div>
+    <div id="joy-right" class="joy-base"><div id="knob-right" class="joy-knob"></div></div>
 
     <svg id="game-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
         <defs>
@@ -65,7 +95,6 @@
 
         <rect x="0" y="0" width="800" height="300" fill="url(#sky)" />
         <rect x="0" y="300" width="800" height="300" fill="url(#ground)" />
-
         <g id="render-layer"></g>
     </svg>
 </div>
@@ -73,30 +102,34 @@
 <script>
     const renderLayer = document.getElementById('render-layer');
 
-    // --- Engine Constants ---
+    // Engine Constants
     const VIEW_WIDTH = 800;
     const VIEW_HEIGHT = 600;
     const HORIZON = 300;
-    const FOV = Math.PI / 2.5; // About 72 degrees field of view
-    const FOCAL_LENGTH = 400;  // How quickly things shrink
+    const FOV = Math.PI / 2.5;
+    const FOCAL_LENGTH = 400;
     const CHUNK_SIZE = 800;
 
-    // --- Player State ---
+    // Player State
     let pX = 0, pY = 0;
-    let pAngle = -Math.PI / 2; // Facing "North" initially
+    let pAngle = -Math.PI / 2;
     const SPEED = 8;
-    const TURN_SPEED = 0.05;
+    const TURN_SPEED = 0.06;
 
-    // --- World Data ---
-    const generatedChunks = new Set();
-    let props = []; // Array of {x, y, type, scaleMultiplier}
-
-    // Input State
+    // Input States
     const keys = {};
-    let isDragging = false;
+    let isDraggingMouse = false;
     let lastMouseX = 0;
 
-    // --- Procedural Generation (2D Map) ---
+    // Touch Input Variables (-1.0 to 1.0)
+    let touchMoveForward = 0;
+    let touchTurnRight = 0;
+
+    // World Data
+    const generatedChunks = new Set();
+    let props = [];
+
+    // --- Procedural Generation ---
     function generateChunks() {
         const cx = Math.floor(pX / CHUNK_SIZE);
         const cy = Math.floor(pY / CHUNK_SIZE);
@@ -117,104 +150,155 @@
         for (let i = 0; i < numProps; i++) {
             const tx = (cx * CHUNK_SIZE) + (Math.random() * CHUNK_SIZE);
             const ty = (cy * CHUNK_SIZE) + (Math.random() * CHUNK_SIZE);
-
-            // Clear out a starting area
             if (Math.hypot(tx, ty) < 200) continue;
-
             props.push({
-                x: tx,
-                y: ty,
+                x: tx, y: ty,
                 type: Math.random() > 0.7 ? '#mushroom' : '#spooky-tree',
                 scaleMult: 0.8 + Math.random() * 0.6
             });
         }
     }
 
-    // --- Input Handling ---
+    // --- Keyboard & Mouse Inputs ---
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
     window.addEventListener('mousedown', e => {
-        isDragging = true;
-        lastMouseX = e.clientX;
+        // Don't drag screen if clicking joysticks
+        if(e.target.closest('.joy-base')) return;
+        isDraggingMouse = true; lastMouseX = e.clientX;
     });
     window.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - lastMouseX;
-        pAngle += deltaX * 0.005; // Mouse sensitivity
+        if (!isDraggingMouse) return;
+        pAngle += (e.clientX - lastMouseX) * 0.005;
         lastMouseX = e.clientX;
     });
-    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('mouseup', () => isDraggingMouse = false);
 
-    // --- The "Fake 3D" Rendering Loop ---
+    // --- TOUCH JOYSTICK LOGIC ---
+    function setupJoystick(baseId, knobId, axis, callback) {
+        const base = document.getElementById(baseId);
+        const knob = document.getElementById(knobId);
+        let touchId = null;
+        let maxDist = 60; // Half of the 120px base
+
+        function handleTouch(e) {
+            e.preventDefault(); // Stop mobile scrolling
+
+            // Get the bounding box fresh in case screen was rotated
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + (rect.width / 2);
+            const centerY = rect.top + (rect.height / 2);
+
+            for(let touch of e.changedTouches) {
+                // If starting a new touch, lock it to this joystick
+                if (e.type === 'touchstart' && touchId === null) touchId = touch.identifier;
+
+                // Only process the touch assigned to this joystick
+                if (touch.identifier === touchId) {
+                    let x = touch.clientX - centerX;
+                    let y = touch.clientY - centerY;
+
+                    // Constrain knob to the circle radius
+                    let dist = Math.hypot(x, y);
+                    if (dist > maxDist) {
+                        x = (x / dist) * maxDist;
+                        y = (y / dist) * maxDist;
+                    }
+
+                    // Move the knob visually
+                    knob.style.transform = `translate(${x}px, ${y}px)`;
+
+                    // Normalize the output from -1.0 to 1.0
+                    if (axis === 'y') callback(-y / maxDist); // Invert Y so up is positive
+                    if (axis === 'x') callback(x / maxDist);
+                }
+            }
+        }
+
+        function handleEnd(e) {
+            e.preventDefault();
+            for(let touch of e.changedTouches) {
+                if(touch.identifier === touchId) {
+                    touchId = null; // Release touch
+                    knob.style.transform = `translate(0px, 0px)`; // Snap back to center
+                    callback(0); // Reset speed to 0
+                }
+            }
+        }
+
+        // Attach Multi-touch listeners
+        base.addEventListener('touchstart', handleTouch, {passive: false});
+        base.addEventListener('touchmove', handleTouch, {passive: false});
+        base.addEventListener('touchend', handleEnd, {passive: false});
+        base.addEventListener('touchcancel', handleEnd, {passive: false});
+    }
+
+    // Connect Left Joystick Y-axis to Forward/Backward movement
+    setupJoystick('joy-left', 'knob-left', 'y', (val) => touchMoveForward = val);
+
+    // Connect Right Joystick X-axis to Turning Left/Right
+    setupJoystick('joy-right', 'knob-right', 'x', (val) => touchTurnRight = val);
+
+
+    // --- 3D Rendering Loop ---
     function loop() {
-        // 1. Movement Logic (Tank Controls)
-        if (keys['a'] || keys['arrowleft']) pAngle -= TURN_SPEED;
-        if (keys['d'] || keys['arrowright']) pAngle += TURN_SPEED;
+        // Combine Keyboard and Touch Inputs
+        let moveInput = touchMoveForward;
+        let turnInput = touchTurnRight;
 
-        if (keys['w'] || keys['arrowup']) {
-            pX += Math.cos(pAngle) * SPEED;
-            pY += Math.sin(pAngle) * SPEED;
-        }
-        if (keys['s'] || keys['arrowdown']) {
-            pX -= Math.cos(pAngle) * SPEED;
-            pY -= Math.sin(pAngle) * SPEED;
-        }
+        // Override with keyboard if in use
+        if (keys['w'] || keys['arrowup']) moveInput = 1;
+        if (keys['s'] || keys['arrowdown']) moveInput = -1;
+        if (keys['a'] || keys['arrowleft']) turnInput = -1;
+        if (keys['d'] || keys['arrowright']) turnInput = 1;
+
+        // Apply Math
+        pAngle += TURN_SPEED * turnInput;
+        pX += Math.cos(pAngle) * SPEED * moveInput;
+        pY += Math.sin(pAngle) * SPEED * moveInput;
 
         generateChunks();
 
-        // 2. 3D Math & Projection
         let visibleProps = [];
 
+        // Calculate distances and angles for projection
         for (let prop of props) {
             let dx = prop.x - pX;
             let dy = prop.y - pY;
             let distance = Math.hypot(dx, dy);
 
-            // Calculate angle to prop
             let angleToProp = Math.atan2(dy, dx);
             let angleDiff = angleToProp - pAngle;
 
-            // Normalize angle between -PI and PI
             while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
             while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-            // If the prop is in front of us (within FOV + some margin so it doesn't pop out early)
             if (Math.abs(angleDiff) < FOV / 1.5 && distance > 10) {
-                // Perspective projection math
                 let perspectiveScale = FOCAL_LENGTH / distance;
-
-                // Map the angle difference to screen X pixels
                 let screenX = (VIEW_WIDTH / 2) + (angleDiff / (FOV / 2)) * (VIEW_WIDTH / 2);
 
-                // Align to the horizon line (ground)
-                let screenY = HORIZON + (50 * perspectiveScale); // 50 is camera height
+                // Add a slight "head bob" effect tied to movement
+                let bobbing = Math.sin(Date.now() / 150) * (5 * Math.abs(moveInput));
+                let screenY = HORIZON + (50 * perspectiveScale) + bobbing;
 
                 visibleProps.push({
-                    prop: prop,
-                    distance: distance,
-                    x: screenX,
-                    y: screenY,
+                    prop: prop, distance: distance,
+                    x: screenX, y: screenY,
                     scale: perspectiveScale * prop.scaleMult
                 });
             }
         }
 
-        // 3. Painter's Algorithm: Sort from furthest to closest
+        // Painter's Algorithm
         visibleProps.sort((a, b) => b.distance - a.distance);
 
-        // 4. Update the SVG DOM
-        // Instead of modifying existing DOM elements, we rewrite the innerHTML
-        // string for speed. (SVG DOM manipulation is slow).
+        // Inject SVG Strings
         let renderString = '';
         for (let vp of visibleProps) {
-            // Cull things that are ridiculously far to save frames
             if (vp.distance > 2000) continue;
-
-            // Build the SVG string for this prop
             renderString += `<use href="${vp.prop.type}" transform="translate(${vp.x}, ${vp.y}) scale(${vp.scale})" />`;
         }
-
         renderLayer.innerHTML = renderString;
 
         requestAnimationFrame(loop);
