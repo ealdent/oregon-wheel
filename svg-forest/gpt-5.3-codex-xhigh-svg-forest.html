@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Shattersea Drift</title>
+<style>
+  :root {
+    --text: #daf8ff;
+    --hud: rgba(14, 28, 49, 0.42);
+    --hud-border: rgba(165, 226, 255, 0.35);
+    --stick-ring: rgba(166, 241, 255, 0.42);
+    --stick-core: rgba(152, 236, 255, 0.9);
+  }
+
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #070d1c;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    font-family: "Gill Sans", "Trebuchet MS", sans-serif;
+    color: var(--text);
+  }
+
+  #game {
+    position: fixed;
+    inset: 0;
+    touch-action: none;
+    overflow: hidden;
+  }
+
+  #scene {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    background: #050a15;
+  }
+
+  #hud {
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top));
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  #hud .chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--hud-border);
+    background: var(--hud);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: clamp(10px, 2.1vw, 13px);
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+  }
+
+  #controls {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    touch-action: none;
+  }
+
+  .stick {
+    position: absolute;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    width: clamp(108px, 21vw, 152px);
+    height: clamp(108px, 21vw, 152px);
+    border-radius: 50%;
+    border: 2px solid var(--stick-ring);
+    background:
+      radial-gradient(circle at 35% 30%, rgba(215, 252, 255, 0.19), rgba(25, 48, 74, 0.28) 56%, rgba(6, 13, 22, 0.5));
+    box-shadow:
+      inset 0 0 20px rgba(123, 220, 255, 0.22),
+      0 10px 30px rgba(0, 0, 0, 0.34);
+    pointer-events: auto;
+    touch-action: none;
+  }
+
+  .stick.left {
+    left: clamp(12px, 4vw, 32px);
+  }
+
+  .stick.right {
+    right: clamp(12px, 4vw, 32px);
+  }
+
+  .stick .inner {
+    position: absolute;
+    inset: 11%;
+    border-radius: 50%;
+    border: 1px solid rgba(183, 236, 255, 0.25);
+    pointer-events: none;
+  }
+
+  .stick .knob {
+    position: absolute;
+    left: 30%;
+    top: 30%;
+    width: 40%;
+    height: 40%;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.95), rgba(130, 231, 255, 0.88) 38%, rgba(30, 117, 155, 0.9) 78%, rgba(2, 20, 34, 0.92));
+    box-shadow:
+      0 4px 14px rgba(27, 197, 255, 0.44),
+      inset 0 0 12px rgba(189, 247, 255, 0.72);
+    transition: transform 0.04s linear;
+    pointer-events: none;
+  }
+
+  .stick::after {
+    content: attr(data-label);
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 7px);
+    transform: translateX(-50%);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: rgba(207, 241, 255, 0.7);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .stick {
+      opacity: 0.2;
+    }
+
+    .stick:hover {
+      opacity: 0.34;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <svg id="scene" xmlns="http://www.w3.org/2000/svg" aria-label="Shattersea Drift SVG exploration game" role="img">
+    <defs>
+      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#091329" />
+        <stop offset="55%" stop-color="#18345d" />
+        <stop offset="100%" stop-color="#2f5078" />
+      </linearGradient>
+      <linearGradient id="groundG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a2c36" />
+        <stop offset="60%" stop-color="#101927" />
+        <stop offset="100%" stop-color="#090d17" />
+      </linearGradient>
+      <linearGradient id="ribbonG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="rgba(105, 255, 232, 0.07)" />
+        <stop offset="34%" stop-color="rgba(92, 252, 219, 0.32)" />
+        <stop offset="67%" stop-color="rgba(132, 166, 255, 0.28)" />
+        <stop offset="100%" stop-color="rgba(255, 164, 246, 0.15)" />
+      </linearGradient>
+      <radialGradient id="haloG" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(211, 250, 255, 0.95)" />
+        <stop offset="50%" stop-color="rgba(145, 209, 255, 0.4)" />
+        <stop offset="100%" stop-color="rgba(123, 177, 255, 0)" />
+      </radialGradient>
+      <linearGradient id="fogG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(182, 252, 255, 0.18)" />
+        <stop offset="100%" stop-color="rgba(63, 139, 169, 0)" />
+      </linearGradient>
+      <radialGradient id="shadeG" cx="50%" cy="50%" r="66%">
+        <stop offset="70%" stop-color="rgba(0,0,0,0)" />
+        <stop offset="100%" stop-color="rgba(0,0,0,0.5)" />
+      </radialGradient>
+    </defs>
+
+    <rect id="sky" x="0" y="0" width="100" height="100" fill="url(#skyG)" />
+    <path id="ribbon" d="" fill="url(#ribbonG)" />
+    <circle id="halo" cx="0" cy="0" r="140" fill="url(#haloG)" />
+    <g id="sparkLayer"></g>
+
+    <path id="ground" d="" fill="url(#groundG)" />
+    <g id="flowLines"></g>
+    <path id="fog" d="" fill="url(#fogG)" />
+
+    <g id="propLayer"></g>
+
+    <g id="crosshair" opacity="0.52">
+      <line id="crossH" x1="0" y1="0" x2="0" y2="0" stroke="rgba(186, 236, 255, 0.72)" stroke-width="1.1" />
+      <line id="crossV" x1="0" y1="0" x2="0" y2="0" stroke="rgba(186, 236, 255, 0.72)" stroke-width="1.1" />
+    </g>
+
+    <rect id="shade" x="0" y="0" width="100" height="100" fill="url(#shadeG)" />
+  </svg>
+
+  <div id="hud"><div class="chip">Shattersea Drift | WASD/Arrows + Mouse Drag | Dual Touch Sticks</div></div>
+
+  <div id="controls" aria-hidden="true">
+    <div class="stick left" id="moveStick" data-label="Move">
+      <div class="inner"></div>
+      <div class="knob"></div>
+    </div>
+    <div class="stick right" id="turnStick" data-label="Turn">
+      <div class="inner"></div>
+      <div class="knob"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const svg = document.getElementById('scene');
+  const game = document.getElementById('game');
+  const sky = document.getElementById('sky');
+  const ribbon = document.getElementById('ribbon');
+  const halo = document.getElementById('halo');
+  const sparkLayer = document.getElementById('sparkLayer');
+  const ground = document.getElementById('ground');
+  const flowLines = document.getElementById('flowLines');
+  const fog = document.getElementById('fog');
+  const propLayer = document.getElementById('propLayer');
+  const shade = document.getElementById('shade');
+  const crossH = document.getElementById('crossH');
+  const crossV = document.getElementById('crossV');
+
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  let cx = w * 0.5;
+  let horizon = h * 0.5;
+  let focal = Math.max(410, w * 0.78);
+  let tanHalfFov = Math.tan(0.96 * 0.5);
+
+  const CAMERA_Y = 1.72;
+  const NEAR = 0.3;
+  const FAR = 230;
+  const MOVE_SPEED = 23;
+  const TURN_SPEED = 2.2;
+
+  const CHUNK_SIZE = 52;
+  const CHUNK_RADIUS = 4;
+  const cache = new Map();
+  const activeNodes = new Map();
+
+  const stars = [];
+  const streaks = [];
+  const keys = new Set();
+
+  const player = { x: 0, z: 0, yaw: 0 };
+
+  let bobBlend = 0;
+  let bobT = 0;
+  let bobX = 0;
+  let bobY = 0;
+
+  let dragId = null;
+  let dragPrevX = 0;
+
+  function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function fract(v) {
+    return v - Math.floor(v);
+  }
+
+  function hash2(ix, iz) {
+    let h = Math.imul(ix ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(iz ^ 0xc2b2ae35, 0x27d4eb2d);
+    h ^= h >>> 15;
+    h = Math.imul(h, 0x2c1b3c6d);
+    h ^= h >>> 12;
+    return h >>> 0;
+  }
+
+  function rng(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t = (t + 0x6d2b79f5) >>> 0;
+      let x = t;
+      x = Math.imul(x ^ (x >>> 15), x | 1);
+      x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function createSVG(tag, attrs = {}) {
+    const el = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      el.setAttribute(k, String(v));
+    }
+    return el;
+  }
+
+  function resize() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    cx = w * 0.5;
+    horizon = h * 0.5;
+    focal = Math.max(410, w * 0.78);
+    tanHalfFov = Math.tan(0.96 * 0.5);
+
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    sky.setAttribute('width', w);
+    sky.setAttribute('height', h);
+    shade.setAttribute('width', w);
+    shade.setAttribute('height', h);
+
+    halo.setAttribute('cx', w * 0.23);
+    halo.setAttribute('cy', h * 0.19);
+    halo.setAttribute('r', Math.max(100, Math.min(w, h) * 0.14));
+
+    crossH.setAttribute('x1', cx - 7);
+    crossH.setAttribute('y1', h * 0.5);
+    crossH.setAttribute('x2', cx + 7);
+    crossH.setAttribute('y2', h * 0.5);
+
+    crossV.setAttribute('x1', cx);
+    crossV.setAttribute('y1', h * 0.5 - 7);
+    crossV.setAttribute('x2', cx);
+    crossV.setAttribute('y2', h * 0.5 + 7);
+
+    rebuildSkyParticles();
+    ensureFlowLines();
+  }
+
+  function rebuildSkyParticles() {
+    while (sparkLayer.firstChild) sparkLayer.removeChild(sparkLayer.firstChild);
+    stars.length = 0;
+    const count = Math.max(36, Math.floor((w + h) * 0.042));
+    for (let i = 0; i < count; i++) {
+      const x = fract(Math.sin(i * 77.23 + 0.3) * 927.1) * w;
+      const y = fract(Math.sin(i * 11.79 + 1.9) * 537.4) * h * 0.56;
+      const r = 0.6 + fract(Math.sin(i * 16.17 + 3.4) * 24.8) * 2.1;
+      const s = createSVG('circle', { cx: x.toFixed(2), cy: y.toFixed(2), r: r.toFixed(2), fill: 'rgba(210,239,255,0.76)' });
+      sparkLayer.appendChild(s);
+      stars.push(s);
+    }
+  }
+
+  function ensureFlowLines() {
+    while (flowLines.firstChild) flowLines.removeChild(flowLines.firstChild);
+    streaks.length = 0;
+    for (let i = 0; i < 16; i++) {
+      const p = createSVG('path', {
+        d: '',
+        fill: 'none',
+        stroke: 'rgba(138, 214, 226, 0.15)',
+        'stroke-width': '1'
+      });
+      flowLines.appendChild(p);
+      streaks.push(p);
+    }
+  }
+
+  function chunkKey(ix, iz) {
+    return `${ix}|${iz}`;
+  }
+
+  function generateChunk(ix, iz) {
+    const key = chunkKey(ix, iz);
+    const existing = cache.get(key);
+    if (existing) return existing;
+
+    const random = rng(hash2(ix, iz));
+    const paletteShift = ((hash2(ix + 7, iz - 5) % 96) - 42);
+
+    const list = [];
+    const n = 13 + Math.floor(random() * 10);
+
+    for (let i = 0; i < n; i++) {
+      const wx = (ix + random()) * CHUNK_SIZE;
+      const wz = (iz + random()) * CHUNK_SIZE;
+      const choice = random();
+
+      let type = 'prismCoral';
+      if (choice > 0.36 && choice <= 0.7) type = 'fanKite';
+      if (choice > 0.7) type = 'orbReed';
+
+      const size = type === 'fanKite'
+        ? 2.8 + random() * 2.3
+        : type === 'prismCoral'
+          ? 2.2 + random() * 2.1
+          : 2.4 + random() * 2.4;
+
+      const hue = type === 'prismCoral'
+        ? 186 + paletteShift + random() * 30
+        : type === 'fanKite'
+          ? 142 + paletteShift + random() * 28
+          : 212 + paletteShift + random() * 26;
+
+      list.push({
+        id: `${key}:${i}`,
+        type,
+        x: wx,
+        z: wz,
+        size,
+        hue,
+        phase: random() * Math.PI * 2
+      });
+    }
+
+    cache.set(key, list);
+    return list;
+  }
+
+  function trimCache(curX, curZ) {
+    const keep = CHUNK_RADIUS + 2;
+    for (const key of cache.keys()) {
+      const [sx, sz] = key.split('|');
+      const dx = Math.abs(Number(sx) - curX);
+      const dz = Math.abs(Number(sz) - curZ);
+      if (dx > keep || dz > keep) cache.delete(key);
+    }
+  }
+
+  function buildProp(obj) {
+    const g = createSVG('g', { 'data-type': obj.type });
+    g.appendChild(createSVG('ellipse', {
+      cx: 0,
+      cy: 0.08,
+      rx: 0.64,
+      ry: 0.18,
+      fill: 'rgba(0,0,0,0.34)'
+    }));
+
+    if (obj.type === 'prismCoral') {
+      g.appendChild(createSVG('polygon', {
+        points: '0,-1.72 0.66,-0.36 0.27,0 -0.28,0 -0.63,-0.33',
+        fill: `hsl(${obj.hue}, 79%, 58%)`
+      }));
+      g.appendChild(createSVG('polygon', {
+        points: '0,-1.72 -0.2,-0.11 -0.28,0 -0.63,-0.33',
+        fill: `hsl(${obj.hue - 16}, 81%, 40%)`
+      }));
+      g.appendChild(createSVG('polygon', {
+        points: '0,-1.72 0.2,-0.11 0.27,0 0.66,-0.36',
+        fill: `hsl(${obj.hue + 11}, 80%, 69%)`
+      }));
+      g.appendChild(createSVG('line', {
+        x1: 0,
+        y1: -1.44,
+        x2: 0,
+        y2: -0.06,
+        stroke: 'rgba(219,252,255,0.58)',
+        'stroke-width': 0.06,
+        'stroke-linecap': 'round'
+      }));
+    } else if (obj.type === 'fanKite') {
+      g.appendChild(createSVG('path', {
+        d: 'M 0 0 C -0.14 -0.56 -0.07 -1.17 0 -1.54 C 0.15 -1.14 0.2 -0.57 0.1 0 Z',
+        fill: `hsl(${obj.hue - 20}, 35%, 72%)`
+      }));
+      g.appendChild(createSVG('path', {
+        d: 'M -0.96 -1.1 C -0.4 -1.5 0.44 -1.48 0.98 -1.08 C 0.34 -0.76 -0.36 -0.75 -0.96 -1.1 Z',
+        fill: `hsl(${obj.hue + 9}, 86%, 61%)`
+      }));
+      g.appendChild(createSVG('path', {
+        d: 'M -0.82 -1.08 C -0.25 -1.35 0.28 -1.33 0.84 -1.06 C 0.28 -0.9 -0.26 -0.9 -0.82 -1.08 Z',
+        fill: `hsla(${obj.hue + 26}, 95%, 84%, 0.44)`
+      }));
+      g.appendChild(createSVG('circle', {
+        cx: -0.26,
+        cy: -1.11,
+        r: 0.08,
+        fill: `hsl(${obj.hue - 14}, 98%, 90%)`
+      }));
+      g.appendChild(createSVG('circle', {
+        cx: 0.28,
+        cy: -1.08,
+        r: 0.08,
+        fill: `hsl(${obj.hue - 14}, 98%, 90%)`
+      }));
+    } else {
+      g.appendChild(createSVG('path', {
+        d: 'M 0 0 C 0 -0.4 0.04 -0.88 0.1 -1.3 C 0.17 -1.72 0.34 -2.06 0.42 -2.34',
+        fill: 'none',
+        stroke: `hsl(${obj.hue - 18}, 56%, 65%)`,
+        'stroke-width': 0.14,
+        'stroke-linecap': 'round'
+      }));
+      g.appendChild(createSVG('path', {
+        d: 'M 0 0 C -0.07 -0.34 -0.18 -0.7 -0.28 -1.06 C -0.37 -1.38 -0.55 -1.66 -0.68 -1.9',
+        fill: 'none',
+        stroke: `hsl(${obj.hue + 16}, 66%, 64%)`,
+        'stroke-width': 0.12,
+        'stroke-linecap': 'round'
+      }));
+      g.appendChild(createSVG('circle', {
+        cx: 0.42,
+        cy: -2.34,
+        r: 0.22,
+        fill: `hsl(${obj.hue}, 88%, 70%)`
+      }));
+      g.appendChild(createSVG('circle', {
+        cx: 0.42,
+        cy: -2.34,
+        r: 0.11,
+        fill: `hsl(${obj.hue + 24}, 95%, 86%)`
+      }));
+      g.appendChild(createSVG('circle', {
+        cx: -0.68,
+        cy: -1.9,
+        r: 0.16,
+        fill: `hsl(${obj.hue - 16}, 86%, 74%)`
+      }));
+    }
+
+    return g;
+  }
+
+  function renderSky(now, motion) {
+    const yH = horizon + bobY * 0.65;
+
+    ground.setAttribute('d', `M 0 ${yH} L ${w} ${yH} L ${w} ${h} L 0 ${h} Z`);
+
+    const fogTop = yH + 7;
+    const fogBottom = yH + 112;
+    fog.setAttribute('d', `M 0 ${fogTop} C ${w * 0.26} ${fogBottom}, ${w * 0.73} ${fogTop}, ${w} ${fogBottom} L ${w} ${fogTop} L 0 ${fogTop} Z`);
+
+    let d = `M 0 ${yH}`;
+    const seg = 12;
+    const t = now * 0.00024 + player.yaw * 0.36;
+    for (let i = 0; i <= seg; i++) {
+      const x = (i / seg) * w;
+      const y = h * 0.18 + Math.sin(t + i * 0.71) * 16 + Math.cos(t * 1.31 + i * 0.52) * 11;
+      d += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }
+    d += ` L ${w} ${yH} Z`;
+    ribbon.setAttribute('d', d);
+    ribbon.setAttribute('opacity', (0.74 + Math.sin(now * 0.0008) * 0.12).toFixed(3));
+
+    const drift = player.yaw * 140;
+    for (let i = 0; i < stars.length; i++) {
+      const star = stars[i];
+      const base = (i * 73.4) % w;
+      const px = (base + drift * (0.08 + (i % 7) * 0.024) + w * 5) % w;
+      const tw = 0.5 + Math.sin(now * 0.0018 + i * 0.42) * 0.38;
+      star.setAttribute('cx', px.toFixed(2));
+      star.setAttribute('opacity', tw.toFixed(3));
+    }
+
+    const phase = (player.x * 0.09 + player.z * 0.1) % 5;
+    for (let i = 0; i < streaks.length; i++) {
+      const line = streaks[i];
+      const depth = 4 + Math.pow(i + 1 + phase, 1.38);
+      const y = yH + (CAMERA_Y / depth) * focal;
+      if (y > h + 2) {
+        line.setAttribute('d', '');
+        continue;
+      }
+      const spread = Math.min(w * 1.5, (focal / depth) * 31);
+      const bend = Math.sin(now * 0.001 + i * 0.35 + player.yaw) * 2.2 + bobX * 0.2;
+      line.setAttribute('d', `M ${cx - spread} ${y} Q ${cx + bend} ${y + i * 0.4} ${cx + spread} ${y}`);
+      line.setAttribute('stroke-opacity', (0.045 + (1 - i / streaks.length) * (0.2 + motion * 0.17)).toFixed(3));
+    }
+  }
+
+  function gatherVisible(now) {
+    const cix = Math.floor(player.x / CHUNK_SIZE);
+    const ciz = Math.floor(player.z / CHUNK_SIZE);
+    trimCache(cix, ciz);
+
+    const cos = Math.cos(player.yaw);
+    const sin = Math.sin(player.yaw);
+
+    const visible = [];
+
+    for (let dz = -CHUNK_RADIUS; dz <= CHUNK_RADIUS; dz++) {
+      for (let dx = -CHUNK_RADIUS; dx <= CHUNK_RADIUS; dx++) {
+        const arr = generateChunk(cix + dx, ciz + dz);
+        for (let i = 0; i < arr.length; i++) {
+          const obj = arr[i];
+          const rx = obj.x - player.x;
+          const rz = obj.z - player.z;
+
+          const camX = rx * cos - rz * sin;
+          const camZ = rx * sin + rz * cos;
+
+          if (camZ <= NEAR || camZ >= FAR) continue;
+          if (Math.abs(camX) > camZ * tanHalfFov * 1.4) continue;
+
+          const p = focal / camZ;
+          const size = p * obj.size;
+          if (size < 1.6) continue;
+
+          const sx = cx + camX * p + bobX;
+          if (sx < -170 || sx > w + 170) continue;
+
+          const sy = horizon + (CAMERA_Y / camZ) * focal + bobY;
+          const alpha = clamp(1 - Math.pow(camZ / FAR, 1.55), 0.12, 1);
+          const sway = Math.sin(now * 0.0011 + obj.phase + obj.x * 0.017) * 1.1;
+
+          visible.push({ obj, camZ, sx, sy, size, alpha, sway });
+        }
+      }
+    }
+
+    visible.sort((a, b) => b.camZ - a.camZ);
+    return visible;
+  }
+
+  function renderProps(now) {
+    const visible = gatherVisible(now);
+    const keep = new Set();
+
+    for (let i = 0; i < visible.length; i++) {
+      const item = visible[i];
+      const id = item.obj.id;
+      keep.add(id);
+
+      let node = activeNodes.get(id);
+      if (!node) {
+        node = buildProp(item.obj);
+        activeNodes.set(id, node);
+        propLayer.appendChild(node);
+      }
+
+      node.setAttribute(
+        'transform',
+        `translate(${item.sx.toFixed(2)} ${item.sy.toFixed(2)}) rotate(${item.sway.toFixed(2)}) scale(${item.size.toFixed(4)})`
+      );
+      node.setAttribute('opacity', item.alpha.toFixed(3));
+
+      propLayer.appendChild(node);
+    }
+
+    for (const [id, node] of activeNodes.entries()) {
+      if (!keep.has(id)) {
+        node.remove();
+        activeNodes.delete(id);
+      }
+    }
+  }
+
+  class Stick {
+    constructor(root) {
+      this.root = root;
+      this.knob = root.querySelector('.knob');
+      this.pointerId = null;
+      this.x = 0;
+      this.y = 0;
+
+      this.root.addEventListener('pointerdown', this.onDown, { passive: false });
+      this.root.addEventListener('pointermove', this.onMove, { passive: false });
+      this.root.addEventListener('pointerup', this.onUp, { passive: false });
+      this.root.addEventListener('pointercancel', this.onUp, { passive: false });
+      this.root.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
+    onDown = (e) => {
+      if (this.pointerId !== null) return;
+      this.pointerId = e.pointerId;
+      this.root.setPointerCapture(e.pointerId);
+      this.update(e);
+      e.preventDefault();
+    };
+
+    onMove = (e) => {
+      if (e.pointerId !== this.pointerId) return;
+      this.update(e);
+      e.preventDefault();
+    };
+
+    onUp = (e) => {
+      if (e.pointerId !== this.pointerId) return;
+      this.pointerId = null;
+      this.x = 0;
+      this.y = 0;
+      this.knob.style.transform = 'translate(0px, 0px)';
+      e.preventDefault();
+    };
+
+    update(e) {
+      const r = this.root.getBoundingClientRect();
+      const mx = r.left + r.width * 0.5;
+      const my = r.top + r.height * 0.5;
+      const radius = r.width * 0.34;
+
+      let dx = (e.clientX - mx) / radius;
+      let dy = (e.clientY - my) / radius;
+
+      const m = Math.hypot(dx, dy);
+      if (m > 1) {
+        dx /= m;
+        dy /= m;
+      }
+
+      this.x = dx;
+      this.y = dy;
+
+      this.knob.style.transform = `translate(${(dx * radius * 0.62).toFixed(1)}px, ${(dy * radius * 0.62).toFixed(1)}px)`;
+    }
+  }
+
+  const moveStick = new Stick(document.getElementById('moveStick'));
+  const turnStick = new Stick(document.getElementById('turnStick'));
+
+  const keyMap = {
+    ArrowUp: 'forward',
+    ArrowDown: 'backward',
+    ArrowLeft: 'left',
+    ArrowRight: 'right',
+    KeyW: 'forward',
+    KeyS: 'backward',
+    KeyA: 'left',
+    KeyD: 'right'
+  };
+
+  function onKey(e, down) {
+    const mapped = keyMap[e.code];
+    if (!mapped) return;
+    e.preventDefault();
+    if (down) keys.add(mapped);
+    else keys.delete(mapped);
+  }
+
+  window.addEventListener('keydown', (e) => onKey(e, true), { passive: false });
+  window.addEventListener('keyup', (e) => onKey(e, false), { passive: false });
+
+  game.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    if (e.target.closest('.stick')) return;
+    dragId = e.pointerId;
+    dragPrevX = e.clientX;
+    game.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }, { passive: false });
+
+  game.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== dragId) return;
+    const dx = e.clientX - dragPrevX;
+    dragPrevX = e.clientX;
+    player.yaw += dx * 0.0046;
+  }, { passive: false });
+
+  const endDrag = (e) => {
+    if (e.pointerId !== dragId) return;
+    dragId = null;
+  };
+
+  game.addEventListener('pointerup', endDrag, { passive: false });
+  game.addEventListener('pointercancel', endDrag, { passive: false });
+
+  document.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+
+  window.addEventListener('resize', resize);
+
+  resize();
+
+  let last = performance.now();
+
+  function tick(now) {
+    const dt = Math.min(0.045, (now - last) / 1000);
+    last = now;
+
+    const keyMove = (keys.has('forward') ? 1 : 0) + (keys.has('backward') ? -1 : 0);
+    const keyTurn = (keys.has('right') ? 1 : 0) + (keys.has('left') ? -1 : 0);
+
+    const stickMove = clamp(-moveStick.y, -1, 1);
+    const stickTurn = clamp(turnStick.x, -1, 1);
+
+    const moveAxis = clamp(keyMove + stickMove, -1, 1);
+    const turnAxis = clamp(keyTurn + stickTurn, -1, 1);
+
+    player.yaw += turnAxis * TURN_SPEED * dt;
+
+    const velocity = moveAxis * MOVE_SPEED;
+    player.x += Math.sin(player.yaw) * velocity * dt;
+    player.z += Math.cos(player.yaw) * velocity * dt;
+
+    const motion = Math.abs(moveAxis);
+    bobBlend += ((motion > 0.05 ? 1 : 0) - bobBlend) * Math.min(1, dt * 8.6);
+    bobT += dt * (5.3 + motion * 8.4);
+    bobY = Math.sin(bobT) * 3.9 * bobBlend;
+    bobX = Math.cos(bobT * 0.5) * 2.8 * bobBlend;
+
+    renderSky(now, motion);
+    renderProps(now);
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
