@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D FPS Tower Defense - Fixed</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000; font-family: 'Segoe UI', sans-serif;
+            overflow: hidden; user-select: none;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        /* Center Crosshair */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 4px; height: 4px; background: #fff;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 4px #000; border-radius: 50%;
+            z-index: 10;
+        }
+
+        .hud-panel {
+            background: rgba(20, 20, 20, 0.85); color: white;
+            padding: 15px; border-radius: 8px; border: 1px solid #444;
+            pointer-events: auto; text-shadow: 1px 1px 0 #000;
+        }
+
+        #stats-hud {
+            position: absolute; top: 20px; left: 20px;
+            font-size: 18px; font-weight: bold;
+        }
+        .stat-val { color: #55efc4; }
+        .stat-danger { color: #ff7675; }
+
+        #tool-hud {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 10px;
+        }
+
+        .tool-btn {
+            padding: 10px; border-radius: 6px; border: 2px solid #555;
+            background: rgba(0,0,0,0.7); color: white;
+            text-align: center; font-size: 14px; transition: 0.1s;
+        }
+        .tool-btn.active { border-color: #0984e3; background: rgba(9, 132, 227, 0.3); transform: scale(1.05); }
+
+        #target-hud {
+            position: absolute; top: 55%; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 8px 16px;
+            border-radius: 4px; font-size: 14px; display: none; text-align: center;
+        }
+
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white; pointer-events: auto; z-index: 20;
+        }
+
+        button.start-btn {
+            background: #0984e3; color: white; padding: 15px 30px; border: none;
+            border-radius: 4px; font-size: 20px; cursor: pointer; font-weight: bold;
+        }
+        button.start-btn:hover { background: #74b9ff; }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui-layer">
+    <div id="crosshair"></div>
+
+    <div id="stats-hud" class="hud-panel">
+        Wave: <span id="ui-wave" class="stat-val">1</span> |
+        Lives: <span id="ui-lives" class="stat-danger">20</span> |
+        Money: <span id="ui-money" class="stat-val">$150</span>
+        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">
+            [WASD] Move | [Mouse] Look | [Space] Start Wave<br>
+            [Left Click] Build | [Q] Upgrade | [F] Sell
+        </div>
+    </div>
+
+    <div id="target-hud">Target</div>
+
+    <div id="tool-hud">
+        <div class="tool-btn active" id="tool-1">[1] Pea Cannon<br><span style="color:#55efc4">$50</span></div>
+        <div class="tool-btn" id="tool-2">[2] Sniper<br><span style="color:#55efc4">$120</span></div>
+        <div class="tool-btn" id="tool-3">[3] Blaster<br><span style="color:#55efc4">$200</span></div>
+        <div class="tool-btn" id="tool-4">[4] Frost<br><span style="color:#55efc4">$150</span></div>
+        <div class="tool-btn" id="tool-5">[5] Bomb<br><span style="color:#55efc4">$250</span></div>
+    </div>
+</div>
+
+<div id="start-screen">
+    <h1 style="color: #55efc4; font-size: 48px; margin-bottom: 10px;">3D FPS Defense</h1>
+    <p style="font-size: 18px; margin-bottom: 30px;">Solid polygons, working crosshair, and a minimap.</p>
+    <button class="start-btn" id="btn-start">Click to Enter</button>
+</div>
+
+<script>
+/**
+ * 3D POLYGON FPS TOWER DEFENSE
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+let cw, ch;
+
+// Game Config
+const COLS = 16, ROWS = 16;
+const TOWER_TYPES = {
+    1: { name: "Pea Cannon", color: '#fab1a0', cost: 50,  range: 3.5, dmg: 10, rate: 30, type: 'norm', pSpd: 0.3 },
+    2: { name: "Sniper",     color: '#00b894', cost: 120, range: 7.0, dmg: 50, rate: 90, type: 'norm', pSpd: 0.6 },
+    3: { name: "Blaster",    color: '#fdcb6e', cost: 200, range: 3.0, dmg: 4,  rate: 5,  type: 'norm', pSpd: 0.4 },
+    4: { name: "Frost",      color: '#74b9ff', cost: 150, range: 3.0, dmg: 2,  rate: 40, type: 'slow', pSpd: 0.3 },
+    5: { name: "Bomb",       color: '#ff7675', cost: 250, range: 4.0, dmg: 30, rate: 80, type: 'aoe',  pSpd: 0.2 }
+};
+
+// Player & Engine State
+let cam = { x: 8, y: 1.5, z: -2, pitch: 0, yaw: 0 };
+let keys = {};
+let isLocked = false;
+let frames = 0;
+
+let gs = {
+    money: 150, lives: 20, wave: 1, inWave: false,
+    map: [], path: [], towers: [], enemies: [], projectiles: [],
+    selTool: 1, targetX: -1, targetZ: -1,
+    waveQueue: [], waveTimer: 0,
+    polygons: [] // 3D Render buffer
+};
+
+// UI Elements
+const ui = {
+    money: document.getElementById('ui-money'),
+    lives: document.getElementById('ui-lives'),
+    wave: document.getElementById('ui-wave'),
+    target: document.getElementById('target-hud')
+};
+
+// --- INIT & MAP ---
+function init() {
+    resize(); window.addEventListener('resize', resize);
+
+    // Generate Path
+    gs.map = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+    let x = 0, z = Math.floor(Math.random() * ROWS);
+    gs.path.push({x, z}); gs.map[z][x] = 1;
+
+    while (x < COLS - 1) {
+        let r = Math.random();
+        if (r < 0.5) x++;
+        else if (r < 0.75 && z > 1 && gs.map[z-1][x] === 0) z--;
+        else if (r >= 0.75 && z < ROWS - 2 && gs.map[z+1][x] === 0) z++;
+        else x++;
+        gs.path.push({x, z}); gs.map[z][x] = 1;
+    }
+
+    setupInputs();
+    requestAnimationFrame(loop);
+}
+
+function resize() {
+    cw = canvas.width = window.innerWidth;
+    ch = canvas.height = window.innerHeight;
+}
+
+// --- 3D MATH & POLYGONS ---
+function project(x, y, z) {
+    // Translate
+    let tx = x - cam.x, ty = y - cam.y, tz = z - cam.z;
+    // Rotate Yaw (Y axis)
+    let cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    let rx = tx * cy - tz * sy, rz = tx * sy + tz * cy;
+    // Rotate Pitch (X axis)
+    let cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    let ry = ty * cp - rz * sp, rz2 = ty * sp + rz * cp;
+
+    if (rz2 < 0.1) return null; // Behind camera plane
+
+    let fov = cw * 0.7; // Field of view
+    return {
+        x: cw/2 + (rx / rz2) * fov,
+        y: ch/2 - (ry / rz2) * fov,
+        depth: rz2
+    };
+}
+
+// Push a flat colored polygon to the render buffer
+function pushQuad(p1, p2, p3, p4, color) {
+    let pr1 = project(p1.x, p1.y, p1.z);
+    let pr2 = project(p2.x, p2.y, p2.z);
+    let pr3 = project(p3.x, p3.y, p3.z);
+    let pr4 = project(p4.x, p4.y, p4.z);
+
+    if (!pr1 || !pr2 || !pr3 || !pr4) return; // Basic near-plane culling
+
+    let avgDepth = (pr1.depth + pr2.depth + pr3.depth + pr4.depth) / 4;
+    gs.polygons.push({ pts: [pr1, pr2, pr3, pr4], color: color, depth: avgDepth });
+}
+
+// Draw a 3D Box (Towers, Enemies)
+function pushBox(x, y, z, w, h, d, baseColor) {
+    let hw = w/2, hd = d/2;
+    // Darken function for fake lighting
+    const shade = (col, amt) => {
+        let num = parseInt(col.replace("#",""),16);
+        let R = (num >> 16) + amt, G = ((num >> 8) & 0x00FF) + amt, B = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+    };
+
+    let cTop = baseColor, cFront = shade(baseColor, -30), cSide = shade(baseColor, -60);
+
+    // Top
+    pushQuad({x:x-hw, y:y+h, z:z-hd}, {x:x+hw, y:y+h, z:z-hd}, {x:x+hw, y:y+h, z:z+hd}, {x:x-hw, y:y+h, z:z+hd}, cTop);
+    // Front
+    pushQuad({x:x-hw, y:y+h, z:z+hd}, {x:x+hw, y:y+h, z:z+hd}, {x:x+hw, y:y, z:z+hd}, {x:x-hw, y:y, z:z+hd}, cFront);
+    // Back
+    pushQuad({x:x+hw, y:y+h, z:z-hd}, {x:x-hw, y:y+h, z:z-hd}, {x:x-hw, y:y, z:z-hd}, {x:x+hw, y:y, z:z-hd}, cFront);
+    // Left
+    pushQuad({x:x-hw, y:y+h, z:z-hd}, {x:x-hw, y:y+h, z:z+hd}, {x:x-hw, y:y, z:z+hd}, {x:x-hw, y:y, z:z-hd}, cSide);
+    // Right
+    pushQuad({x:x+hw, y:y+h, z:z+hd}, {x:x+hw, y:y+h, z:z-hd}, {x:x+hw, y:y, z:z-hd}, {x:x+hw, y:y, z:z+hd}, cSide);
+}
+
+// --- ENTITIES ---
+class Tower {
+    constructor(c, r, type) {
+        this.c = c; this.r = r; this.type = type;
+        this.x = c + 0.5; this.z = r + 0.5;
+        let def = TOWER_TYPES[type];
+        this.color = def.color; this.range = def.range; this.dmg = def.dmg;
+        this.rate = def.rate; this.cooldown = 0; this.level = 1; this.spent = def.cost;
+    }
+    update() {
+        if (this.cooldown > 0) this.cooldown--;
+        else {
+            let target = null, maxD = -1;
+            for (let e of gs.enemies) {
+                let d = Math.hypot(e.x - this.x, e.z - this.z);
+                if (d <= this.range && e.pIdx > maxD) { maxD = e.pIdx; target = e; }
+            }
+            if (target) {
+                gs.projectiles.push({ x: this.x, y: 0.8, z: this.z, tgt: target, twr: this });
+                this.cooldown = this.rate;
+            }
+        }
+    }
+}
+
+class Enemy {
+    constructor(type) {
+        let waveMult = 1 + (gs.wave * 0.2);
+        this.hp = (type==='BOSS'?300:type==='TANK'?60:20) * waveMult; this.maxHp = this.hp;
+        this.speed = type==='FAST'?0.06:type==='TANK'?0.02:0.04;
+        this.color = type==='BOSS'?'#d63031':type==='FAST'?'#ffeaa7':'#a29bfe';
+        this.reward = type==='BOSS'?50:5 + gs.wave;
+        this.size = type==='BOSS'?0.8:type==='FAST'?0.3:0.5;
+        this.pIdx = 0;
+        let st = gs.path[0]; this.x = st.x + 0.5; this.z = st.z + 0.5;
+        this.frozen = 0;
+    }
+    update() {
+        let spd = this.frozen > 0 ? this.speed/2 : this.speed;
+        if (this.frozen > 0) this.frozen--;
+
+        if (this.pIdx < gs.path.length - 1) {
+            let nxt = gs.path[this.pIdx + 1];
+            let dx = (nxt.x+0.5) - this.x, dz = (nxt.z+0.5) - this.z;
+            let dist = Math.hypot(dx, dz);
+            if (dist < spd) { this.x = nxt.x+0.5; this.z = nxt.z+0.5; this.pIdx++; }
+            else { this.x += (dx/dist)*spd; this.z += (dz/dist)*spd; }
+        } else {
+            gs.lives--; updateUI(); this.dead = true;
+        }
+    }
+    takeDmg(amt) {
+        this.hp -= amt;
+        if (this.hp <= 0 && !this.dead) { this.dead = true; gs.money += this.reward; updateUI(); }
+    }
+}
+
+// --- LOGIC ---
+function startWave() {
+    if (gs.inWave) return;
+    gs.inWave = true; gs.waveQueue = [];
+    let count = 5 + gs.wave * 2;
+    for(let i=0; i<count; i++) {
+        let type = 'NORM';
+        if (gs.wave>3 && Math.random()>0.6) type = 'FAST';
+        if (gs.wave>5 && Math.random()>0.8) type = 'TANK';
+        if (i === count-1 && gs.wave%5===0) type = 'BOSS';
+        gs.waveQueue.push({ t: type, d: i*45 });
+    }
+    gs.waveTimer = 0;
+}
+
+function updateUI() {
+    ui.money.innerText = `$${gs.money}`;
+    ui.lives.innerText = gs.lives;
+    ui.wave.innerText = gs.wave;
+
+    let targetTower = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
+    if (targetTower) {
+        let upCost = Math.floor(TOWER_TYPES[targetTower.type].cost * 0.8 * targetTower.level);
+        let isMax = targetTower.level >= 4;
+        ui.target.style.display = 'block';
+        ui.target.innerHTML = `<b>Lvl ${targetTower.level} Tower</b><br>[Q] Upgrade: ${isMax?'MAX':'$'+upCost} | [F] Sell: $${Math.floor(targetTower.spent*0.6)}`;
+    } else if (gs.targetX >= 0 && gs.map[gs.targetZ][gs.targetX] === 0) {
+        let def = TOWER_TYPES[gs.selTool];
+        ui.target.style.display = 'block';
+        ui.target.innerHTML = `[Click] Build ${def.name} ($${def.cost})`;
+    } else {
+        ui.target.style.display = 'none';
+    }
+}
+
+// --- MAIN LOOP ---
+function loop() {
+    // 1. INPUT & MOVEMENT
+    if (isLocked) {
+        let spd = 0.1;
+        let ax = 0, az = 0;
+        if (keys['w']) { ax += Math.sin(cam.yaw); az += Math.cos(cam.yaw); }
+        if (keys['s']) { ax -= Math.sin(cam.yaw); az -= Math.cos(cam.yaw); }
+        if (keys['a']) { ax -= Math.cos(cam.yaw); az += Math.sin(cam.yaw); }
+        if (keys['d']) { ax += Math.cos(cam.yaw); az -= Math.sin(cam.yaw); }
+
+        if (ax !== 0 || az !== 0) {
+            let len = Math.hypot(ax, az);
+            cam.x += (ax/len) * spd; cam.z += (az/len) * spd;
+        }
+
+        // FLAWLESS TARGETING RAYCAST
+        // Ray starts at camera, goes through exact center of screen
+        let dirX = Math.sin(cam.yaw) * Math.cos(cam.pitch);
+        let dirY = -Math.sin(cam.pitch);
+        let dirZ = Math.cos(cam.yaw) * Math.cos(cam.pitch);
+
+        // Find intersection with ground (y = 0)
+        // cam.y + t * dirY = 0  => t = -cam.y / dirY
+        gs.targetX = -1; gs.targetZ = -1;
+        if (dirY < -0.01) { // Looking down at the ground
+            let t = -cam.y / dirY;
+            if (t > 0 && t < 30) { // Limit reach
+                let hx = Math.floor(cam.x + t * dirX);
+                let hz = Math.floor(cam.z + t * dirZ);
+                if (hx >= 0 && hx < COLS && hz >= 0 && hz < ROWS) {
+                    gs.targetX = hx; gs.targetZ = hz;
+                }
+            }
+        }
+        updateUI();
+    }
+
+    // 2. GAME STATE UPDATES
+    if (gs.lives <= 0) {
+        ctx.fillStyle = 'rgba(255,0,0,0.5)'; ctx.fillRect(0,0,cw,ch);
+        ctx.fillStyle = 'white'; ctx.font = '50px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText("GAME OVER", cw/2, ch/2); return;
+    }
+
+    if (gs.inWave) {
+        gs.waveTimer++;
+        if (gs.waveQueue.length > 0 && gs.waveTimer >= gs.waveQueue[0].d) {
+            gs.enemies.push(new Enemy(gs.waveQueue.shift().t));
+            gs.waveTimer = 0;
+        }
+        if (gs.waveQueue.length === 0 && gs.enemies.length === 0) { gs.inWave = false; gs.wave++; updateUI(); }
+    }
+
+    gs.towers.forEach(t => t.update());
+    gs.enemies.forEach(e => e.update()); gs.enemies = gs.enemies.filter(e => !e.dead);
+
+    // Proj update
+    for (let i = gs.projectiles.length-1; i>=0; i--) {
+        let p = gs.projectiles[i];
+        if (p.tgt.dead) { gs.projectiles.splice(i, 1); continue; }
+        let dx = p.tgt.x - p.x, dy = 0.3 - p.y, dz = p.tgt.z - p.z;
+        let dist = Math.hypot(dx, dy, dz);
+        let def = TOWER_TYPES[p.twr.type];
+        if (dist < def.pSpd) {
+            if (def.type === 'slow') { p.tgt.takeDmg(def.dmg); p.tgt.frozen = 60; }
+            else if (def.type === 'aoe') {
+                gs.enemies.forEach(e => { if(Math.hypot(e.x-p.x, e.z-p.z)<2) e.takeDmg(def.dmg); });
+            } else p.tgt.takeDmg(def.dmg);
+            gs.projectiles.splice(i, 1);
+        } else {
+            p.x += (dx/dist)*def.pSpd; p.y += (dy/dist)*def.pSpd; p.z += (dz/dist)*def.pSpd;
+        }
+    }
+
+    // 3. RENDER 3D SCENE
+    ctx.fillStyle = '#2c3e50'; ctx.fillRect(0,0,cw,ch); // Sky
+    let horizon = ch/2 + Math.tan(cam.pitch) * (cw*0.7);
+    ctx.fillStyle = '#1e272e'; ctx.fillRect(0, horizon, cw, ch); // Base Ground
+
+    gs.polygons = [];
+
+    // Floor Map
+    for(let z=0; z<ROWS; z++) {
+        for(let x=0; x<COLS; x++) {
+            let isPath = gs.map[z][x] === 1;
+            let isTarget = (x === gs.targetX && z === gs.targetZ);
+
+            // Only push floor polygons reasonably close to camera to save CPU
+            if (Math.hypot(x-cam.x, z-cam.z) < 25) {
+                let color = isTarget ? '#ffeaa7' : (isPath ? '#bdc3c7' : '#27ae60');
+                // Lift path slightly to prevent Z-fighting
+                let y = isPath ? 0.02 : 0;
+                pushQuad({x:x, y:y, z:z}, {x:x+1, y:y, z:z}, {x:x+1, y:y, z:z+1}, {x:x, y:y, z:z+1}, color);
+            }
+        }
+    }
+
+    // Objects
+    gs.towers.forEach(t => pushBox(t.x, 0, t.z, 0.8, 0.6 + t.level*0.2, 0.8, t.color));
+    gs.enemies.forEach(e => pushBox(e.x, e.size/2, e.z, e.size, e.size, e.size, e.color));
+    gs.projectiles.forEach(p => pushBox(p.x, p.y, p.z, 0.15, 0.15, 0.15, p.twr.color));
+
+    // Sort and Draw Painter's Algorithm
+    gs.polygons.sort((a, b) => b.depth - a.depth);
+
+    for (let poly of gs.polygons) {
+        ctx.fillStyle = poly.color;
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(poly.pts[0].x, poly.pts[0].y);
+        for(let i=1; i<poly.pts.length; i++) ctx.lineTo(poly.pts[i].x, poly.pts[i].y);
+        ctx.closePath();
+        ctx.fill();
+        if (poly.depth < 15) ctx.stroke(); // Only stroke near objects
+    }
+
+    // 4. DRAW 2D MINIMAP
+    drawMinimap();
+
+    frames++;
+    requestAnimationFrame(loop);
+}
+
+function drawMinimap() {
+    const mmSize = 150, mmScale = mmSize / COLS;
+    ctx.save();
+    ctx.translate(cw - mmSize - 20, 20);
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, mmSize, mmSize);
+    ctx.strokeStyle = '#fff'; ctx.strokeRect(0, 0, mmSize, mmSize);
+
+    // Path & Map
+    for(let z=0; z<ROWS; z++) {
+        for(let x=0; x<COLS; x++) {
+            if(gs.map[z][x]===1) { ctx.fillStyle='#bdc3c7'; ctx.fillRect(x*mmScale, z*mmScale, mmScale, mmScale); }
+        }
+    }
+    // Towers
+    gs.towers.forEach(t => { ctx.fillStyle=t.color; ctx.fillRect(t.c*mmScale, t.r*mmScale, mmScale, mmScale); });
+    // Enemies
+    ctx.fillStyle = 'red';
+    gs.enemies.forEach(e => { ctx.beginPath(); ctx.arc(e.x*mmScale, e.z*mmScale, 2, 0, Math.PI*2); ctx.fill(); });
+    // Player
+    ctx.fillStyle = 'yellow';
+    ctx.beginPath(); ctx.arc(cam.x*mmScale, cam.z*mmScale, 3, 0, Math.PI*2); ctx.fill();
+    // View cone
+    ctx.strokeStyle = 'rgba(255,255,0,0.5)';
+    ctx.beginPath(); ctx.moveTo(cam.x*mmScale, cam.z*mmScale);
+    ctx.lineTo((cam.x + Math.sin(cam.yaw - 0.5)*5)*mmScale, (cam.z + Math.cos(cam.yaw - 0.5)*5)*mmScale);
+    ctx.moveTo(cam.x*mmScale, cam.z*mmScale);
+    ctx.lineTo((cam.x + Math.sin(cam.yaw + 0.5)*5)*mmScale, (cam.z + Math.cos(cam.yaw + 0.5)*5)*mmScale);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// --- INPUT HANDLING ---
+function setupInputs() {
+    document.getElementById('btn-start').onclick = () => canvas.requestPointerLock();
+    document.addEventListener('pointerlockchange', () => {
+        isLocked = document.pointerLockElement === canvas;
+        document.getElementById('start-screen').style.display = isLocked ? 'none' : 'flex';
+        if (!isLocked) document.getElementById('btn-start').innerText = "Click to Resume";
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!isLocked) return;
+        cam.yaw += e.movementX * 0.003;
+        cam.pitch += e.movementY * 0.003;
+        cam.pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, cam.pitch));
+    });
+
+    document.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+        if (!isLocked) return;
+
+        if (e.key >= '1' && e.key <= '5') {
+            gs.selTool = parseInt(e.key);
+            for(let i=1; i<=5; i++) document.getElementById(`tool-${i}`).classList.remove('active');
+            document.getElementById(`tool-${gs.selTool}`).classList.add('active');
+            updateUI();
+        }
+
+        let twr = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
+        if (e.key.toLowerCase() === 'q' && twr) {
+            let cost = Math.floor(TOWER_TYPES[twr.type].cost * 0.8 * twr.level);
+            if (twr.level < 4 && gs.money >= cost) { gs.money -= cost; twr.spent += cost; twr.level++; twr.dmg *= 1.5; updateUI(); }
+        }
+        if (e.key.toLowerCase() === 'f' && twr) {
+            gs.money += Math.floor(twr.spent * 0.6);
+            gs.towers = gs.towers.filter(t => t !== twr); updateUI();
+        }
+        if (e.key === ' ' && !gs.inWave) startWave();
+    });
+
+    document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    document.addEventListener('mousedown', e => {
+        if (!isLocked || e.button !== 0) return;
+
+        if (gs.targetX >= 0 && gs.map[gs.targetZ][gs.targetX] === 0) {
+            let existing = gs.towers.find(t => t.c === gs.targetX && t.r === gs.targetZ);
+            if (!existing) {
+                let cost = TOWER_TYPES[gs.selTool].cost;
+                if (gs.money >= cost) {
+                    gs.money -= cost;
+                    gs.towers.push(new Tower(gs.targetX, gs.targetZ, gs.selTool));
+                    updateUI();
+                }
+            }
+        }
+    });
+}
+
+init();
+</script>
+</body>
+</html>

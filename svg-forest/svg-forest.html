@@ -3,39 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Haunted Forest Explorer</title>
+    <title>Haunted Forest 3D</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: #1a0f2e; /* Deep spooky purple */
-            overflow: hidden; font-family: sans-serif;
-            touch-action: none; /* Prevents pull-to-refresh on mobile */
+            background-color: #0d0614; overflow: hidden; font-family: sans-serif;
+            touch-action: none;
         }
-        #game-container {
-            position: relative; width: 100vw; height: 100vh;
-        }
-        svg {
-            display: block; width: 100%; height: 100%;
-        }
-        /* UI Controls */
-        #ui-arrows {
-            position: absolute; bottom: 30px; left: 30px;
-            display: flex; flex-direction: column; align-items: center; gap: 5px;
-            opacity: 0.7;
-        }
-        .row { display: flex; gap: 5px; }
-        .btn {
-            width: 50px; height: 50px; background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 10px;
-            color: white; font-size: 24px; font-weight: bold;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; user-select: none;
-        }
-        .btn:active { background: rgba(255, 255, 255, 0.5); }
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        svg { display: block; width: 100%; height: 100%; }
+
         #instructions {
             position: absolute; top: 20px; left: 20px;
             color: #bfa1db; pointer-events: none;
-            text-shadow: 2px 2px 0px #000;
+            text-shadow: 2px 2px 0px #000; z-index: 10;
+        }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 4px; height: 4px; background: white;
+            border-radius: 50%; transform: translate(-50%, -50%);
+            opacity: 0.5; z-index: 10;
         }
     </style>
 </head>
@@ -43,90 +30,77 @@
 
 <div id="game-container">
     <div id="instructions">
-        <h3>Spooky Woods Explorer</h3>
-        <p>• Use <b>Arrow Keys</b> or <b>On-screen Buttons</b> to move.</p>
-        <p>• <b>Click & Drag</b> the mouse to look around.</p>
+        <h3>Spooky Woods 3D</h3>
+        <p>• <b>W / S</b> to walk forward and backward.</p>
+        <p>• <b>A / D</b> (or Mouse Drag) to turn.</p>
     </div>
+    <div id="crosshair"></div>
 
-    <svg id="game-svg" preserveAspectRatio="xMidYMid slice">
+    <svg id="game-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
         <defs>
+            <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#1a0f2e" />
+                <stop offset="100%" stop-color="#3d1e5d" />
+            </linearGradient>
+            <linearGradient id="ground" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#0f091a" />
+                <stop offset="100%" stop-color="#1a2e1a" />
+            </linearGradient>
+
             <g id="spooky-tree">
-                <ellipse cx="0" cy="0" rx="35" ry="15" fill="#110a1a" opacity="0.6" />
-                <path d="M-5,0 C-15,-30 -25,-50 0,-80 C20,-50 15,-30 8,0 Z" fill="#2c1d3b" />
-                <path d="M0,-30 Q-20,-40 -30,-60" stroke="#2c1d3b" stroke-width="6" fill="none" stroke-linecap="round"/>
-                <circle cx="-15" cy="-80" r="30" fill="#4d306b" />
-                <circle cx="20" cy="-75" r="25" fill="#3d2655" />
-                <circle cx="0" cy="-100" r="35" fill="#5c3a82" />
+                <ellipse cx="0" cy="0" rx="35" ry="10" fill="#000" opacity="0.8" />
+                <path d="M-10,0 C-20,-50 -35,-80 0,-150 C30,-80 20,-50 15,0 Z" fill="#2c1d3b" />
+                <circle cx="-25" cy="-150" r="45" fill="#4d306b" />
+                <circle cx="30" cy="-140" r="40" fill="#3d2655" />
+                <circle cx="0" cy="-180" r="50" fill="#5c3a82" />
             </g>
 
             <g id="mushroom">
-                <ellipse cx="0" cy="0" rx="10" ry="4" fill="#110a1a" opacity="0.6" />
-                <rect x="-3" y="-12" width="6" height="12" fill="#e6ffe6" />
-                <path d="M-12,-12 Q0,-25 12,-12 Z" fill="#39ff14" />
-                <circle cx="0" cy="-14" r="15" fill="#39ff14" opacity="0.2" />
+                <ellipse cx="0" cy="0" rx="15" ry="5" fill="#000" opacity="0.8" />
+                <rect x="-4" y="-20" width="8" height="20" fill="#e6ffe6" />
+                <path d="M-20,-20 Q0,-45 20,-20 Z" fill="#39ff14" />
+                <circle cx="0" cy="-25" r="25" fill="#39ff14" opacity="0.2" />
             </g>
-
-            <g id="kid-body">
-                <rect x="-20" y="-12" width="10" height="24" rx="4" fill="#cc5500" /> <ellipse cx="0" cy="0" rx="16" ry="20" fill="#ffd700" /> </g>
-            <g id="kid-head">
-                <circle cx="0" cy="0" r="14" fill="#ffeb73" />
-                <path d="M5,-10 A 10 10 0 0 1 5,10 Z" fill="#ffcc00" /> <circle cx="9" cy="-5" r="2.5" fill="#111" /> <circle cx="9" cy="5" r="2.5" fill="#111" /> </g>
         </defs>
 
-        <g id="world"></g>
+        <rect x="0" y="0" width="800" height="300" fill="url(#sky)" />
+        <rect x="0" y="300" width="800" height="300" fill="url(#ground)" />
 
-        <g id="player" transform="translate(0,0)">
-            <g id="player-body">
-                <use href="#kid-body" />
-                <g id="player-head">
-                    <use href="#kid-head" />
-                </g>
-            </g>
-        </g>
+        <g id="render-layer"></g>
     </svg>
-
-    <div id="ui-arrows">
-        <div class="btn" id="btn-up">↑</div>
-        <div class="row">
-            <div class="btn" id="btn-left">←</div>
-            <div class="btn" id="btn-down">↓</div>
-            <div class="btn" id="btn-right">→</div>
-        </div>
-    </div>
 </div>
 
 <script>
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.getElementById('game-svg');
-    const worldGroup = document.getElementById('world');
-    const playerEl = document.getElementById('player');
-    const bodyEl = document.getElementById('player-body');
-    const headEl = document.getElementById('player-head');
+    const renderLayer = document.getElementById('render-layer');
 
-    // Logic Variables
-    const SPEED = 5;
-    const CHUNK_SIZE = 500;
-    const VIEW_WIDTH = 1000;
-    const VIEW_HEIGHT = 800;
+    // --- Engine Constants ---
+    const VIEW_WIDTH = 800;
+    const VIEW_HEIGHT = 600;
+    const HORIZON = 300;
+    const FOV = Math.PI / 2.5; // About 72 degrees field of view
+    const FOCAL_LENGTH = 400;  // How quickly things shrink
+    const CHUNK_SIZE = 800;
 
-    let playerX = 0, playerY = 0;
-    let targetLookAngle = 0; // Where the mouse wants us to look
-    let bodyAngle = 0;       // Current body heading
-    let headAngle = 0;       // Head rotation relative to body
+    // --- Player State ---
+    let pX = 0, pY = 0;
+    let pAngle = -Math.PI / 2; // Facing "North" initially
+    const SPEED = 8;
+    const TURN_SPEED = 0.05;
+
+    // --- World Data ---
+    const generatedChunks = new Set();
+    let props = []; // Array of {x, y, type, scaleMultiplier}
 
     // Input State
     const keys = {};
     let isDragging = false;
-    let dragStartX = 0, dragStartY = 0;
+    let lastMouseX = 0;
 
-    // --- 1. PROCEDURAL GENERATION ---
-    const generatedChunks = new Set();
-
+    // --- Procedural Generation (2D Map) ---
     function generateChunks() {
-        const cx = Math.floor(playerX / CHUNK_SIZE);
-        const cy = Math.floor(playerY / CHUNK_SIZE);
+        const cx = Math.floor(pX / CHUNK_SIZE);
+        const cy = Math.floor(pY / CHUNK_SIZE);
 
-        // Check the 3x3 grid around the player
         for (let x = cx - 1; x <= cx + 1; x++) {
             for (let y = cy - 1; y <= cy + 1; y++) {
                 const key = `${x},${y}`;
@@ -139,124 +113,114 @@
     }
 
     function populateChunk(cx, cy) {
-        // Drop 4 to 8 trees per chunk
-        const numTrees = Math.floor(Math.random() * 5) + 4;
-        for (let i = 0; i < numTrees; i++) {
+        const numProps = Math.floor(Math.random() * 8) + 5;
+        for (let i = 0; i < numProps; i++) {
             const tx = (cx * CHUNK_SIZE) + (Math.random() * CHUNK_SIZE);
             const ty = (cy * CHUNK_SIZE) + (Math.random() * CHUNK_SIZE);
 
-            // Exclude spawning directly on the start position (0,0)
-            if (Math.hypot(tx, ty) < 150) continue;
+            // Clear out a starting area
+            if (Math.hypot(tx, ty) < 200) continue;
 
-            const isMushroom = Math.random() > 0.7; // 30% chance of mushroom
-
-            const prop = document.createElementNS(svgNS, "use");
-            prop.setAttribute("href", isMushroom ? "#mushroom" : "#spooky-tree");
-
-            // Randomly scale props slightly to make it organic
-            const scale = 0.8 + Math.random() * 0.4;
-            prop.setAttribute("transform", `translate(${tx}, ${ty}) scale(${scale})`);
-
-            worldGroup.appendChild(prop);
+            props.push({
+                x: tx,
+                y: ty,
+                type: Math.random() > 0.7 ? '#mushroom' : '#spooky-tree',
+                scaleMult: 0.8 + Math.random() * 0.6
+            });
         }
     }
 
-    // --- 2. INPUT HANDLING ---
+    // --- Input Handling ---
+    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-    // Keyboard
-    window.addEventListener('keydown', e => keys[e.key] = true);
-    window.addEventListener('keyup', e => keys[e.key] = false);
-
-    // Mouse Dragging for Heading
     window.addEventListener('mousedown', e => {
-        if (e.target.closest('#ui-arrows')) return; // Ignore if clicking buttons
         isDragging = true;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
+        lastMouseX = e.clientX;
     });
-
     window.addEventListener('mousemove', e => {
         if (!isDragging) return;
-        const dx = e.clientX - dragStartX;
-        const dy = e.clientY - dragStartY;
-
-        // Only update angle if dragged more than a few pixels to prevent twitching
-        if (Math.hypot(dx, dy) > 5) {
-            // Calculate angle. 0 degrees is right, 90 is down, etc.
-            targetLookAngle = Math.atan2(dy, dx) * (180 / Math.PI);
-        }
+        const deltaX = e.clientX - lastMouseX;
+        pAngle += deltaX * 0.005; // Mouse sensitivity
+        lastMouseX = e.clientX;
     });
-
     window.addEventListener('mouseup', () => isDragging = false);
-    window.addEventListener('mouseleave', () => isDragging = false);
 
-    // Onscreen Buttons
-    const btnMap = {
-        'btn-up': 'ArrowUp', 'btn-down': 'ArrowDown',
-        'btn-left': 'ArrowLeft', 'btn-right': 'ArrowRight'
-    };
-    for (const [id, key] of Object.entries(btnMap)) {
-        const el = document.getElementById(id);
-        el.addEventListener('pointerdown', () => keys[key] = true);
-        el.addEventListener('pointerup', () => keys[key] = false);
-        el.addEventListener('pointerleave', () => keys[key] = false);
-    }
-
-    // --- 3. MAIN GAME LOOP ---
+    // --- The "Fake 3D" Rendering Loop ---
     function loop() {
-        // A. Handle Movement
-        let dx = 0, dy = 0;
-        if (keys['ArrowUp'] || keys['w']) dy -= SPEED;
-        if (keys['ArrowDown'] || keys['s']) dy += SPEED;
-        if (keys['ArrowLeft'] || keys['a']) dx -= SPEED;
-        if (keys['ArrowRight'] || keys['d']) dx += SPEED;
+        // 1. Movement Logic (Tank Controls)
+        if (keys['a'] || keys['arrowleft']) pAngle -= TURN_SPEED;
+        if (keys['d'] || keys['arrowright']) pAngle += TURN_SPEED;
 
-        // Normalize diagonal speed so you don't move 1.4x faster diagonally
-        if (dx !== 0 && dy !== 0) {
-            const length = Math.hypot(dx, dy);
-            dx = (dx / length) * SPEED;
-            dy = (dy / length) * SPEED;
+        if (keys['w'] || keys['arrowup']) {
+            pX += Math.cos(pAngle) * SPEED;
+            pY += Math.sin(pAngle) * SPEED;
+        }
+        if (keys['s'] || keys['arrowdown']) {
+            pX -= Math.cos(pAngle) * SPEED;
+            pY -= Math.sin(pAngle) * SPEED;
         }
 
-        playerX += dx;
-        playerY += dy;
-
-        // B. Calculate Angles (The 20-degree head turning logic)
-        let diff = targetLookAngle - bodyAngle;
-        // Normalize angle difference to be between -180 and +180
-        diff = ((diff + 540) % 360) - 180;
-
-        if (Math.abs(diff) <= 20) {
-            // Under 20 degrees: Just move the head, body stays put
-            headAngle = diff;
-        } else {
-            // Over 20 degrees: Lock head to max 20, gracefully rotate body
-            headAngle = diff > 0 ? 20 : -20;
-
-            const targetBody = targetLookAngle - headAngle;
-            let bodyDiff = targetBody - bodyAngle;
-            bodyDiff = ((bodyDiff + 540) % 360) - 180;
-
-            bodyAngle += bodyDiff * 0.15; // The 0.15 controls the "graceful" rotation speed
-        }
-
-        // C. Apply Transforms
-        playerEl.setAttribute('transform', `translate(${playerX}, ${playerY})`);
-        bodyEl.setAttribute('transform', `rotate(${bodyAngle})`);
-        headEl.setAttribute('transform', `rotate(${headAngle})`);
-
-        // D. Update Camera (ViewBox)
-        const camX = playerX - (VIEW_WIDTH / 2);
-        const camY = playerY - (VIEW_HEIGHT / 2);
-        svg.setAttribute('viewBox', `${camX} ${camY} ${VIEW_WIDTH} ${VIEW_HEIGHT}`);
-
-        // E. Manage World Generation
         generateChunks();
+
+        // 2. 3D Math & Projection
+        let visibleProps = [];
+
+        for (let prop of props) {
+            let dx = prop.x - pX;
+            let dy = prop.y - pY;
+            let distance = Math.hypot(dx, dy);
+
+            // Calculate angle to prop
+            let angleToProp = Math.atan2(dy, dx);
+            let angleDiff = angleToProp - pAngle;
+
+            // Normalize angle between -PI and PI
+            while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+            // If the prop is in front of us (within FOV + some margin so it doesn't pop out early)
+            if (Math.abs(angleDiff) < FOV / 1.5 && distance > 10) {
+                // Perspective projection math
+                let perspectiveScale = FOCAL_LENGTH / distance;
+
+                // Map the angle difference to screen X pixels
+                let screenX = (VIEW_WIDTH / 2) + (angleDiff / (FOV / 2)) * (VIEW_WIDTH / 2);
+
+                // Align to the horizon line (ground)
+                let screenY = HORIZON + (50 * perspectiveScale); // 50 is camera height
+
+                visibleProps.push({
+                    prop: prop,
+                    distance: distance,
+                    x: screenX,
+                    y: screenY,
+                    scale: perspectiveScale * prop.scaleMult
+                });
+            }
+        }
+
+        // 3. Painter's Algorithm: Sort from furthest to closest
+        visibleProps.sort((a, b) => b.distance - a.distance);
+
+        // 4. Update the SVG DOM
+        // Instead of modifying existing DOM elements, we rewrite the innerHTML
+        // string for speed. (SVG DOM manipulation is slow).
+        let renderString = '';
+        for (let vp of visibleProps) {
+            // Cull things that are ridiculously far to save frames
+            if (vp.distance > 2000) continue;
+
+            // Build the SVG string for this prop
+            renderString += `<use href="${vp.prop.type}" transform="translate(${vp.x}, ${vp.y}) scale(${vp.scale})" />`;
+        }
+
+        renderLayer.innerHTML = renderString;
 
         requestAnimationFrame(loop);
     }
 
-    // Start Game
+    // Start
     generateChunks();
     requestAnimationFrame(loop);
 </script>

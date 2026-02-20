@@ -30,6 +30,8 @@
             --glow-indigo: 0 0 20px rgba(108, 92, 231, 0.6);
             --neon-emerald: #10b981;
             --glow-emerald: 0 0 20px rgba(16, 185, 129, 0.6);
+            --neon-sky: #0ea5e9;
+            --glow-sky: 0 0 20px rgba(14, 165, 233, 0.6);
         }
 
         * {
@@ -239,6 +241,11 @@
             box-shadow: var(--glow-emerald), inset 0 0 30px rgba(16, 185, 129, 0.05);
         }
 
+        .game-card:nth-child(10):hover {
+            border-color: var(--neon-sky);
+            box-shadow: var(--glow-sky), inset 0 0 30px rgba(14, 165, 233, 0.05);
+        }
+
         .game-card-corner {
             position: absolute;
             width: 20px;
@@ -283,6 +290,10 @@
 
         .game-card:nth-child(9) .game-card-corner {
             border-color: var(--neon-emerald);
+        }
+
+        .game-card:nth-child(10) .game-card-corner {
+            border-color: var(--neon-sky);
         }
 
         .game-card-icon {
@@ -401,6 +412,16 @@
         .game-card:nth-child(9):hover .launch-badge {
             background: rgba(16, 185, 129, 0.1);
             box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .game-card:nth-child(10) .launch-badge {
+            border-color: var(--neon-sky);
+            color: var(--neon-sky);
+        }
+
+        .game-card:nth-child(10):hover .launch-badge {
+            background: rgba(14, 165, 233, 0.1);
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
         }
 
         .footer {
@@ -614,6 +635,16 @@
                 <div class="game-card-icon">🏰</div>
                 <h2>Emoji Tower Defense</h2>
                 <p>Emoji towers on grass and dirt. Place defenses, stop the waves. Defend with style.</p>
+                <span class="launch-badge">Launch</span>
+            </a>
+            <a href="g3pro-3d-fps-tower-def.html" class="game-card">
+                <span class="game-card-corner tl"></span>
+                <span class="game-card-corner tr"></span>
+                <span class="game-card-corner bl"></span>
+                <span class="game-card-corner br"></span>
+                <div class="game-card-icon">🎯</div>
+                <h2>3D FPS Tower Defense</h2>
+                <p>First-person 3D. Place towers, aim and shoot. Defend from the ground in immersive 3D.</p>
                 <span class="launch-badge">Launch</span>
             </a>
         </nav>
