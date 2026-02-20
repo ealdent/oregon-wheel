@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Forest — Haunted Forest Explorer</title>
+    <style>
+        * { box-sizing: border-box; }
+        html {
+            -webkit-text-size-adjust: 100%;
+        }
+        body {
+            margin: 0;
+            padding: clamp(1rem, 5vw, 2rem);
+            padding-left: max(clamp(1rem, 5vw, 2rem), env(safe-area-inset-left));
+            padding-right: max(clamp(1rem, 5vw, 2rem), env(safe-area-inset-right));
+            padding-bottom: max(clamp(1rem, 5vw, 2rem), env(safe-area-inset-bottom));
+            font-family: Georgia, serif;
+            background: #1a0f2e;
+            color: #bfa1db;
+            line-height: 1.6;
+            max-width: 640px;
+            margin: 0 auto;
+            min-height: 100vh;
+            overflow-wrap: break-word;
+        }
+        h1 {
+            color: #e6d4f5;
+            font-size: clamp(1.5rem, 5vw, 1.75rem);
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: #8b7a9e;
+            font-size: clamp(0.875rem, 2.5vw, 0.95rem);
+            margin-bottom: 2rem;
+        }
+        a {
+            color: #39ff14;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .play-link {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #2c1d3b;
+            border: 2px solid #5c3a82;
+            border-radius: 8px;
+            color: #e6d4f5;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            transition: background 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+        @media (min-width: 400px) {
+            .play-link {
+                width: auto;
+            }
+        }
+        .play-link:hover {
+            background: #3d2655;
+            text-decoration: none;
+        }
+        h2 {
+            color: #d4c4e8;
+            font-size: clamp(1rem, 3vw, 1.1rem);
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        ul {
+            padding-left: 1.25rem;
+            margin: 0.5rem 0;
+        }
+        li {
+            margin-bottom: 0.25rem;
+        }
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        footer {
+            margin-top: 2.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #3d2655;
+            font-size: 0.85rem;
+            color: #6b5b7e;
+        }
+    </style>
+</head>
+<body>
+    <h1>SVG Forest</h1>
+    <p class="subtitle">A haunted forest exploration game built entirely with SVG</p>
+
+    <a href="svg-forest.html" class="play-link">▶ Play Haunted Forest Explorer</a>
+
+    <h2>About</h2>
+    <p>
+        Explore an endless, procedurally generated haunted forest. You play as a small figure wandering through spooky woods filled with twisted trees and glowing mushrooms. The world extends infinitely in all directions—there’s always more to discover.
+    </p>
+
+    <h2>Controls</h2>
+    <ul>
+        <li><strong>Movement:</strong> Arrow keys or <code>W</code> <code>A</code> <code>S</code> <code>D</code></li>
+        <li><strong>Mobile:</strong> Use the on-screen arrow buttons</li>
+        <li><strong>Look around:</strong> Click and drag with the mouse to change which way you’re facing</li>
+    </ul>
+
+    <h2>Features</h2>
+    <ul>
+        <li>Infinite procedurally generated forest</li>
+        <li>Spooky trees and glowing mushrooms</li>
+        <li>Head turns toward your look direction</li>
+        <li>Pure SVG—no canvas, no external libraries</li>
+        <li>Works on desktop and mobile</li>
+    </ul>
+
+    <h2>Tech</h2>
+    <p>
+        Built with vanilla HTML, CSS, and JavaScript. The forest is drawn with SVG elements, and new chunks of the world are generated as you explore. No build step, no dependencies—just open the file and play.
+    </p>
+
+    <footer>
+        Part of the <a href="..">oregon-wheel</a> collection.
+    </footer>
+</body>
+</html>
