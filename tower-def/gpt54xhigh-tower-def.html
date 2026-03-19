@@ -1,0 +1,2654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meadow Guard TD</title>
+  <style>
+    :root {
+      --bg-1: #f6f0d8;
+      --bg-2: #d3efc9;
+      --panel: rgba(255, 250, 238, 0.88);
+      --panel-strong: rgba(255, 248, 232, 0.96);
+      --ink: #2f4c3c;
+      --muted: #6c7f71;
+      --accent: #ff8d6f;
+      --accent-deep: #e66b4b;
+      --accent-soft: rgba(255, 141, 111, 0.2);
+      --mint: #89d6b5;
+      --mint-deep: #52a884;
+      --sun: #ffc965;
+      --gold: #f0b54a;
+      --danger: #ef6d72;
+      --shadow: 0 20px 55px rgba(60, 87, 47, 0.16);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "Trebuchet MS", "Avenir Next", "Gill Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.8), transparent 30%),
+        radial-gradient(circle at top right, rgba(255, 212, 130, 0.36), transparent 26%),
+        linear-gradient(165deg, #fff8e7 0%, #eef8e2 42%, #d6efc7 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.45) 0, transparent 24%),
+        radial-gradient(circle at 75% 28%, rgba(255, 255, 255, 0.25) 0, transparent 18%),
+        linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08));
+      opacity: 0.95;
+    }
+
+    .page-shell {
+      position: relative;
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: clamp(16px, 2vw, 28px);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: grid;
+      gap: 6px;
+      max-width: 540px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      color: #6d6944;
+      background: rgba(255, 244, 209, 0.88);
+      border: 1px solid rgba(232, 201, 110, 0.42);
+      box-shadow: 0 10px 24px rgba(214, 183, 87, 0.15);
+      font-size: 0.88rem;
+      letter-spacing: 0.02em;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffd97a 0%, #ffb446 100%);
+      box-shadow: 0 0 0 5px rgba(255, 201, 101, 0.22);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 3vw, 3.2rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 12px;
+      flex: 1 1 460px;
+      min-width: min(100%, 420px);
+    }
+
+    .stat-card {
+      display: grid;
+      gap: 4px;
+      padding: 14px 16px;
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      border: 1px solid rgba(113, 138, 102, 0.16);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .stat-value {
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.92fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      border: 1px solid rgba(113, 138, 102, 0.16);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .stage-panel {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .stage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stage-tags {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(109, 141, 97, 0.16);
+      font-size: 0.86rem;
+      color: #547160;
+    }
+
+    .phase-pill {
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.86rem;
+      letter-spacing: 0.02em;
+      color: #6d4b1a;
+      background: linear-gradient(180deg, rgba(255, 237, 172, 0.95), rgba(255, 208, 102, 0.82));
+      border: 1px solid rgba(220, 170, 57, 0.34);
+      box-shadow: 0 12px 22px rgba(255, 190, 76, 0.18);
+    }
+
+    .phase-pill.live {
+      color: #fff6eb;
+      background: linear-gradient(180deg, rgba(255, 134, 111, 0.96), rgba(230, 107, 75, 0.88));
+      border-color: rgba(194, 92, 65, 0.46);
+      box-shadow: 0 12px 24px rgba(224, 100, 73, 0.22);
+    }
+
+    .phase-pill.game-over {
+      color: #fff3f4;
+      background: linear-gradient(180deg, rgba(239, 109, 114, 0.96), rgba(208, 79, 84, 0.9));
+      border-color: rgba(172, 53, 57, 0.38);
+    }
+
+    .canvas-frame {
+      position: relative;
+      padding: 12px;
+      border-radius: calc(var(--radius-xl) - 4px);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.34)),
+        linear-gradient(160deg, rgba(145, 206, 167, 0.2), rgba(255, 221, 145, 0.2));
+      border: 1px solid rgba(114, 140, 100, 0.14);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 10;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #dff1fe 0%, #eaf7fd 24%, #cbefca 24.1%, #9edb8b 100%);
+      box-shadow: inset 0 0 0 1px rgba(68, 99, 61, 0.08);
+      touch-action: none;
+    }
+
+    .stage-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--muted);
+    }
+
+    .message-line {
+      margin: 0;
+      min-height: 1.3em;
+      font-size: 0.96rem;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend i {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+    }
+
+    .sidebar {
+      display: grid;
+      gap: 18px;
+    }
+
+    .content-panel {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .panel-head h2,
+    .panel-head h3 {
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .tower-button {
+      display: grid;
+      gap: 10px;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(109, 141, 97, 0.18);
+      background: rgba(255, 255, 255, 0.84);
+      border-radius: 18px;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+      box-shadow: 0 12px 24px rgba(83, 112, 70, 0.08);
+    }
+
+    .tower-button:hover,
+    .tower-button:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(89, 131, 101, 0.42);
+      box-shadow: 0 18px 32px rgba(83, 112, 70, 0.12);
+      outline: none;
+    }
+
+    .tower-button.active {
+      background: linear-gradient(180deg, rgba(255, 244, 230, 0.94), rgba(255, 232, 214, 0.92));
+      border-color: rgba(233, 132, 91, 0.58);
+      box-shadow: 0 18px 36px rgba(231, 132, 92, 0.18);
+    }
+
+    .tower-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .tower-chip {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: #fff8ee;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      box-shadow: inset 0 -5px 14px rgba(0, 0, 0, 0.16);
+    }
+
+    .tower-name {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .tower-cost {
+      color: #8c6a2f;
+      font-weight: 700;
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+
+    .tower-summary {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    .selection-card {
+      display: grid;
+      gap: 12px;
+      min-height: 190px;
+      padding: 14px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 248, 238, 0.9)),
+        linear-gradient(140deg, rgba(255, 214, 153, 0.12), rgba(137, 214, 181, 0.12));
+      border: 1px solid rgba(114, 140, 100, 0.16);
+    }
+
+    .selection-empty {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.96rem;
+      line-height: 1.5;
+      padding: 12px;
+    }
+
+    .selection-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .selection-chip {
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      color: #fffaf2;
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      box-shadow: inset 0 -6px 16px rgba(0, 0, 0, 0.16);
+      flex: none;
+    }
+
+    .selection-title {
+      margin: 0;
+      font-size: 1.1rem;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .selection-subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+
+    .level-track {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .level-pip {
+      width: 28px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(127, 147, 132, 0.18);
+      overflow: hidden;
+    }
+
+    .level-pip.filled {
+      background: linear-gradient(90deg, rgba(255, 205, 104, 0.95), rgba(255, 144, 104, 0.95));
+      box-shadow: 0 0 0 1px rgba(222, 161, 61, 0.18);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mini-stat {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(120, 145, 107, 0.14);
+    }
+
+    .mini-stat strong,
+    .mini-stat span {
+      display: block;
+    }
+
+    .mini-stat span {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .mini-stat strong {
+      font-size: 0.98rem;
+      letter-spacing: -0.02em;
+    }
+
+    .selection-upgrade {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 251, 238, 0.86);
+      border: 1px dashed rgba(198, 157, 64, 0.32);
+      color: #7a6636;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button.action {
+      appearance: none;
+      border: 0;
+      border-radius: 16px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+    }
+
+    button.action:hover:not(:disabled),
+    button.action:focus-visible:not(:disabled) {
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    button.action:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      color: #fff8f2;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%);
+      box-shadow: 0 14px 24px rgba(230, 107, 75, 0.26);
+    }
+
+    .secondary {
+      color: #fffaf2;
+      background: linear-gradient(180deg, var(--mint) 0%, var(--mint-deep) 100%);
+      box-shadow: 0 14px 24px rgba(82, 168, 132, 0.23);
+    }
+
+    .ghost {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(113, 138, 102, 0.18);
+      box-shadow: 0 12px 22px rgba(83, 112, 70, 0.08);
+    }
+
+    .wave-title {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: -0.03em;
+    }
+
+    .wave-subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .incoming-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .enemy-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(113, 138, 102, 0.16);
+      font-size: 0.9rem;
+      box-shadow: 0 10px 18px rgba(83, 112, 70, 0.06);
+    }
+
+    .enemy-pill i {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .wave-reward {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 243, 210, 0.92), rgba(255, 234, 172, 0.88));
+      border: 1px solid rgba(215, 181, 76, 0.26);
+      color: #7c6334;
+      font-weight: 700;
+      box-shadow: 0 14px 26px rgba(225, 184, 78, 0.14);
+    }
+
+    .footer-tip {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1120px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .stat-strip,
+      .sidebar {
+        grid-template-columns: 1fr;
+      }
+
+      .shop-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-panel,
+      .content-panel {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="eyebrow">Standalone single-file tower defense</span>
+        <h1>Meadow Guard TD</h1>
+        <p class="subtitle">Build a playful little gauntlet of towers on a fresh random track, hold twenty handcrafted-style waves and beyond, then spend each intermission tuning your lineup before the next bug parade arrives.</p>
+      </div>
+      <div class="stat-strip">
+        <div class="stat-card">
+          <span class="stat-label">Picnic Hearts</span>
+          <strong class="stat-value" id="livesValue">18</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Sun Coins</span>
+          <strong class="stat-value" id="goldValue">180</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Next Wave</span>
+          <strong class="stat-value" id="waveValue">1 / 20+</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Track</span>
+          <strong class="stat-value" id="trackValue">Sunlit Hollow</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel stage-panel">
+        <div class="stage-header">
+          <div class="stage-tags">
+            <span class="tag" id="seedTag">Random Meadow Track</span>
+            <span class="tag">Intermission upgrades enabled</span>
+          </div>
+          <span class="phase-pill" id="phasePill">Build &amp; Upgrade</span>
+        </div>
+        <div class="canvas-frame">
+          <canvas id="gameCanvas" width="960" height="600" aria-label="Tower defense game board"></canvas>
+        </div>
+        <div class="stage-footer">
+          <p class="message-line" id="messageLine">Pick a tower, place it on the meadow, and send wave 1 when you are ready.</p>
+          <div class="legend">
+            <span><i style="background:#cfa36d"></i> Path</span>
+            <span><i style="background:#8ed17c"></i> Meadow</span>
+            <span><i style="background:#ff8d6f"></i> Tower fire</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel content-panel">
+          <div class="panel-head">
+            <h2>Shop</h2>
+            <p class="panel-note">Five tower families, each with four upgrades.</p>
+          </div>
+          <div class="shop-grid" id="shopGrid"></div>
+          <p class="footer-tip">Tower placement and upgrades happen during intermission, so every cleared wave becomes a planning window.</p>
+        </section>
+
+        <section class="panel content-panel">
+          <div class="panel-head">
+            <h3>Selection</h3>
+            <p class="panel-note">Click a tower to inspect or upgrade it.</p>
+          </div>
+          <div class="selection-card" id="selectionCard">
+            <div class="selection-empty">No tower selected. Pick a build card or click one on the field.</div>
+          </div>
+          <div class="action-row">
+            <button class="action secondary" id="upgradeButton" disabled>Upgrade</button>
+            <button class="action ghost" id="sellButton" disabled>Sell</button>
+          </div>
+        </section>
+
+        <section class="panel content-panel">
+          <div class="panel-head">
+            <h3>Wave Control</h3>
+            <p class="panel-note">Manual pacing between waves for upgrades and placement.</p>
+          </div>
+          <div>
+            <p class="wave-title" id="waveTitle">Wave 1: Morning Mischief</p>
+            <p class="wave-subtitle" id="waveSubtitle">A gentle opener with quick little scouts and a few slimes.</p>
+          </div>
+          <div class="incoming-list" id="incomingList"></div>
+          <div class="wave-reward" id="rewardLine">Clear bonus: 30 Sun Coins</div>
+          <div class="action-row">
+            <button class="action primary" id="startWaveButton">Start Wave 1</button>
+            <button class="action ghost" id="shuffleButton">Fresh Track</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const livesValue = document.getElementById("livesValue");
+    const goldValue = document.getElementById("goldValue");
+    const waveValue = document.getElementById("waveValue");
+    const trackValue = document.getElementById("trackValue");
+    const seedTag = document.getElementById("seedTag");
+    const phasePill = document.getElementById("phasePill");
+    const messageLine = document.getElementById("messageLine");
+    const shopGrid = document.getElementById("shopGrid");
+    const selectionCard = document.getElementById("selectionCard");
+    const upgradeButton = document.getElementById("upgradeButton");
+    const sellButton = document.getElementById("sellButton");
+    const waveTitle = document.getElementById("waveTitle");
+    const waveSubtitle = document.getElementById("waveSubtitle");
+    const incomingList = document.getElementById("incomingList");
+    const rewardLine = document.getElementById("rewardLine");
+    const startWaveButton = document.getElementById("startWaveButton");
+    const shuffleButton = document.getElementById("shuffleButton");
+
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const COLS = 16;
+    const ROWS = 10;
+    const CELL = 60;
+    const MAX_PLANNED_WAVES = 40;
+
+    let towerUid = 0;
+    let enemyUid = 0;
+    let uiDirty = true;
+    let lastFrame = performance.now();
+
+    const TOWER_ORDER = ["berry", "frost", "acorn", "spark", "sun"];
+
+    const TOWER_TYPES = {
+      berry: {
+        id: "berry",
+        label: "BB",
+        name: "Berry Blaster",
+        accent: "#ef6f87",
+        cost: 60,
+        summary: "Fast single-target pops with clean scaling.",
+        upgrades: [
+          "Riper berries add punch.",
+          "Longer vines extend reach.",
+          "Faster sling snaps between shots.",
+          "Overgrown berries hit hard."
+        ],
+        levels: [
+          { damage: 13, range: 150, fireRate: 1.35, shotSpeed: 460 },
+          { damage: 18, range: 165, fireRate: 1.55, shotSpeed: 490 },
+          { damage: 24, range: 180, fireRate: 1.78, shotSpeed: 520 },
+          { damage: 31, range: 195, fireRate: 2.0, shotSpeed: 560 },
+          { damage: 40, range: 212, fireRate: 2.28, shotSpeed: 600 }
+        ],
+        upgradeCosts: [50, 75, 110, 160]
+      },
+      frost: {
+        id: "frost",
+        label: "FF",
+        name: "Frost Fan",
+        accent: "#68bdf3",
+        cost: 75,
+        summary: "Slows the lane so the whole team lands more shots.",
+        upgrades: [
+          "Sharper flakes improve chill.",
+          "Longer gusts deepen the slow.",
+          "Faster spinning keeps coverage steady.",
+          "Blizzard petals lock enemies down."
+        ],
+        levels: [
+          { damage: 8, range: 140, fireRate: 0.95, shotSpeed: 340, slow: 0.28, slowDuration: 1.3 },
+          { damage: 11, range: 150, fireRate: 1.05, shotSpeed: 360, slow: 0.32, slowDuration: 1.6 },
+          { damage: 15, range: 164, fireRate: 1.18, shotSpeed: 380, slow: 0.36, slowDuration: 1.8 },
+          { damage: 20, range: 176, fireRate: 1.32, shotSpeed: 410, slow: 0.4, slowDuration: 2.0 },
+          { damage: 26, range: 190, fireRate: 1.48, shotSpeed: 430, slow: 0.46, slowDuration: 2.25 }
+        ],
+        upgradeCosts: [60, 90, 130, 190]
+      },
+      acorn: {
+        id: "acorn",
+        label: "AC",
+        name: "Acorn Cannon",
+        accent: "#ba8657",
+        cost: 95,
+        summary: "Slow splash damage for dense packs and tanks.",
+        upgrades: [
+          "Packed shells explode wider.",
+          "A sturdier barrel adds range.",
+          "Faster crank speeds the reload.",
+          "Big acorns flatten clustered waves."
+        ],
+        levels: [
+          { damage: 28, range: 165, fireRate: 0.7, shotSpeed: 250, splash: 44 },
+          { damage: 38, range: 175, fireRate: 0.78, shotSpeed: 265, splash: 50 },
+          { damage: 49, range: 185, fireRate: 0.86, shotSpeed: 280, splash: 56 },
+          { damage: 63, range: 195, fireRate: 0.94, shotSpeed: 295, splash: 62 },
+          { damage: 80, range: 205, fireRate: 1.02, shotSpeed: 315, splash: 70 }
+        ],
+        upgradeCosts: [70, 105, 150, 215]
+      },
+      spark: {
+        id: "spark",
+        label: "SP",
+        name: "Spark String",
+        accent: "#8a84ff",
+        cost: 115,
+        summary: "Chain lightning that clips multiple enemies at once.",
+        upgrades: [
+          "Brighter coils add damage.",
+          "Longer strings add another jump.",
+          "Cracklier current reaches deeper packs.",
+          "Storm wiring shocks almost the whole lane."
+        ],
+        levels: [
+          { damage: 18, range: 145, fireRate: 0.95, chains: 3, chainRange: 78 },
+          { damage: 25, range: 158, fireRate: 1.02, chains: 4, chainRange: 84 },
+          { damage: 33, range: 170, fireRate: 1.1, chains: 4, chainRange: 92 },
+          { damage: 42, range: 182, fireRate: 1.18, chains: 5, chainRange: 100 },
+          { damage: 54, range: 195, fireRate: 1.26, chains: 6, chainRange: 108 }
+        ],
+        upgradeCosts: [80, 120, 170, 240]
+      },
+      sun: {
+        id: "sun",
+        label: "SB",
+        name: "Sunbeam Studio",
+        accent: "#ffc14e",
+        cost: 140,
+        summary: "Piercing beam tower for long sightlines and elites.",
+        upgrades: [
+          "Hotter rays cut through tougher hides.",
+          "Longer petals lengthen the beam.",
+          "Prismatic focus adds more pierce.",
+          "Solar bloom melts late-wave lanes."
+        ],
+        levels: [
+          { damage: 30, range: 205, fireRate: 0.58, beamWidth: 14, pierce: 2 },
+          { damage: 42, range: 220, fireRate: 0.66, beamWidth: 16, pierce: 3 },
+          { damage: 56, range: 235, fireRate: 0.74, beamWidth: 18, pierce: 4 },
+          { damage: 72, range: 250, fireRate: 0.82, beamWidth: 20, pierce: 5 },
+          { damage: 92, range: 268, fireRate: 0.9, beamWidth: 22, pierce: 6 }
+        ],
+        upgradeCosts: [95, 140, 200, 280]
+      }
+    };
+
+    const ENEMY_TYPES = {
+      zip: {
+        id: "zip",
+        name: "Zip Bug",
+        color: "#ffb56b",
+        hp: 24,
+        speed: 88,
+        reward: 7,
+        radius: 12,
+        leak: 1,
+        threat: 1,
+        sway: 3.5
+      },
+      slime: {
+        id: "slime",
+        name: "Moss Slime",
+        color: "#7ad17d",
+        hp: 56,
+        speed: 58,
+        reward: 10,
+        radius: 15,
+        leak: 1,
+        threat: 2.1,
+        sway: 2.2
+      },
+      pogo: {
+        id: "pogo",
+        name: "Pogo Puff",
+        color: "#ff85ae",
+        hp: 48,
+        speed: 72,
+        reward: 11,
+        radius: 13,
+        leak: 1,
+        threat: 2.3,
+        pulse: 0.2,
+        sway: 5
+      },
+      shell: {
+        id: "shell",
+        name: "Shell Roller",
+        color: "#7d9dc9",
+        hp: 82,
+        speed: 52,
+        reward: 12,
+        radius: 16,
+        leak: 1,
+        threat: 2.9,
+        armor: 0.18,
+        slowResist: 0.82,
+        sway: 1.8
+      },
+      brute: {
+        id: "brute",
+        name: "Bark Brute",
+        color: "#8a694f",
+        hp: 150,
+        speed: 36,
+        reward: 16,
+        radius: 18,
+        leak: 2,
+        threat: 4.5,
+        slowResist: 0.74,
+        sway: 1.2
+      },
+      nest: {
+        id: "nest",
+        name: "Nest Carrier",
+        color: "#c6905b",
+        hp: 94,
+        speed: 46,
+        reward: 15,
+        radius: 17,
+        leak: 2,
+        threat: 3.8,
+        splitType: "zip",
+        splitCount: 2,
+        splitHpMult: 0.82,
+        sway: 2.4
+      },
+      boss: {
+        id: "boss",
+        name: "Boss Beetle",
+        color: "#e36e63",
+        hp: 420,
+        speed: 34,
+        reward: 45,
+        radius: 24,
+        leak: 3,
+        threat: 8,
+        armor: 0.08,
+        slowResist: 0.65,
+        sway: 1
+      }
+    };
+
+    const TRACK_FIRST = ["Sunlit", "Buttercup", "Picnic", "Breezy", "Thistledown", "Honey", "Fern", "Poppy", "Golden", "Pebble"];
+    const TRACK_LAST = ["Hollow", "Meadow", "Run", "Loop", "Corner", "Bend", "Vale", "Pass", "Hedge", "Rise"];
+    const WAVE_ADJ = ["Morning", "Breezy", "Bouncy", "Peppery", "Tidy", "Sunspot", "Wiggly", "Honeyed", "Zippy", "Copper", "Cloudy", "Brisk"];
+    const WAVE_NOUN = ["Mischief", "March", "Parade", "Shuffle", "Rush", "Rattle", "Hop", "Patrol", "Stampede", "Jamboree", "Tangle", "Stomp"];
+
+    const state = {
+      clock: 0,
+      gold: 180,
+      lives: 18,
+      nextWaveNumber: 1,
+      currentWave: null,
+      completedWaves: 0,
+      selectedBuildType: null,
+      selectedTowerId: null,
+      hoveredCell: null,
+      trackName: "",
+      trackSeed: "",
+      track: null,
+      towers: [],
+      enemies: [],
+      projectiles: [],
+      effects: [],
+      particles: [],
+      buildCells: [],
+      decorations: [],
+      clouds: [],
+      waveDeck: [],
+      spawnQueue: [],
+      spawnTimer: 0,
+      intermission: true,
+      gameOver: false,
+      message: "Pick a tower, place it on the meadow, and send wave 1 when you are ready."
+    };
+
+    const shopButtons = new Map();
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function randInt(min, max) {
+      return Math.floor(rand(min, max + 1));
+    }
+
+    function pick(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function dist(ax, ay, bx, by) {
+      return Math.hypot(ax - bx, ay - by);
+    }
+
+    function roundRectPath(context, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.arcTo(x + width, y, x + width, y + height, r);
+      context.arcTo(x + width, y + height, x, y + height, r);
+      context.arcTo(x, y + height, x, y, r);
+      context.arcTo(x, y, x + width, y, r);
+      context.closePath();
+    }
+
+    function weightedPick(items) {
+      const total = items.reduce((sum, item) => sum + item.weight, 0);
+      let roll = Math.random() * total;
+      for (const item of items) {
+        roll -= item.weight;
+        if (roll <= 0) {
+          return item.id;
+        }
+      }
+      return items[items.length - 1].id;
+    }
+
+    function getCellCenter(cellX, cellY) {
+      return {
+        x: cellX * CELL + CELL * 0.5,
+        y: cellY * CELL + CELL * 0.5
+      };
+    }
+
+    function cellKey(cellX, cellY) {
+      return `${cellX},${cellY}`;
+    }
+
+    function getTowerStats(tower) {
+      return TOWER_TYPES[tower.type].levels[tower.level];
+    }
+
+    function setMessage(text) {
+      state.message = text;
+      uiDirty = true;
+    }
+
+    function buildShop() {
+      for (const towerId of TOWER_ORDER) {
+        const tower = TOWER_TYPES[towerId];
+        const button = document.createElement("button");
+        button.className = "tower-button";
+        button.type = "button";
+        button.innerHTML = `
+          <div class="tower-topline">
+            <span class="tower-chip" style="background:${tower.accent}">${tower.label}</span>
+            <span class="tower-cost">${tower.cost} Sun</span>
+          </div>
+          <div>
+            <p class="tower-name">${tower.name}</p>
+            <p class="tower-summary">${tower.summary}</p>
+          </div>
+        `;
+        button.addEventListener("click", () => {
+          if (state.selectedBuildType === towerId) {
+            state.selectedBuildType = null;
+          } else {
+            state.selectedBuildType = towerId;
+            state.selectedTowerId = null;
+          }
+          uiDirty = true;
+        });
+        shopGrid.appendChild(button);
+        shopButtons.set(towerId, button);
+      }
+    }
+
+    function generateTrackName() {
+      return `${pick(TRACK_FIRST)} ${pick(TRACK_LAST)}`;
+    }
+
+    function buildTrack() {
+      let x = 0;
+      let row = randInt(2, ROWS - 3);
+      const cells = [{ x, y: row }];
+
+      while (x < COLS - 1) {
+        const allowVertical = x > 1 && x < COLS - 2 && Math.random() < 0.42;
+        if (allowVertical) {
+          const options = [];
+          if (row > 1) options.push(-1);
+          if (row < ROWS - 2) options.push(1);
+          if (options.length) {
+            const direction = pick(options);
+            const maxSteps = direction < 0 ? row - 1 : ROWS - 2 - row;
+            const steps = randInt(1, Math.min(3, maxSteps));
+            for (let step = 0; step < steps; step += 1) {
+              row += direction;
+              cells.push({ x, y: row });
+            }
+          }
+        }
+        x += 1;
+        cells.push({ x, y: row });
+      }
+
+      if (Math.random() < 0.5) {
+        const options = [];
+        if (row > 1) options.push(-1);
+        if (row < ROWS - 2) options.push(1);
+        if (options.length) {
+          const direction = pick(options);
+          const steps = randInt(1, 2);
+          for (let step = 0; step < steps; step += 1) {
+            const nextRow = clamp(row + direction, 1, ROWS - 2);
+            if (nextRow === row) break;
+            row = nextRow;
+            cells.push({ x, y: row });
+          }
+        }
+      }
+
+      const pathSet = new Set(cells.map((cell) => cellKey(cell.x, cell.y)));
+      const points = [];
+      const firstCenter = getCellCenter(cells[0].x, cells[0].y);
+      const lastCenter = getCellCenter(cells[cells.length - 1].x, cells[cells.length - 1].y);
+      points.push({ x: -CELL * 0.85, y: firstCenter.y });
+      for (const cell of cells) {
+        points.push(getCellCenter(cell.x, cell.y));
+      }
+      points.push({ x: WIDTH + CELL * 0.85, y: lastCenter.y });
+
+      const segments = [];
+      let totalLength = 0;
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const a = points[index];
+        const b = points[index + 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const length = Math.hypot(dx, dy);
+        segments.push({
+          a,
+          b,
+          dx,
+          dy,
+          length,
+          start: totalLength,
+          end: totalLength + length
+        });
+        totalLength += length;
+      }
+
+      const buildCells = [];
+      for (let cellY = 0; cellY < ROWS; cellY += 1) {
+        for (let cellX = 0; cellX < COLS; cellX += 1) {
+          if (!pathSet.has(cellKey(cellX, cellY))) {
+            buildCells.push({ x: cellX, y: cellY });
+          }
+        }
+      }
+
+      return {
+        cells,
+        pathSet,
+        points,
+        segments,
+        totalLength,
+        buildCells
+      };
+    }
+
+    function getPathSample(distanceOnPath) {
+      const distanceClamped = clamp(distanceOnPath, 0, state.track.totalLength);
+      for (const segment of state.track.segments) {
+        if (distanceClamped <= segment.end) {
+          const local = segment.length === 0 ? 0 : (distanceClamped - segment.start) / segment.length;
+          return {
+            x: lerp(segment.a.x, segment.b.x, local),
+            y: lerp(segment.a.y, segment.b.y, local),
+            angle: Math.atan2(segment.dy, segment.dx)
+          };
+        }
+      }
+      const tail = state.track.segments[state.track.segments.length - 1];
+      return { x: tail.b.x, y: tail.b.y, angle: Math.atan2(tail.dy, tail.dx) };
+    }
+
+    function generateDecorations(track) {
+      const decorations = [];
+      const buildCells = [...track.buildCells];
+
+      for (let index = 0; index < 26 && buildCells.length; index += 1) {
+        const slot = buildCells.splice(randInt(0, buildCells.length - 1), 1)[0];
+        const center = getCellCenter(slot.x, slot.y);
+        decorations.push({
+          type: pick(["flower", "bush", "stone"]),
+          x: center.x + rand(-14, 14),
+          y: center.y + rand(-14, 14),
+          scale: rand(0.7, 1.2),
+          sway: rand(0, Math.PI * 2)
+        });
+      }
+
+      const clouds = Array.from({ length: 5 }, (_, index) => ({
+        x: rand(-120, WIDTH + 100),
+        y: rand(35, 135) + index * 6,
+        scale: rand(0.8, 1.3),
+        speed: rand(5, 11)
+      }));
+
+      return { decorations, clouds };
+    }
+
+    function getWavePool(waveNumber) {
+      const pool = [
+        { id: "zip", weight: Math.max(2.4, 8 - waveNumber * 0.22) },
+        { id: "slime", weight: 4.2 + waveNumber * 0.06 }
+      ];
+      if (waveNumber >= 3) pool.push({ id: "pogo", weight: 2.7 + waveNumber * 0.08 });
+      if (waveNumber >= 5) pool.push({ id: "shell", weight: 2.4 + waveNumber * 0.08 });
+      if (waveNumber >= 7) pool.push({ id: "brute", weight: 1.8 + waveNumber * 0.07 });
+      if (waveNumber >= 9) pool.push({ id: "nest", weight: 1.5 + waveNumber * 0.06 });
+      return pool;
+    }
+
+    function makeWaveName(waveNumber) {
+      const adjective = WAVE_ADJ[(waveNumber - 1) % WAVE_ADJ.length];
+      const noun = WAVE_NOUN[(waveNumber + Math.floor(waveNumber / 2)) % WAVE_NOUN.length];
+      return `${adjective} ${noun}`;
+    }
+
+    function describeWave(plan) {
+      const counts = {};
+      for (const entry of plan.entries) {
+        counts[entry.typeId] = (counts[entry.typeId] || 0) + entry.count;
+      }
+      const parts = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([enemyId, count]) => `${count} ${ENEMY_TYPES[enemyId].name}${count > 1 ? "s" : ""}`);
+      return parts.join(", ");
+    }
+
+    function createWavePlan(waveNumber) {
+      const entries = [];
+      const groupCount = clamp(2 + Math.floor(waveNumber / 4) + randInt(0, 1), 2, 6);
+      const pool = getWavePool(waveNumber);
+
+      for (let index = 0; index < groupCount; index += 1) {
+        const typeId = weightedPick(pool);
+        const enemy = ENEMY_TYPES[typeId];
+        let count = Math.max(2, Math.round((4 + waveNumber * 0.78 + Math.random() * 4) / Math.max(1, enemy.threat * 0.9)));
+        if (typeId === "zip") count += 2 + Math.floor(waveNumber / 4);
+        if (typeId === "pogo") count += 1;
+        if (typeId === "brute") count = Math.max(2, Math.ceil(count * 0.65));
+        if (typeId === "shell") count = Math.max(2, Math.ceil(count * 0.85));
+
+        entries.push({
+          typeId,
+          count,
+          gap: clamp(0.72 - waveNumber * 0.015 - enemy.speed * 0.002 + Math.random() * 0.16, 0.2, 0.68),
+          pause: 0.58 + Math.random() * 0.55,
+          hpMult: 0.96 + waveNumber * 0.1 + Math.random() * 0.18,
+          speedMult: 0.94 + Math.random() * 0.18
+        });
+      }
+
+      if (waveNumber % 4 === 0) {
+        entries.unshift({
+          typeId: "zip",
+          count: 6 + waveNumber,
+          gap: Math.max(0.17, 0.4 - waveNumber * 0.008),
+          pause: 0.8,
+          hpMult: 0.84 + waveNumber * 0.07,
+          speedMult: 1.12
+        });
+      }
+
+      if (waveNumber >= 10 && waveNumber % 3 === 0) {
+        entries.push({
+          typeId: "nest",
+          count: 1 + Math.floor(waveNumber / 9),
+          gap: 0.88,
+          pause: 0.72,
+          hpMult: 1 + waveNumber * 0.11,
+          speedMult: 1.03
+        });
+      }
+
+      if (waveNumber % 5 === 0) {
+        entries.push({
+          typeId: "boss",
+          count: 1 + (waveNumber >= 15 ? 1 : 0),
+          gap: 1.18,
+          pause: 0.72,
+          hpMult: 0.98 + waveNumber * 0.17,
+          speedMult: 0.94 + waveNumber * 0.004
+        });
+      }
+
+      const reward = 22 + waveNumber * 8 + (waveNumber % 5 === 0 ? 18 : 0);
+      const name = makeWaveName(waveNumber);
+      const focus = describeWave({ entries });
+      const subtitle = waveNumber <= 3
+        ? `A friendly opener featuring ${focus}.`
+        : waveNumber <= 10
+          ? `Mixed lanes featuring ${focus}, with more pressure on timing.`
+          : waveNumber <= 20
+            ? `A sturdier push built around ${focus}.`
+            : `Endless-mode pressure led by ${focus}.`;
+
+      return {
+        number: waveNumber,
+        name,
+        subtitle,
+        reward,
+        entries
+      };
+    }
+
+    function buildWaveDeck() {
+      return Array.from({ length: MAX_PLANNED_WAVES }, (_, index) => createWavePlan(index + 1));
+    }
+
+    function ensureWaveExists(waveNumber) {
+      while (state.waveDeck.length < waveNumber) {
+        state.waveDeck.push(createWavePlan(state.waveDeck.length + 1));
+      }
+    }
+
+    function getUpcomingWave() {
+      ensureWaveExists(state.nextWaveNumber);
+      return state.waveDeck[state.nextWaveNumber - 1];
+    }
+
+    function getEnemySummary(plan) {
+      const counts = {};
+      for (const entry of plan.entries) {
+        counts[entry.typeId] = (counts[entry.typeId] || 0) + entry.count;
+      }
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([enemyId, count]) => ({
+          enemyId,
+          count
+        }));
+    }
+
+    function refreshUI() {
+      livesValue.textContent = String(state.lives);
+      goldValue.textContent = String(state.gold);
+      const waveLabel = state.currentWave ? state.currentWave.number : state.nextWaveNumber;
+      waveValue.textContent = `${waveLabel} / 20+`;
+      trackValue.textContent = state.trackName;
+      seedTag.textContent = `${state.trackName} • ${state.trackSeed}`;
+      messageLine.textContent = state.message;
+
+      phasePill.textContent = state.gameOver
+        ? "Game Over"
+        : state.intermission
+          ? "Build & Upgrade"
+          : `Wave ${state.currentWave.number} Live`;
+      phasePill.classList.toggle("live", !state.intermission && !state.gameOver);
+      phasePill.classList.toggle("game-over", state.gameOver);
+
+      for (const [towerId, button] of shopButtons.entries()) {
+        button.classList.toggle("active", state.selectedBuildType === towerId);
+      }
+
+      const selectedTower = state.towers.find((tower) => tower.id === state.selectedTowerId);
+      if (selectedTower) {
+        const type = TOWER_TYPES[selectedTower.type];
+        const stats = getTowerStats(selectedTower);
+        const upgradeCost = selectedTower.level < 4 ? type.upgradeCosts[selectedTower.level] : null;
+        selectionCard.innerHTML = `
+          <div class="selection-head">
+            <span class="selection-chip" style="background:${type.accent}">${type.label}</span>
+            <div>
+              <h4 class="selection-title">${type.name}</h4>
+              <p class="selection-subtitle">Level ${selectedTower.level + 1} of 5 • invested ${selectedTower.invested} Sun</p>
+            </div>
+          </div>
+          <div class="level-track">${Array.from({ length: 5 }, (_, index) => `<span class="level-pip${index <= selectedTower.level ? " filled" : ""}"></span>`).join("")}</div>
+          <div class="stat-grid">
+            <div class="mini-stat"><span>Damage</span><strong>${stats.damage}</strong></div>
+            <div class="mini-stat"><span>Range</span><strong>${Math.round(stats.range)}</strong></div>
+            <div class="mini-stat"><span>Rate</span><strong>${stats.fireRate.toFixed(2)}/s</strong></div>
+            <div class="mini-stat"><span>Special</span><strong>${getTowerSpecialStat(type.id, stats)}</strong></div>
+          </div>
+          <div class="selection-upgrade">${selectedTower.level < 4 ? `Next: ${type.upgrades[selectedTower.level]} Upgrade cost ${upgradeCost} Sun.` : "Fully upgraded. This tower has all four upgrade tiers installed."}</div>
+        `;
+      } else if (state.selectedBuildType) {
+        const type = TOWER_TYPES[state.selectedBuildType];
+        const stats = type.levels[0];
+        selectionCard.innerHTML = `
+          <div class="selection-head">
+            <span class="selection-chip" style="background:${type.accent}">${type.label}</span>
+            <div>
+              <h4 class="selection-title">${type.name}</h4>
+              <p class="selection-subtitle">${type.summary}</p>
+            </div>
+          </div>
+          <div class="level-track">${Array.from({ length: 5 }, (_, index) => `<span class="level-pip${index === 0 ? " filled" : ""}"></span>`).join("")}</div>
+          <div class="stat-grid">
+            <div class="mini-stat"><span>Cost</span><strong>${type.cost} Sun</strong></div>
+            <div class="mini-stat"><span>Range</span><strong>${Math.round(stats.range)}</strong></div>
+            <div class="mini-stat"><span>Damage</span><strong>${stats.damage}</strong></div>
+            <div class="mini-stat"><span>Special</span><strong>${getTowerSpecialStat(type.id, stats)}</strong></div>
+          </div>
+          <div class="selection-upgrade">Place during intermission, then upgrade through four more tiers after each cleared wave.</div>
+        `;
+      } else {
+        selectionCard.innerHTML = `<div class="selection-empty">No tower selected. Pick a build card or click one on the field.</div>`;
+      }
+
+      const canUpgrade = Boolean(selectedTower) && state.intermission && !state.gameOver && selectedTower.level < 4 && state.gold >= TOWER_TYPES[selectedTower.type].upgradeCosts[selectedTower.level];
+      const canSell = Boolean(selectedTower) && state.intermission && !state.gameOver;
+      upgradeButton.disabled = !canUpgrade;
+      sellButton.disabled = !canSell;
+      upgradeButton.textContent = selectedTower && selectedTower.level < 4
+        ? `Upgrade (${TOWER_TYPES[selectedTower.type].upgradeCosts[selectedTower.level]} Sun)`
+        : "Upgrade";
+      sellButton.textContent = selectedTower ? `Sell (${Math.round(selectedTower.invested * 0.7)} Sun)` : "Sell";
+
+      const panelWave = state.intermission || !state.currentWave ? getUpcomingWave() : state.currentWave;
+      waveTitle.textContent = `${state.intermission ? "Wave" : "Live Wave"} ${panelWave.number}: ${panelWave.name}`;
+      waveSubtitle.textContent = state.intermission
+        ? panelWave.subtitle
+        : `${panelWave.subtitle} Finish the lane to reopen tower upgrades.`;
+      rewardLine.textContent = `Clear bonus: ${panelWave.reward} Sun Coins`;
+      incomingList.innerHTML = getEnemySummary(panelWave)
+        .map(({ enemyId, count }) => `<span class="enemy-pill"><i style="background:${ENEMY_TYPES[enemyId].color}"></i>${count} ${ENEMY_TYPES[enemyId].name}${count > 1 ? "s" : ""}</span>`)
+        .join("");
+
+      startWaveButton.disabled = !state.intermission || state.gameOver;
+      startWaveButton.textContent = state.gameOver
+        ? "Start Wave"
+        : state.intermission
+          ? `Start Wave ${previewWave.number}`
+          : "Wave Running";
+
+      uiDirty = false;
+    }
+
+    function getTowerSpecialStat(towerId, stats) {
+      if (towerId === "frost") return `${Math.round(stats.slow * 100)}% slow`;
+      if (towerId === "acorn") return `${stats.splash}px splash`;
+      if (towerId === "spark") return `${stats.chains} jumps`;
+      if (towerId === "sun") return `${stats.pierce} pierce`;
+      return `${Math.round(stats.shotSpeed)} speed`;
+    }
+
+    function resetGame() {
+      towerUid = 0;
+      enemyUid = 0;
+      state.clock = 0;
+      state.gold = 180;
+      state.lives = 18;
+      state.nextWaveNumber = 1;
+      state.currentWave = null;
+      state.completedWaves = 0;
+      state.selectedBuildType = null;
+      state.selectedTowerId = null;
+      state.hoveredCell = null;
+      state.trackName = generateTrackName();
+      state.trackSeed = `Seed ${randInt(1000, 9999)}`;
+      state.track = buildTrack();
+      state.buildCells = state.track.buildCells;
+      const decorationBundle = generateDecorations(state.track);
+      state.decorations = decorationBundle.decorations;
+      state.clouds = decorationBundle.clouds;
+      state.waveDeck = buildWaveDeck();
+      state.towers = [];
+      state.enemies = [];
+      state.projectiles = [];
+      state.effects = [];
+      state.particles = [];
+      state.spawnQueue = [];
+      state.spawnTimer = 0;
+      state.intermission = true;
+      state.gameOver = false;
+      state.message = "Pick a tower, place it on the meadow, and send wave 1 when you are ready.";
+      uiDirty = true;
+    }
+
+    function isBuildableCell(cellX, cellY) {
+      if (cellX < 0 || cellX >= COLS || cellY < 0 || cellY >= ROWS) return false;
+      if (state.track.pathSet.has(cellKey(cellX, cellY))) return false;
+      return !state.towers.some((tower) => tower.cellX === cellX && tower.cellY === cellY);
+    }
+
+    function placeTower(cellX, cellY) {
+      const typeId = state.selectedBuildType;
+      if (!typeId) return;
+      const towerType = TOWER_TYPES[typeId];
+      if (!state.intermission) {
+        setMessage("Build and upgrade time opens after each wave clears.");
+        return;
+      }
+      if (!isBuildableCell(cellX, cellY)) {
+        setMessage("That patch is blocked. Pick a free meadow tile instead.");
+        return;
+      }
+      if (state.gold < towerType.cost) {
+        setMessage(`Not enough Sun Coins for ${towerType.name}.`);
+        return;
+      }
+
+      state.gold -= towerType.cost;
+      const center = getCellCenter(cellX, cellY);
+      const tower = {
+        id: ++towerUid,
+        type: typeId,
+        cellX,
+        cellY,
+        x: center.x,
+        y: center.y,
+        level: 0,
+        cooldown: rand(0.1, 0.4),
+        invested: towerType.cost
+      };
+      state.towers.push(tower);
+      state.selectedTowerId = tower.id;
+      state.selectedBuildType = null;
+      setMessage(`${towerType.name} planted. Upgrade windows open between waves.`);
+      uiDirty = true;
+    }
+
+    function upgradeSelectedTower() {
+      const tower = state.towers.find((item) => item.id === state.selectedTowerId);
+      if (!tower || !state.intermission || state.gameOver) return;
+      const type = TOWER_TYPES[tower.type];
+      if (tower.level >= 4) return;
+      const cost = type.upgradeCosts[tower.level];
+      if (state.gold < cost) {
+        setMessage("Not enough Sun Coins for that upgrade.");
+        return;
+      }
+      state.gold -= cost;
+      tower.level += 1;
+      tower.invested += cost;
+      tower.cooldown = Math.min(tower.cooldown, 0.15);
+      setMessage(`${type.name} upgraded to level ${tower.level + 1}.`);
+      uiDirty = true;
+    }
+
+    function sellSelectedTower() {
+      const towerIndex = state.towers.findIndex((item) => item.id === state.selectedTowerId);
+      if (towerIndex === -1 || !state.intermission || state.gameOver) return;
+      const tower = state.towers[towerIndex];
+      const refund = Math.round(tower.invested * 0.7);
+      state.gold += refund;
+      state.towers.splice(towerIndex, 1);
+      state.selectedTowerId = null;
+      setMessage(`Tower sold for ${refund} Sun Coins.`);
+      uiDirty = true;
+    }
+
+    function beginWave() {
+      if (!state.intermission || state.gameOver) return;
+      const wave = getUpcomingWave();
+      state.currentWave = wave;
+      state.nextWaveNumber += 1;
+      ensureWaveExists(state.nextWaveNumber);
+      state.intermission = false;
+      state.spawnQueue = [];
+
+      for (const entry of wave.entries) {
+        for (let count = 0; count < entry.count; count += 1) {
+          state.spawnQueue.push({
+            typeId: entry.typeId,
+            hpMult: entry.hpMult,
+            speedMult: entry.speedMult,
+            rewardMult: 1 + wave.number * 0.03,
+            gap: entry.gap
+          });
+        }
+        state.spawnQueue.push({ pause: entry.pause });
+      }
+
+      state.spawnTimer = 0.25;
+      setMessage(`Wave ${wave.number} is underway. Hold the lane until intermission returns.`);
+      uiDirty = true;
+    }
+
+    function completeWave() {
+      if (!state.currentWave) return;
+      const clearedWave = state.currentWave;
+      state.gold += clearedWave.reward;
+      state.completedWaves = Math.max(state.completedWaves, clearedWave.number);
+      state.currentWave = null;
+      state.intermission = true;
+      const milestone = clearedWave.number === 20 ? " Wave 20 cleared. Endless mode is now open." : "";
+      setMessage(`Wave ${clearedWave.number} cleared. Earned ${clearedWave.reward} Sun Coins for upgrades.${milestone}`);
+      uiDirty = true;
+    }
+
+    function spawnEnemy(typeId, hpMult, speedMult, rewardMult, progress = 0) {
+      const def = ENEMY_TYPES[typeId];
+      const sample = getPathSample(progress);
+      const enemy = {
+        id: ++enemyUid,
+        typeId,
+        progress,
+        x: sample.x,
+        y: sample.y,
+        angle: sample.angle,
+        maxHp: Math.round(def.hp * hpMult),
+        hp: Math.round(def.hp * hpMult),
+        speed: def.speed * speedMult,
+        reward: Math.max(2, Math.round(def.reward * rewardMult)),
+        radius: def.radius,
+        armor: def.armor || 0,
+        slowResist: def.slowResist || 1,
+        slowAmount: 0,
+        slowTimer: 0,
+        wobble: Math.random() * Math.PI * 2,
+        hitFlash: 0,
+        alive: true
+      };
+      state.enemies.push(enemy);
+    }
+
+    function defeatEnemy(enemy) {
+      if (!enemy.alive) return;
+      enemy.alive = false;
+      state.gold += enemy.reward;
+      burst(enemy.x, enemy.y, ENEMY_TYPES[enemy.typeId].color, 12, 2.2);
+      state.effects.push({
+        kind: "ring",
+        x: enemy.x,
+        y: enemy.y,
+        radius: enemy.radius + 10,
+        color: "rgba(255,255,255,0.7)",
+        ttl: 0.32,
+        maxTtl: 0.32
+      });
+
+      const def = ENEMY_TYPES[enemy.typeId];
+      if (def.splitType) {
+        for (let count = 0; count < def.splitCount; count += 1) {
+          spawnEnemy(
+            def.splitType,
+            def.splitHpMult,
+            1.08 + count * 0.05,
+            0.72,
+            enemy.progress - 12 + count * 8
+          );
+        }
+      }
+
+      uiDirty = true;
+    }
+
+    function leakEnemy(enemy) {
+      if (!enemy.alive) return;
+      enemy.alive = false;
+      const def = ENEMY_TYPES[enemy.typeId];
+      state.lives -= def.leak;
+      state.effects.push({
+        kind: "ring",
+        x: WIDTH - 10,
+        y: enemy.y,
+        radius: 24,
+        color: "rgba(255, 135, 140, 0.9)",
+        ttl: 0.5,
+        maxTtl: 0.5
+      });
+      burst(WIDTH - 12, enemy.y, "#ff9a9e", 10, 2.4);
+      if (state.lives <= 0) {
+        state.lives = 0;
+        state.gameOver = true;
+        state.intermission = false;
+        setMessage("The picnic is overrun. Hit Fresh Track to start a new defense.");
+      }
+      uiDirty = true;
+    }
+
+    function applyDamage(enemy, amount, options = {}) {
+      if (!enemy.alive) return;
+      const armorScale = options.ignoreArmor ? 1 : 1 - enemy.armor;
+      const dealt = Math.max(1, amount * armorScale);
+      enemy.hp -= dealt;
+      enemy.hitFlash = 0.12;
+      if (options.slow) {
+        enemy.slowAmount = Math.max(enemy.slowAmount, options.slow * enemy.slowResist);
+        enemy.slowTimer = Math.max(enemy.slowTimer, options.slowDuration || 0);
+      }
+      if (enemy.hp <= 0) {
+        defeatEnemy(enemy);
+      }
+    }
+
+    function enemiesInRange(tower, range) {
+      const result = [];
+      const rangeSquared = range * range;
+      for (const enemy of state.enemies) {
+        if (!enemy.alive) continue;
+        const dx = enemy.x - tower.x;
+        const dy = enemy.y - tower.y;
+        if (dx * dx + dy * dy <= rangeSquared) {
+          result.push(enemy);
+        }
+      }
+      result.sort((a, b) => b.progress - a.progress);
+      return result;
+    }
+
+    function spawnProjectile(projectile) {
+      state.projectiles.push({
+        alive: true,
+        ttl: projectile.ttl || 3,
+        prevX: projectile.x,
+        prevY: projectile.y,
+        ...projectile
+      });
+    }
+
+    function fireTower(tower) {
+      const type = TOWER_TYPES[tower.type];
+      const stats = getTowerStats(tower);
+      const candidates = enemiesInRange(tower, stats.range);
+      if (!candidates.length) return false;
+
+      if (tower.type === "berry") {
+        const target = candidates[0];
+        spawnProjectile({
+          kind: "berry",
+          x: tower.x,
+          y: tower.y - 10,
+          destX: target.x,
+          destY: target.y,
+          speed: stats.shotSpeed,
+          target,
+          color: "#ff6b88",
+          radius: 5,
+          onHit: (enemy) => {
+            applyDamage(enemy, stats.damage);
+            burst(enemy.x, enemy.y, "#ffd4dc", 4, 1.2);
+          }
+        });
+      } else if (tower.type === "frost") {
+        const target = candidates[0];
+        spawnProjectile({
+          kind: "frost",
+          x: tower.x,
+          y: tower.y - 12,
+          destX: target.x,
+          destY: target.y,
+          speed: stats.shotSpeed,
+          target,
+          color: "#7fd1ff",
+          radius: 7,
+          onHit: (enemy) => {
+            applyDamage(enemy, stats.damage, { slow: stats.slow, slowDuration: stats.slowDuration });
+            burst(enemy.x, enemy.y, "#d7f1ff", 6, 1.4);
+          }
+        });
+      } else if (tower.type === "acorn") {
+        const target = pickBestSplashTarget(candidates, stats.splash);
+        spawnProjectile({
+          kind: "acorn",
+          x: tower.x,
+          y: tower.y - 14,
+          destX: target.x,
+          destY: target.y,
+          speed: stats.shotSpeed,
+          target,
+          color: "#c38657",
+          radius: 8,
+          onImpact: (impactX, impactY) => {
+            for (const enemy of state.enemies) {
+              if (!enemy.alive) continue;
+              if (dist(enemy.x, enemy.y, impactX, impactY) <= stats.splash + enemy.radius) {
+                applyDamage(enemy, stats.damage);
+              }
+            }
+            state.effects.push({
+              kind: "ring",
+              x: impactX,
+              y: impactY,
+              radius: stats.splash,
+              color: "rgba(255, 226, 168, 0.9)",
+              ttl: 0.42,
+              maxTtl: 0.42
+            });
+            burst(impactX, impactY, "#ffcc98", 14, 2.8);
+          }
+        });
+      } else if (tower.type === "spark") {
+        let current = candidates[0];
+        const struck = new Set();
+        let sourcePoint = { x: tower.x, y: tower.y - 10 };
+        for (let jump = 0; jump < stats.chains && current; jump += 1) {
+          const damage = stats.damage * Math.pow(0.82, jump);
+          applyDamage(current, damage, { ignoreArmor: jump === 0 });
+          struck.add(current.id);
+          state.effects.push({
+            kind: "chain",
+            points: makeZapPoints(sourcePoint.x, sourcePoint.y, current.x, current.y, 5 + jump),
+            ttl: 0.16,
+            maxTtl: 0.16,
+            color: jump === 0 ? "#b9b4ff" : "#d7d2ff"
+          });
+          sourcePoint = { x: current.x, y: current.y };
+          current = findNearestChainTarget(sourcePoint, stats.chainRange, struck);
+        }
+      } else if (tower.type === "sun") {
+        const target = candidates[0];
+        const dx = target.x - tower.x;
+        const dy = target.y - tower.y;
+        const length = Math.hypot(dx, dy) || 1;
+        const dirX = dx / length;
+        const dirY = dy / length;
+        const maxLength = stats.range + 20;
+        const beamEnd = {
+          x: tower.x + dirX * maxLength,
+          y: tower.y + dirY * maxLength
+        };
+        let hits = 0;
+        for (const enemy of candidates) {
+          const along = (enemy.x - tower.x) * dirX + (enemy.y - tower.y) * dirY;
+          const across = Math.abs((enemy.x - tower.x) * dirY - (enemy.y - tower.y) * dirX);
+          if (along >= 0 && along <= maxLength && across <= stats.beamWidth + enemy.radius) {
+            applyDamage(enemy, stats.damage);
+            hits += 1;
+            if (hits >= stats.pierce) break;
+          }
+        }
+        state.effects.push({
+          kind: "beam",
+          x1: tower.x,
+          y1: tower.y - 12,
+          x2: beamEnd.x,
+          y2: beamEnd.y,
+          ttl: 0.14,
+          maxTtl: 0.14,
+          color: "#ffd873"
+        });
+        burst(target.x, target.y, "#fff3b7", 6, 1.6);
+      }
+
+      tower.cooldown = 1 / stats.fireRate;
+      burst(tower.x, tower.y - 10, type.accent, 4, 0.9);
+      return true;
+    }
+
+    function pickBestSplashTarget(candidates, splashRadius) {
+      let bestTarget = candidates[0];
+      let bestScore = -1;
+      for (const candidate of candidates.slice(0, 10)) {
+        let score = candidate.progress * 0.002;
+        for (const other of candidates) {
+          if (dist(candidate.x, candidate.y, other.x, other.y) <= splashRadius + other.radius) {
+            score += 1;
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestTarget = candidate;
+        }
+      }
+      return bestTarget;
+    }
+
+    function findNearestChainTarget(point, chainRange, struck) {
+      let best = null;
+      let bestDistance = Infinity;
+      for (const enemy of state.enemies) {
+        if (!enemy.alive || struck.has(enemy.id)) continue;
+        const distance = dist(point.x, point.y, enemy.x, enemy.y);
+        if (distance <= chainRange && distance < bestDistance) {
+          best = enemy;
+          bestDistance = distance;
+        }
+      }
+      return best;
+    }
+
+    function makeZapPoints(x1, y1, x2, y2, segments) {
+      const points = [{ x: x1, y: y1 }];
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const angle = Math.atan2(dy, dx) + Math.PI * 0.5;
+      for (let index = 1; index < segments; index += 1) {
+        const t = index / segments;
+        const offset = rand(-7, 7);
+        points.push({
+          x: lerp(x1, x2, t) + Math.cos(angle) * offset,
+          y: lerp(y1, y2, t) + Math.sin(angle) * offset
+        });
+      }
+      points.push({ x: x2, y: y2 });
+      return points;
+    }
+
+    function burst(x, y, color, count, speedScale) {
+      for (let index = 0; index < count; index += 1) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = rand(18, 65) * speedScale;
+        state.particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: rand(2, 5),
+          life: rand(0.25, 0.55),
+          maxLife: 0,
+          color
+        });
+      }
+    }
+
+    function updateSpawning(dt) {
+      if (!state.currentWave || state.gameOver) return;
+      state.spawnTimer -= dt;
+      while (state.spawnTimer <= 0 && state.spawnQueue.length) {
+        const next = state.spawnQueue.shift();
+        if (next.pause) {
+          state.spawnTimer += next.pause;
+          continue;
+        }
+        spawnEnemy(next.typeId, next.hpMult, next.speedMult, next.rewardMult);
+        state.spawnTimer += next.gap;
+      }
+    }
+
+    function updateEnemies(dt) {
+      for (const enemy of state.enemies) {
+        if (!enemy.alive) continue;
+        if (enemy.slowTimer > 0) {
+          enemy.slowTimer = Math.max(0, enemy.slowTimer - dt);
+        } else {
+          enemy.slowAmount = 0;
+        }
+        enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
+
+        const def = ENEMY_TYPES[enemy.typeId];
+        let speedFactor = 1 - enemy.slowAmount;
+        if (def.pulse) {
+          speedFactor += Math.sin(state.clock * 5.5 + enemy.wobble) * def.pulse;
+        }
+        speedFactor = clamp(speedFactor, 0.32, 1.4);
+        enemy.progress += enemy.speed * speedFactor * dt;
+
+        if (enemy.progress >= state.track.totalLength) {
+          leakEnemy(enemy);
+          continue;
+        }
+
+        const sample = getPathSample(enemy.progress);
+        const swayAmount = def.sway ? Math.sin(state.clock * 2.4 + enemy.wobble + enemy.progress * 0.04) * def.sway : 0;
+        enemy.x = sample.x + Math.cos(sample.angle + Math.PI / 2) * swayAmount;
+        enemy.y = sample.y + Math.sin(sample.angle + Math.PI / 2) * swayAmount;
+        enemy.angle = sample.angle;
+      }
+      state.enemies = state.enemies.filter((enemy) => enemy.alive);
+    }
+
+    function updateTowers(dt) {
+      if (!state.currentWave || state.gameOver) return;
+      for (const tower of state.towers) {
+        tower.cooldown -= dt;
+        if (tower.cooldown > 0) continue;
+        fireTower(tower);
+      }
+    }
+
+    function updateProjectiles(dt) {
+      for (const projectile of state.projectiles) {
+        if (!projectile.alive) continue;
+        projectile.ttl -= dt;
+        projectile.prevX = projectile.x;
+        projectile.prevY = projectile.y;
+
+        if (projectile.target && projectile.target.alive) {
+          projectile.destX = projectile.target.x;
+          projectile.destY = projectile.target.y;
+        }
+
+        const dx = projectile.destX - projectile.x;
+        const dy = projectile.destY - projectile.y;
+        const distanceToTarget = Math.hypot(dx, dy);
+        const step = projectile.speed * dt;
+
+        if (distanceToTarget <= step || projectile.ttl <= 0) {
+          projectile.x = projectile.destX;
+          projectile.y = projectile.destY;
+          if (projectile.kind === "acorn") {
+            projectile.onImpact(projectile.x, projectile.y);
+          } else if (projectile.target && projectile.target.alive && dist(projectile.target.x, projectile.target.y, projectile.x, projectile.y) <= projectile.target.radius + projectile.radius + 6) {
+            projectile.onHit(projectile.target);
+          }
+          projectile.alive = false;
+          continue;
+        }
+
+        projectile.x += (dx / distanceToTarget) * step;
+        projectile.y += (dy / distanceToTarget) * step;
+      }
+      state.projectiles = state.projectiles.filter((projectile) => projectile.alive);
+    }
+
+    function updateEffects(dt) {
+      for (const effect of state.effects) {
+        effect.ttl -= dt;
+      }
+      state.effects = state.effects.filter((effect) => effect.ttl > 0);
+    }
+
+    function updateParticles(dt) {
+      for (const particle of state.particles) {
+        if (!particle.maxLife) particle.maxLife = particle.life;
+        particle.life -= dt;
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.vx *= 0.96;
+        particle.vy = particle.vy * 0.96 + 18 * dt;
+      }
+      state.particles = state.particles.filter((particle) => particle.life > 0);
+    }
+
+    function updateClouds(dt) {
+      for (const cloud of state.clouds) {
+        cloud.x += cloud.speed * dt;
+        if (cloud.x > WIDTH + 120) {
+          cloud.x = -140;
+          cloud.y = rand(35, 135);
+        }
+      }
+    }
+
+    function update(dt) {
+      state.clock += dt;
+      updateClouds(dt);
+      if (!state.gameOver) {
+        updateSpawning(dt);
+        updateEnemies(dt);
+        updateTowers(dt);
+        updateProjectiles(dt);
+        if (state.currentWave && state.spawnQueue.length === 0 && state.enemies.length === 0 && state.projectiles.length === 0) {
+          completeWave();
+        }
+      }
+      updateEffects(dt);
+      updateParticles(dt);
+    }
+
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+      sky.addColorStop(0, "#dff3ff");
+      sky.addColorStop(0.24, "#ecf8ff");
+      sky.addColorStop(0.241, "#c9efca");
+      sky.addColorStop(1, "#8fd17d");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      const horizonGlow = ctx.createRadialGradient(WIDTH * 0.5, HEIGHT * 0.38, 20, WIDTH * 0.5, HEIGHT * 0.38, WIDTH * 0.75);
+      horizonGlow.addColorStop(0, "rgba(255, 251, 231, 0.42)");
+      horizonGlow.addColorStop(1, "rgba(255, 251, 231, 0)");
+      ctx.fillStyle = horizonGlow;
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
+      for (const cloud of state.clouds) {
+        drawCloud(cloud.x, cloud.y, cloud.scale);
+      }
+
+      ctx.fillStyle = "rgba(115, 176, 86, 0.13)";
+      for (let col = 0; col < COLS; col += 1) {
+        for (let row = 0; row < ROWS; row += 1) {
+          if ((col + row) % 2 === 0) {
+            ctx.fillRect(col * CELL, row * CELL + HEIGHT * 0.24, CELL, CELL);
+          }
+        }
+      }
+
+      for (const deco of state.decorations) {
+        drawDecoration(deco);
+      }
+    }
+
+    function drawCloud(x, y, scale) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.arc(28, -10, 22, 0, Math.PI * 2);
+      ctx.arc(52, 0, 18, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawDecoration(deco) {
+      ctx.save();
+      ctx.translate(deco.x, deco.y);
+      ctx.scale(deco.scale, deco.scale);
+      if (deco.type === "flower") {
+        const wobble = Math.sin(state.clock * 2 + deco.sway) * 0.08;
+        ctx.rotate(wobble);
+        ctx.strokeStyle = "#5d8f56";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 8);
+        ctx.lineTo(0, -10);
+        ctx.stroke();
+        for (let index = 0; index < 6; index += 1) {
+          const angle = (Math.PI * 2 * index) / 6;
+          ctx.fillStyle = index % 2 === 0 ? "#ffd0da" : "#fff0a5";
+          ctx.beginPath();
+          ctx.arc(Math.cos(angle) * 6, -12 + Math.sin(angle) * 6, 4.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = "#ffd86d";
+        ctx.beginPath();
+        ctx.arc(0, -12, 4.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (deco.type === "bush") {
+        ctx.fillStyle = "#5daf61";
+        ctx.beginPath();
+        ctx.arc(-6, 2, 10, 0, Math.PI * 2);
+        ctx.arc(4, 0, 12, 0, Math.PI * 2);
+        ctx.arc(14, 4, 8, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = "#dfe2da";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 9, 6, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#c1c7ba";
+        ctx.beginPath();
+        ctx.ellipse(1, -1, 5, 3, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawPath() {
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      ctx.strokeStyle = "rgba(87, 58, 24, 0.26)";
+      ctx.lineWidth = 48;
+      ctx.beginPath();
+      ctx.moveTo(state.track.points[0].x, state.track.points[0].y);
+      for (const point of state.track.points.slice(1)) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = "#d4ab77";
+      ctx.lineWidth = 38;
+      ctx.beginPath();
+      ctx.moveTo(state.track.points[0].x, state.track.points[0].y);
+      for (const point of state.track.points.slice(1)) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255, 246, 224, 0.55)";
+      ctx.setLineDash([12, 18]);
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(state.track.points[0].x, state.track.points[0].y);
+      for (const point of state.track.points.slice(1)) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      for (const cell of state.track.cells) {
+        const center = getCellCenter(cell.x, cell.y);
+        ctx.fillStyle = "rgba(255, 245, 216, 0.16)";
+        ctx.beginPath();
+        ctx.arc(center.x + Math.sin(cell.x) * 8, center.y + Math.cos(cell.y) * 8, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawBuildHints() {
+      if (!state.intermission || !state.selectedBuildType) return;
+      const accent = TOWER_TYPES[state.selectedBuildType].accent;
+      for (const cell of state.buildCells) {
+        if (!isBuildableCell(cell.x, cell.y)) continue;
+        const x = cell.x * CELL + 6;
+        const y = cell.y * CELL + 6;
+        roundRectPath(ctx, x, y, CELL - 12, CELL - 12, 18);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.fill();
+        ctx.strokeStyle = `${accent}44`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      if (state.hoveredCell && isBuildableCell(state.hoveredCell.x, state.hoveredCell.y)) {
+        const x = state.hoveredCell.x * CELL + 4;
+        const y = state.hoveredCell.y * CELL + 4;
+        roundRectPath(ctx, x, y, CELL - 8, CELL - 8, 18);
+        ctx.fillStyle = `${accent}33`;
+        ctx.fill();
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+    }
+
+    function drawSelectionRange() {
+      const tower = state.towers.find((item) => item.id === state.selectedTowerId);
+      if (!tower) return;
+      const type = TOWER_TYPES[tower.type];
+      const stats = getTowerStats(tower);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(tower.x, tower.y, stats.range, 0, Math.PI * 2);
+      ctx.fillStyle = `${type.accent}14`;
+      ctx.fill();
+      ctx.strokeStyle = `${type.accent}66`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTowers() {
+      for (const tower of state.towers) {
+        const type = TOWER_TYPES[tower.type];
+        const stats = getTowerStats(tower);
+        const selected = tower.id === state.selectedTowerId;
+
+        ctx.save();
+        ctx.translate(tower.x, tower.y);
+
+        if (selected) {
+          ctx.fillStyle = `${type.accent}25`;
+          ctx.beginPath();
+          ctx.arc(0, 0, 28, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = "rgba(73, 110, 62, 0.18)";
+        ctx.beginPath();
+        ctx.ellipse(0, 18, 20, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawTowerBody(tower.type, stats, type.accent);
+
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.font = "700 11px Trebuchet MS";
+        ctx.textAlign = "center";
+        ctx.fillText(String(tower.level + 1), 0, 34);
+
+        ctx.restore();
+      }
+    }
+
+    function drawTowerBody(typeId, stats, accent) {
+      ctx.fillStyle = "#855f3a";
+      ctx.beginPath();
+      ctx.arc(0, 10, 14, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (typeId === "berry") {
+        ctx.fillStyle = "#4f8d4a";
+        ctx.beginPath();
+        ctx.moveTo(0, 4);
+        ctx.lineTo(-8, -12);
+        ctx.lineTo(8, -12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(0, -10, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff6f2";
+        ctx.beginPath();
+        ctx.arc(5, -13, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (typeId === "frost") {
+        ctx.fillStyle = "#daf2ff";
+        for (let index = 0; index < 6; index += 1) {
+          ctx.save();
+          ctx.rotate((Math.PI * 2 * index) / 6);
+          roundRectPath(ctx, -3, -22, 6, 16, 3);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(0, -10, 8, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (typeId === "acorn") {
+        ctx.fillStyle = "#69472e";
+        roundRectPath(ctx, -9, -24, 18, 26, 8);
+        ctx.fill();
+        ctx.fillStyle = accent;
+        roundRectPath(ctx, -13, -18, 26, 12, 6);
+        ctx.fill();
+      } else if (typeId === "spark") {
+        ctx.strokeStyle = "#5c4cb0";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-10, 2);
+        ctx.bezierCurveTo(-8, -12, 8, -12, 10, 2);
+        ctx.stroke();
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(0, -12, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f7f6ff";
+        ctx.beginPath();
+        ctx.arc(2, -14, 3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (typeId === "sun") {
+        ctx.fillStyle = "#805736";
+        roundRectPath(ctx, -7, -4, 14, 20, 6);
+        ctx.fill();
+        for (let index = 0; index < 10; index += 1) {
+          const angle = (Math.PI * 2 * index) / 10;
+          ctx.fillStyle = accent;
+          ctx.beginPath();
+          ctx.arc(Math.cos(angle) * 14, -10 + Math.sin(angle) * 14, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = "#fff0a4";
+        ctx.beginPath();
+        ctx.arc(0, -10, 11, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawProjectiles() {
+      for (const projectile of state.projectiles) {
+        ctx.save();
+        if (projectile.kind !== "acorn") {
+          ctx.strokeStyle = `${projectile.color}88`;
+          ctx.lineWidth = projectile.kind === "frost" ? 4 : 3;
+          ctx.beginPath();
+          ctx.moveTo(projectile.prevX, projectile.prevY);
+          ctx.lineTo(projectile.x, projectile.y);
+          ctx.stroke();
+        }
+        ctx.fillStyle = projectile.color;
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (projectile.kind === "acorn") {
+          ctx.fillStyle = "#7e5535";
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y - 2, projectile.radius * 0.62, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawEnemies() {
+      for (const enemy of state.enemies) {
+        const def = ENEMY_TYPES[enemy.typeId];
+        ctx.save();
+        ctx.translate(enemy.x, enemy.y);
+        ctx.rotate(enemy.angle);
+
+        ctx.fillStyle = "rgba(70, 80, 56, 0.18)";
+        ctx.beginPath();
+        ctx.ellipse(0, enemy.radius + 4, enemy.radius * 0.9, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (enemy.typeId === "zip") {
+          ctx.fillStyle = enemy.hitFlash ? "#fff4dd" : def.color;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff7f0";
+          ctx.beginPath();
+          ctx.arc(-6, -5, 4, 0, Math.PI * 2);
+          ctx.arc(6, -5, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (enemy.typeId === "slime") {
+          ctx.fillStyle = enemy.hitFlash ? "#f6fff0" : def.color;
+          ctx.beginPath();
+          ctx.moveTo(-14, 9);
+          ctx.quadraticCurveTo(-16, -12, 0, -15);
+          ctx.quadraticCurveTo(16, -12, 14, 9);
+          ctx.closePath();
+          ctx.fill();
+        } else if (enemy.typeId === "pogo") {
+          ctx.strokeStyle = "#806f99";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 15);
+          ctx.lineTo(0, 26);
+          ctx.stroke();
+          ctx.fillStyle = enemy.hitFlash ? "#fff2fa" : def.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, 12, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (enemy.typeId === "shell") {
+          ctx.fillStyle = "#ece7dc";
+          ctx.beginPath();
+          ctx.ellipse(-5, 3, 9, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = enemy.hitFlash ? "#eff7ff" : def.color;
+          ctx.beginPath();
+          ctx.arc(6, -2, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#d8efff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(6, -2, 6, 0, Math.PI * 1.8);
+          ctx.stroke();
+        } else if (enemy.typeId === "brute") {
+          ctx.fillStyle = enemy.hitFlash ? "#fff0e8" : def.color;
+          roundRectPath(ctx, -14, -16, 28, 32, 10);
+          ctx.fill();
+          ctx.fillStyle = "#af8b62";
+          roundRectPath(ctx, -9, -24, 18, 12, 6);
+          ctx.fill();
+        } else if (enemy.typeId === "nest") {
+          ctx.fillStyle = enemy.hitFlash ? "#fff4df" : def.color;
+          roundRectPath(ctx, -15, -11, 30, 22, 9);
+          ctx.fill();
+          ctx.fillStyle = "#fff7df";
+          ctx.beginPath();
+          ctx.arc(-5, -6, 4, 0, Math.PI * 2);
+          ctx.arc(6, -2, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (enemy.typeId === "boss") {
+          ctx.fillStyle = enemy.hitFlash ? "#fff0ef" : def.color;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 24, 18, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#6f392f";
+          ctx.fillRect(-16, -5, 32, 10);
+          ctx.fillStyle = "#fff0d9";
+          ctx.beginPath();
+          ctx.arc(-8, -7, 4, 0, Math.PI * 2);
+          ctx.arc(8, -7, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (enemy.slowTimer > 0) {
+          ctx.strokeStyle = "rgba(206, 240, 255, 0.85)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, enemy.radius + 6, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        const barWidth = enemy.radius * 2.2;
+        const hpRatio = clamp(enemy.hp / enemy.maxHp, 0, 1);
+        ctx.fillStyle = "rgba(47, 58, 42, 0.35)";
+        roundRectPath(ctx, -barWidth * 0.5, -enemy.radius - 16, barWidth, 6, 4);
+        ctx.fill();
+        ctx.fillStyle = hpRatio > 0.45 ? "#89d67a" : hpRatio > 0.2 ? "#ffd45f" : "#ef7a7f";
+        roundRectPath(ctx, -barWidth * 0.5, -enemy.radius - 16, barWidth * hpRatio, 6, 4);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    function drawEffects() {
+      for (const effect of state.effects) {
+        const alpha = effect.ttl / effect.maxTtl;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        if (effect.kind === "beam") {
+          ctx.strokeStyle = effect.color;
+          ctx.lineWidth = 7;
+          ctx.beginPath();
+          ctx.moveTo(effect.x1, effect.y1);
+          ctx.lineTo(effect.x2, effect.y2);
+          ctx.stroke();
+          ctx.strokeStyle = "#fff4c8";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(effect.x1, effect.y1);
+          ctx.lineTo(effect.x2, effect.y2);
+          ctx.stroke();
+        } else if (effect.kind === "ring") {
+          ctx.strokeStyle = effect.color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(effect.x, effect.y, effect.radius * (1 + (1 - alpha) * 0.35), 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (effect.kind === "chain") {
+          ctx.strokeStyle = effect.color;
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(effect.points[0].x, effect.points[0].y);
+          for (const point of effect.points.slice(1)) {
+            ctx.lineTo(point.x, point.y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawParticles() {
+      for (const particle of state.particles) {
+        const alpha = particle.life / particle.maxLife;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawOverlay() {
+      if (!state.gameOver) return;
+      ctx.save();
+      ctx.fillStyle = "rgba(39, 44, 37, 0.28)";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      roundRectPath(ctx, WIDTH * 0.5 - 180, HEIGHT * 0.5 - 76, 360, 152, 28);
+      ctx.fillStyle = "rgba(255, 248, 235, 0.94)";
+      ctx.fill();
+      ctx.fillStyle = "#2f4c3c";
+      ctx.textAlign = "center";
+      ctx.font = "700 34px Trebuchet MS";
+      ctx.fillText("Picnic Overrun", WIDTH * 0.5, HEIGHT * 0.5 - 12);
+      ctx.font = "20px Trebuchet MS";
+      ctx.fillStyle = "#6f7d70";
+      ctx.fillText("Shuffle a fresh track and try a new build.", WIDTH * 0.5, HEIGHT * 0.5 + 26);
+      ctx.restore();
+    }
+
+    function render() {
+      drawBackground();
+      drawPath();
+      drawBuildHints();
+      drawSelectionRange();
+      drawTowers();
+      drawProjectiles();
+      drawEnemies();
+      drawEffects();
+      drawParticles();
+      drawOverlay();
+    }
+
+    function screenToCanvas(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * (canvas.width / rect.width),
+        y: (event.clientY - rect.top) * (canvas.height / rect.height)
+      };
+    }
+
+    function getTowerAtCell(cellX, cellY) {
+      return state.towers.find((tower) => tower.cellX === cellX && tower.cellY === cellY) || null;
+    }
+
+    canvas.addEventListener("mousemove", (event) => {
+      const point = screenToCanvas(event);
+      const cellX = Math.floor(point.x / CELL);
+      const cellY = Math.floor(point.y / CELL);
+      if (cellX >= 0 && cellX < COLS && cellY >= 0 && cellY < ROWS) {
+        state.hoveredCell = { x: cellX, y: cellY };
+      } else {
+        state.hoveredCell = null;
+      }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      state.hoveredCell = null;
+    });
+
+    canvas.addEventListener("click", (event) => {
+      const point = screenToCanvas(event);
+      const cellX = Math.floor(point.x / CELL);
+      const cellY = Math.floor(point.y / CELL);
+      if (cellX < 0 || cellX >= COLS || cellY < 0 || cellY >= ROWS) return;
+
+      const tower = getTowerAtCell(cellX, cellY);
+      if (tower) {
+        state.selectedTowerId = tower.id;
+        state.selectedBuildType = null;
+        uiDirty = true;
+        return;
+      }
+
+      state.selectedTowerId = null;
+      if (state.selectedBuildType) {
+        placeTower(cellX, cellY);
+      } else {
+        uiDirty = true;
+      }
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        state.selectedBuildType = null;
+        state.selectedTowerId = null;
+        uiDirty = true;
+      }
+    });
+
+    upgradeButton.addEventListener("click", upgradeSelectedTower);
+    sellButton.addEventListener("click", sellSelectedTower);
+    startWaveButton.addEventListener("click", beginWave);
+    shuffleButton.addEventListener("click", () => {
+      resetGame();
+    });
+
+    function frame(now) {
+      const dt = Math.min((now - lastFrame) / 1000, 0.033);
+      lastFrame = now;
+      update(dt);
+      render();
+      if (uiDirty) refreshUI();
+      requestAnimationFrame(frame);
+    }
+
+    buildShop();
+    resetGame();
+    refreshUI();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
