@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Cyberpunk Undercity - Pure SVG Engine</title>
+    <style>
+        /* CSS Reset & Core Layout */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html {
+            width: 100%; height: 100%;
+            background-color: #050510;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            /* Prevent mobile pull-to-refresh & swipe navigation */
+            touch-action: none;
+            overscroll-behavior: none;
+        }
+
+        /* SVG Game Canvas Container */
+        #game-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+        svg { width: 100%; height: 100%; display: block; }
+
+        /* UI overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through except on joysticks */
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 10px; height: 10px;
+            background: rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px cyan;
+        }
+        #instructions {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: cyan;
+            text-shadow: 0 0 5px cyan;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px; border: 1px solid cyan;
+            pointer-events: auto;
+        }
+
+        /* Virtual Joysticks (Mobile) */
+        .joystick-zone {
+            position: absolute;
+            bottom: 30px;
+            width: 120px; height: 120px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: none; /* Hidden on desktop by default */
+            touch-action: none;
+        }
+        .joystick-knob {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            background: rgba(255, 0, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px magenta;
+            transition: transform 0.05s ease-out;
+        }
+        #joystick-left { left: 30px; }
+        #joystick-right { right: 30px; }
+
+        /* Show joysticks on touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            .joystick-zone { display: block; }
+            #instructions { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <svg id="viewport" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+                <filter id="glow-heavy" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="15" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+
+                <g id="prop-monolith">
+                    <rect x="-30" y="-300" width="60" height="300" fill="#050510" stroke="#0ff" stroke-width="4" filter="url(#glow)" />
+                    <line x1="-10" y1="-280" x2="-10" y2="-20" stroke="#0ff" stroke-width="2" />
+                    <line x1="10" y1="-280" x2="10" y2="-20" stroke="#0ff" stroke-width="2" />
+                </g>
+
+                <g id="prop-pyramid">
+                    <polygon points="0,-180 80,0 -80,0" fill="rgba(255,0,255,0.1)" stroke="#f0f" stroke-width="5" filter="url(#glow)"/>
+                    <polygon points="0,-180 30,0 -30,0" fill="none" stroke="#f0f" stroke-width="2"/>
+                    <circle cx="0" cy="-180" r="15" fill="#fff" filter="url(#glow-heavy)" />
+                </g>
+
+                <g id="prop-spire">
+                    <path d="M 0 0 L 0 -150 M 0 -50 L -50 -100 M 0 -50 L 50 -100 M 0 -100 L -30 -150 M 0 -100 L 30 -150" stroke="#0f0" stroke-width="6" fill="none" filter="url(#glow)"/>
+                    <circle cx="0" cy="-150" r="10" fill="#0f0" filter="url(#glow)" />
+                </g>
+
+                <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgba(0, 255, 255, 0.15)" stroke-width="1"/>
+                </pattern>
+            </defs>
+
+            <rect id="sky" width="100%" height="50%" fill="#050510" />
+            <rect id="ground" y="50%" width="100%" height="50%" fill="url(#grid)" />
+            <line id="horizon" x1="0" y1="50%" x2="100%" y2="50%" stroke="#0ff" stroke-width="2" filter="url(#glow)" />
+
+            <g id="render-pool"></g>
+        </svg>
+    </div>
+
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="instructions">
+            <b>NEON UNDERCITY</b><br>
+            [W/A/S/D] or Arrows to Move<br>
+            [Click & Drag] to Look<br>
+            <small>Mobile: Use Multitouch Joysticks</small>
+        </div>
+
+        <div class="joystick-zone" id="joystick-left">
+            <div class="joystick-knob" id="knob-left"></div>
+        </div>
+        <div class="joystick-zone" id="joystick-right">
+            <div class="joystick-knob" id="knob-right"></div>
+        </div>
+    </div>
+
+<script>
+    /**
+     * Pure SVG 2.5D Rendering Engine & Game Logic
+     */
+
+    // --- Configuration & State ---
+    const FOV = 400;             // Focal length for perspective projection
+    const CHUNK_SIZE = 1000;     // Size of generation grid
+    const VIEW_DISTANCE = 3000;  // How far we can see/render
+    const POOL_SIZE = 150;       // Max DOM nodes to reuse (Performance optimization)
+
+    const player = {
+        x: 0,
+        y: -100, // Eye height (negative is up in our world coordinate system)
+        z: 0,
+        angle: 0,
+        walkTime: 0 // Used to calculate head bobbing
+    };
+
+    const input = {
+        forward: 0, strafe: 0, turn: 0,
+        isDragging: false, lastMouseX: 0
+    };
+
+    const worldObjects = new Map(); // Stores all generated entities
+    const renderPool = [];          // Reusable <use> elements
+    const svgViewport = document.getElementById('viewport');
+    const poolContainer = document.getElementById('render-pool');
+
+    // --- Initialization ---
+    function initSVGPool() {
+        for (let i = 0; i < POOL_SIZE; i++) {
+            const useEl = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+            useEl.style.display = 'none';
+            poolContainer.appendChild(useEl);
+            renderPool.push(useEl);
+        }
+    }
+
+    // --- World Generation (Infinite) ---
+    const PROP_TYPES = ['#prop-monolith', '#prop-pyramid', '#prop-spire'];
+
+    function getChunkId(x, z) {
+        return `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`;
+    }
+
+    // Pseudo-random number generator based on coordinates for consistent worlds
+    function hashCoord(x, z) {
+        let h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+        return h - Math.floor(h);
+    }
+
+    function generateChunk(chunkX, chunkZ) {
+        const chunkId = `${chunkX},${chunkZ}`;
+        if (worldObjects.has(chunkId)) return;
+
+        const objects = [];
+        const startX = chunkX * CHUNK_SIZE;
+        const startZ = chunkZ * CHUNK_SIZE;
+
+        // Generate 3-6 props per chunk randomly
+        const propCount = Math.floor(hashCoord(chunkX, chunkZ) * 4) + 3;
+
+        for (let i = 0; i < propCount; i++) {
+            const rx = hashCoord(chunkX + i, chunkZ * i);
+            const rz = hashCoord(chunkX * i, chunkZ + i);
+            const typeIdx = Math.floor(hashCoord(chunkX - i, chunkZ + i) * PROP_TYPES.length);
+
+            objects.push({
+                x: startX + rx * CHUNK_SIZE,
+                y: 0, // Ground level
+                z: startZ + rz * CHUNK_SIZE,
+                type: PROP_TYPES[typeIdx],
+                scaleVariance: 0.5 + (hashCoord(chunkZ, chunkX + i) * 1.5) // Random size
+            });
+        }
+        worldObjects.set(chunkId, objects);
+    }
+
+    function updateWorldChunks() {
+        const currentChunkX = Math.floor(player.x / CHUNK_SIZE);
+        const currentChunkZ = Math.floor(player.z / CHUNK_SIZE);
+        const radius = 3; // Load chunks in a 3x3 grid around player
+
+        for (let x = -radius; x <= radius; x++) {
+            for (let z = -radius; z <= radius; z++) {
+                generateChunk(currentChunkX + x, currentChunkZ + z);
+            }
+        }
+    }
+
+    // --- Core Render Loop ---
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+
+        updatePlayer(dt);
+        updateWorldChunks();
+        renderScene();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // --- Player Movement & Physics ---
+    function updatePlayer(dt) {
+        const moveSpeed = 400 * dt;
+        const turnSpeed = 2.0 * dt;
+
+        // Handle turning
+        player.angle += input.turn * turnSpeed;
+
+        // Vector math for forward/strafe relative to look angle
+        const cosA = Math.cos(player.angle);
+        const sinA = Math.sin(player.angle);
+
+        // Calculate velocity
+        const vx = (input.forward * sinA) + (input.strafe * cosA);
+        const vz = (input.forward * cosA) - (input.strafe * sinA);
+
+        player.x += vx * moveSpeed;
+        player.z += vz * moveSpeed;
+
+        // Head bob calculation (only applies if moving)
+        const isMoving = Math.abs(input.forward) > 0.1 || Math.abs(input.strafe) > 0.1;
+        if (isMoving) {
+            player.walkTime += moveSpeed * 0.015;
+        }
+    }
+
+    // --- Projection & SVG DOM Updates ---
+    function renderScene() {
+        // Center of the SVG viewBox dynamically determined by window size
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        svgViewport.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+        const cx = w / 2;
+        const cy = h / 2;
+
+        const visibleObjects = [];
+        const cosA = Math.cos(-player.angle);
+        const sinA = Math.sin(-player.angle);
+
+        // Apply headbob to player's Y coordinate
+        const headBob = Math.sin(player.walkTime) * 12;
+        const currentCamY = player.y + headBob;
+
+        // Horizon effect shifting slightly with headbob
+        document.getElementById('horizon').setAttribute('y1', cy + headBob * 0.2);
+        document.getElementById('horizon').setAttribute('y2', cy + headBob * 0.2);
+        document.getElementById('ground').setAttribute('y', cy + headBob * 0.2);
+        document.getElementById('sky').setAttribute('height', cy + headBob * 0.2);
+
+        // 1. Gather & Transform Objects
+        for (const [chunkId, objects] of worldObjects.entries()) {
+            for (const obj of objects) {
+                // Translation relative to player
+                const dx = obj.x - player.x;
+                const dz = obj.z - player.z;
+                const dy = obj.y - currentCamY;
+
+                // Distance check to cull objects far away
+                if (dx*dx + dz*dz > VIEW_DISTANCE*VIEW_DISTANCE) continue;
+
+                // Y-Axis Rotation (Camera transformation)
+                const rx = dx * cosA - dz * sinA;
+                const rz = dx * sinA + dz * cosA;
+
+                // Cull objects behind camera (rz < 10)
+                if (rz > 10) {
+                    visibleObjects.push({ obj, rx, ry: dy, rz });
+                }
+            }
+        }
+
+        // 2. Depth Sort (Painter's Algorithm: Furthest first)
+        visibleObjects.sort((a, b) => b.rz - a.rz);
+
+        // 3. Project & Update SVG Object Pool
+        for (let i = 0; i < POOL_SIZE; i++) {
+            const domEl = renderPool[i];
+
+            if (i < visibleObjects.length) {
+                const vo = visibleObjects[i];
+                const scale = FOV / vo.rz;
+
+                // Screen coordinates
+                const screenX = cx + vo.rx * scale;
+                const screenY = cy + vo.ry * scale;
+
+                // Final scale includes perspective + the object's inherent size variance
+                const finalScale = scale * vo.obj.scaleVariance;
+
+                domEl.setAttribute('href', vo.obj.type);
+                domEl.setAttribute('transform', `translate(${screenX}, ${screenY}) scale(${finalScale})`);
+                domEl.style.display = 'block';
+
+                // Dim distant objects for fog illusion
+                const opacity = Math.max(0.1, 1 - (vo.rz / VIEW_DISTANCE));
+                domEl.style.opacity = opacity;
+
+            } else {
+                // Hide unused pool elements
+                domEl.style.display = 'none';
+            }
+        }
+    }
+
+    // --- Input Handling: Desktop ---
+    window.addEventListener('keydown', (e) => {
+        switch(e.code) {
+            case 'KeyW': case 'ArrowUp': input.forward = 1; break;
+            case 'KeyS': case 'ArrowDown': input.forward = -1; break;
+            case 'KeyA': case 'ArrowLeft': input.strafe = -1; break;
+            case 'KeyD': case 'ArrowRight': input.strafe = 1; break;
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        switch(e.code) {
+            case 'KeyW': case 'ArrowUp':
+            case 'KeyS': case 'ArrowDown': input.forward = 0; break;
+            case 'KeyA': case 'ArrowLeft':
+            case 'KeyD': case 'ArrowRight': input.strafe = 0; break;
+        }
+    });
+
+    // Mouse drag to look around
+    window.addEventListener('mousedown', (e) => {
+        if(e.target.closest('.joystick-zone')) return; // Ignore if clicking joystick
+        input.isDragging = true;
+        input.lastMouseX = e.clientX;
+    });
+    window.addEventListener('mouseup', () => { input.isDragging = false; });
+    window.addEventListener('mousemove', (e) => {
+        if (input.isDragging) {
+            const deltaX = e.clientX - input.lastMouseX;
+            player.angle += deltaX * 0.005;
+            input.lastMouseX = e.clientX;
+        }
+    });
+
+    // --- Input Handling: Mobile Multitouch Joysticks ---
+    const joyLeft = document.getElementById('joystick-left');
+    const joyRight = document.getElementById('joystick-right');
+    const knobLeft = document.getElementById('knob-left');
+    const knobRight = document.getElementById('knob-right');
+
+    const touches = { left: null, right: null };
+
+    function handleTouch(e) {
+        e.preventDefault(); // Stop scrolling/zooming
+
+        // Reset input from joysticks
+        input.forward = 0; input.strafe = 0; input.turn = 0;
+        let leftActive = false;
+        let rightActive = false;
+
+        for (let i = 0; i < e.touches.length; i++) {
+            const touch = e.touches[i];
+
+            // Check Left Joystick (Movement)
+            const leftRect = joyLeft.getBoundingClientRect();
+            if (isTouchInRect(touch, leftRect) || touch.identifier === touches.left) {
+                touches.left = touch.identifier;
+                leftActive = true;
+
+                const centerX = leftRect.left + leftRect.width / 2;
+                const centerY = leftRect.top + leftRect.height / 2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+
+                // Clamp knob distance
+                const dist = Math.min(Math.hypot(dx, dy), leftRect.width/2);
+                const angle = Math.atan2(dy, dx);
+                dx = Math.cos(angle) * dist;
+                dy = Math.sin(angle) * dist;
+
+                knobLeft.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+                // Map to input (Normalize -1 to 1)
+                input.strafe = dx / (leftRect.width/2);
+                input.forward = -(dy / (leftRect.height/2)); // Negative because Y goes down
+            }
+
+            // Check Right Joystick (Turning)
+            const rightRect = joyRight.getBoundingClientRect();
+            if (isTouchInRect(touch, rightRect) || touch.identifier === touches.right) {
+                touches.right = touch.identifier;
+                rightActive = true;
+
+                const centerX = rightRect.left + rightRect.width / 2;
+                const centerY = rightRect.top + rightRect.height / 2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+
+                const dist = Math.min(Math.hypot(dx, dy), rightRect.width/2);
+                const angle = Math.atan2(dy, dx);
+                dx = Math.cos(angle) * dist;
+                dy = Math.sin(angle) * dist;
+
+                knobRight.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+                // Map to input (Only X axis for turning)
+                input.turn = dx / (rightRect.width/2);
+            }
+        }
+
+        // Reset knobs if touches lifted
+        if (!leftActive) {
+            touches.left = null;
+            knobLeft.style.transform = `translate(-50%, -50%)`;
+        }
+        if (!rightActive) {
+            touches.right = null;
+            knobRight.style.transform = `translate(-50%, -50%)`;
+        }
+    }
+
+    function isTouchInRect(touch, rect) {
+        // Expand hit area slightly for better mobile feel
+        const padding = 20;
+        return touch.clientX >= rect.left - padding && touch.clientX <= rect.right + padding &&
+               touch.clientY >= rect.top - padding && touch.clientY <= rect.bottom + padding;
+    }
+
+    window.addEventListener('touchstart', handleTouch, { passive: false });
+    window.addEventListener('touchmove', handleTouch, { passive: false });
+    window.addEventListener('touchend', handleTouch, { passive: false });
+    window.addEventListener('touchcancel', handleTouch, { passive: false });
+
+    // --- Boot Game ---
+    initSVGPool();
+    requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>

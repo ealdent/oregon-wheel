@@ -26,6 +26,10 @@
             --cavern-light: #4da67d;
             --fungi: #2b4f7a;
             --fungi-light: #56a5d9;
+            --aurora: #23685f;
+            --aurora-light: #74d7b8;
+            --cyber: #5a1f7c;
+            --cyber-light: #00c7d9;
         }
 
         * { box-sizing: border-box; }
@@ -238,12 +242,16 @@
         .badge--deepsea::after { background: linear-gradient(90deg, var(--deepsea), var(--deepsea-light)); }
         .badge--cavern::after { background: linear-gradient(90deg, var(--cavern), var(--cavern-light)); }
         .badge--fungi::after { background: linear-gradient(90deg, var(--fungi), var(--fungi-light)); }
+        .badge--aurora::after { background: linear-gradient(90deg, var(--aurora), var(--aurora-light)); }
+        .badge--cyber::after { background: linear-gradient(90deg, var(--cyber), var(--cyber-light)); }
 
         .badge--forest .badge-icon { background: linear-gradient(135deg, var(--forest), var(--forest-light)); }
         .badge--ocean .badge-icon { background: linear-gradient(135deg, var(--ocean), var(--ocean-light)); }
         .badge--deepsea .badge-icon { background: linear-gradient(135deg, var(--deepsea), var(--deepsea-light)); }
         .badge--cavern .badge-icon { background: linear-gradient(135deg, var(--cavern), var(--cavern-light)); }
         .badge--fungi .badge-icon { background: linear-gradient(135deg, var(--fungi), var(--fungi-light)); }
+        .badge--aurora .badge-icon { background: linear-gradient(135deg, var(--aurora), var(--aurora-light)); }
+        .badge--cyber .badge-icon { background: linear-gradient(135deg, var(--cyber), var(--cyber-light)); }
 
         footer {
             margin-top: clamp(2rem, 6vw, 3rem);
@@ -319,6 +327,22 @@
                 <div class="badge-icon" aria-hidden="true">🍄</div>
                 <h2 class="badge-title">Bioluminescent Fungi Forest</h2>
                 <p class="badge-desc">Roam a glowing mushroom forest lit by magical spores and otherworldly neon flora.</p>
+                <span class="badge-cta">Play now</span>
+            </a>
+
+            <a href="gpt-5.4-xhigh-svg-forest.html" class="badge badge--aurora">
+                <span class="badge-ribbon">Aurora Trek</span>
+                <div class="badge-icon" aria-hidden="true">🌌</div>
+                <h2 class="badge-title">Glasswood Drift</h2>
+                <p class="badge-desc">Explore an endless aurora forest of prism pines, lantern blooms, ribbon arches, and drifting sky-kites.</p>
+                <span class="badge-cta">Play now</span>
+            </a>
+
+            <a href="gemini-3.1-pro-svg-forest-updated.html" class="badge badge--cyber">
+                <span class="badge-ribbon">Neon Run</span>
+                <div class="badge-icon" aria-hidden="true">🌃</div>
+                <h2 class="badge-title">Neon Cyberpunk Undercity</h2>
+                <p class="badge-desc">Drop into a glowing undercity of monoliths, pyramids, and electric spires rendered entirely with SVG.</p>
                 <span class="badge-cta">Play now</span>
             </a>
         </nav>
