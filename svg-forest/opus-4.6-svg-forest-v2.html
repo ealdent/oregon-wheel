@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>Bioluminescent Depths - SVG Explorer</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+#game-svg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  display: block;
+}
+#hud {
+  position: fixed; top: 16px; left: 50%;
+  transform: translateX(-50%);
+  color: #7af5c8; font-family: 'Courier New', monospace;
+  font-size: 14px; text-align: center;
+  text-shadow: 0 0 8px #3affa0, 0 0 20px #0a6648;
+  pointer-events: none; z-index: 10;
+  opacity: 0.8;
+}
+#hud .title { font-size: 20px; font-weight: bold; letter-spacing: 4px; }
+#hud .coords { font-size: 11px; margin-top: 4px; opacity: 0.6; }
+
+/* Joystick styles */
+.joystick-zone {
+  position: fixed; bottom: 20px;
+  width: 140px; height: 140px;
+  z-index: 20;
+  display: none;
+}
+.joystick-zone.left { left: 24px; }
+.joystick-zone.right { right: 24px; }
+.joystick-base {
+  position: absolute; top: 0; left: 0;
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(58,255,160,0.08) 0%, rgba(58,255,160,0.03) 70%, transparent 100%);
+  border: 2px solid rgba(58,255,160,0.25);
+}
+.joystick-knob {
+  position: absolute;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(58,255,160,0.35) 0%, rgba(58,255,160,0.12) 100%);
+  border: 2px solid rgba(58,255,160,0.5);
+  top: 42px; left: 42px;
+  transition: none;
+}
+.joystick-label {
+  position: absolute; top: -20px; width: 100%; text-align: center;
+  color: rgba(58,255,160,0.4); font-family: 'Courier New', monospace;
+  font-size: 10px; letter-spacing: 2px;
+}
+
+/* Crosshair */
+#crosshair {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px; height: 20px;
+  pointer-events: none; z-index: 10;
+}
+#crosshair::before, #crosshair::after {
+  content: ''; position: absolute;
+  background: rgba(122,245,200,0.4);
+}
+#crosshair::before { width: 2px; height: 20px; left: 9px; top: 0; }
+#crosshair::after { width: 20px; height: 2px; top: 9px; left: 0; }
+
+/* Touch detection */
+@media (hover: none) and (pointer: coarse) {
+  .joystick-zone { display: block; }
+  #crosshair { display: none; }
+}
+
+/* Fade-in */
+#game-svg { animation: fadeIn 1.5s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Instruction overlay */
+#instructions {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  color: rgba(122,245,200,0.35); font-family: 'Courier New', monospace;
+  font-size: 11px; pointer-events: none; z-index: 10;
+  white-space: nowrap;
+}
+@media (hover: none) and (pointer: coarse) {
+  #instructions { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="title">BIOLUMINESCENT DEPTHS</div>
+  <div class="coords" id="coords">0, 0</div>
+</div>
+<div id="crosshair"></div>
+<div id="instructions">WASD / Arrows to move &middot; Mouse drag to look</div>
+
+<div class="joystick-zone left" id="joystick-left">
+  <div class="joystick-label">MOVE</div>
+  <div class="joystick-base"></div>
+  <div class="joystick-knob" id="knob-left"></div>
+</div>
+<div class="joystick-zone right" id="joystick-right">
+  <div class="joystick-label">LOOK</div>
+  <div class="joystick-base"></div>
+  <div class="joystick-knob" id="knob-right"></div>
+</div>
+
+<svg id="game-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <defs>
+    <!-- Sky gradient -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#020812"/>
+      <stop offset="40%" stop-color="#051a2a"/>
+      <stop offset="70%" stop-color="#0a2840"/>
+      <stop offset="100%" stop-color="#0d3352"/>
+    </linearGradient>
+    <!-- Ground gradient -->
+    <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a2a1f"/>
+      <stop offset="40%" stop-color="#061a12"/>
+      <stop offset="100%" stop-color="#03100a"/>
+    </linearGradient>
+    <!-- Fog gradient -->
+    <linearGradient id="fogGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(5,26,42,0)" />
+      <stop offset="100%" stop-color="rgba(5,26,42,0.95)" />
+    </linearGradient>
+    <!-- Glow filters -->
+    <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-purple" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Background layers -->
+  <rect id="sky" width="100%" height="100%" fill="url(#skyGrad)"/>
+  <!-- Stars layer -->
+  <g id="stars-layer"></g>
+  <!-- Scene container - everything rendered here -->
+  <g id="scene"></g>
+  <!-- Ground fog overlay -->
+  <rect id="ground-fog" x="0" width="100%" height="15%" fill="url(#fogGrad)" opacity="0.6"/>
+  <!-- Vignette -->
+  <rect id="vignette" width="100%" height="100%" fill="url(#vignetteGrad)" opacity="0"/>
+</svg>
+
+<script>
+(function() {
+  'use strict';
+
+  // ==================== CONSTANTS ====================
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const TAU = Math.PI * 2;
+  const DEG = Math.PI / 180;
+  const FOV = 70 * DEG;
+  const HALF_FOV = FOV / 2;
+  const DRAW_DIST = 40;
+  const CHUNK_SIZE = 20;
+  const MOVE_SPEED = 5.5;
+  const TURN_SPEED = 2.2;
+  const HEAD_BOB_SPEED = 9;
+  const HEAD_BOB_AMOUNT = 6;
+  const PROPS_PER_CHUNK = 12;
+
+  // ==================== STATE ====================
+  const player = { x: 0, z: 0, angle: 0 };
+  let headBobPhase = 0;
+  let headBobOffset = 0;
+  let isMoving = false;
+  let vw = window.innerWidth;
+  let vh = window.innerHeight;
+  let horizonY = vh * 0.45;
+
+  // Input state
+  const keys = {};
+  let mouseDrag = false;
+  let lastMouseX = 0;
+  const joystickState = { left: {x:0,y:0,active:false,id:null}, right: {x:0,y:0,active:false,id:null} };
+
+  // Element caches
+  const svg = document.getElementById('game-svg');
+  const scene = document.getElementById('scene');
+  const starsLayer = document.getElementById('stars-layer');
+  const groundFog = document.getElementById('ground-fog');
+  const coordsEl = document.getElementById('coords');
+
+  // Chunk & prop management
+  const activeChunks = new Map();
+  const propPool = [];
+  const MAX_POOL = 200;
+
+  // Seeded RNG for deterministic chunk generation
+  function seededRand(seed) {
+    let s = seed | 0;
+    return function() {
+      s = (s * 1664525 + 1013904223) | 0;
+      return ((s >>> 0) / 4294967296);
+    };
+  }
+  function chunkKey(cx, cz) { return cx + ',' + cz; }
+
+  // ==================== STARS ====================
+  function initStars() {
+    for (let i = 0; i < 80; i++) {
+      const star = document.createElementNS(SVG_NS, 'circle');
+      star.setAttribute('cx', Math.random() * 100 + '%');
+      star.setAttribute('cy', Math.random() * 45 + '%');
+      const r = 0.5 + Math.random() * 1.2;
+      star.setAttribute('r', r);
+      const colors = ['#7af5c8','#5be0ff','#c89aff','#ffffff'];
+      star.setAttribute('fill', colors[Math.floor(Math.random()*colors.length)]);
+      star.setAttribute('opacity', 0.15 + Math.random() * 0.5);
+      starsLayer.appendChild(star);
+    }
+  }
+
+  // ==================== PROP DEFINITIONS ====================
+  // Each prop type is a function that returns an SVG group at (0,0), designed at ~100px tall
+
+  function createMushroomSVG(rng) {
+    const g = document.createElementNS(SVG_NS, 'g');
+    const hue = Math.floor(rng() * 60 + 140); // cyan-purple range
+    const sat = 70 + Math.floor(rng() * 30);
+    const light = 45 + Math.floor(rng() * 20);
+    const glowColor = `hsl(${hue},${sat}%,${light}%)`;
+    const darkColor = `hsl(${hue},${sat-20}%,${light-25}%)`;
+    const stemH = 50 + rng() * 40;
+    const capW = 30 + rng() * 30;
+    const capH = 15 + rng() * 15;
+    const stemW = 6 + rng() * 6;
+    const lean = (rng() - 0.5) * 10;
+
+    // Stem
+    const stem = document.createElementNS(SVG_NS, 'path');
+    stem.setAttribute('d', `M${-stemW/2},0 Q${lean},${-stemH*0.5} ${lean-stemW/4},${-stemH} L${lean+stemW/4},${-stemH} Q${lean},${-stemH*0.5} ${stemW/2},0 Z`);
+    stem.setAttribute('fill', darkColor);
+    stem.setAttribute('opacity', '0.9');
+    g.appendChild(stem);
+
+    // Cap
+    const cap = document.createElementNS(SVG_NS, 'ellipse');
+    cap.setAttribute('cx', lean);
+    cap.setAttribute('cy', -stemH);
+    cap.setAttribute('rx', capW / 2);
+    cap.setAttribute('ry', capH / 2);
+    cap.setAttribute('fill', glowColor);
+    cap.setAttribute('filter', 'url(#glow-cyan)');
+    cap.setAttribute('opacity', '0.85');
+    g.appendChild(cap);
+
+    // Cap top highlight
+    const highlight = document.createElementNS(SVG_NS, 'ellipse');
+    highlight.setAttribute('cx', lean);
+    highlight.setAttribute('cy', -stemH - capH * 0.15);
+    highlight.setAttribute('rx', capW * 0.3);
+    highlight.setAttribute('ry', capH * 0.25);
+    highlight.setAttribute('fill', '#fff');
+    highlight.setAttribute('opacity', '0.15');
+    g.appendChild(highlight);
+
+    // Glowing spots on cap
+    const spotCount = 2 + Math.floor(rng() * 4);
+    for (let i = 0; i < spotCount; i++) {
+      const spot = document.createElementNS(SVG_NS, 'circle');
+      const a = rng() * TAU;
+      const dist = rng() * capW * 0.35;
+      spot.setAttribute('cx', lean + Math.cos(a) * dist);
+      spot.setAttribute('cy', -stemH + Math.sin(a) * dist * (capH/capW));
+      spot.setAttribute('r', 1.5 + rng() * 2.5);
+      spot.setAttribute('fill', '#fff');
+      spot.setAttribute('opacity', 0.4 + rng() * 0.4);
+      g.appendChild(spot);
+    }
+
+    g._propType = 'mushroom';
+    g._height = stemH + capH;
+    return g;
+  }
+
+  function createCrystalSVG(rng) {
+    const g = document.createElementNS(SVG_NS, 'g');
+    const hue = Math.floor(rng() * 40 + 260); // purple-magenta
+    const glowColor = `hsl(${hue},80%,65%)`;
+    const darkColor = `hsl(${hue},60%,30%)`;
+    const shardCount = 2 + Math.floor(rng() * 3);
+
+    for (let i = 0; i < shardCount; i++) {
+      const h = 40 + rng() * 70;
+      const w = 8 + rng() * 12;
+      const offsetX = (rng() - 0.5) * 20;
+      const tilt = (rng() - 0.5) * 15;
+
+      const shard = document.createElementNS(SVG_NS, 'polygon');
+      const x1 = offsetX - w/2;
+      const x2 = offsetX + w/2;
+      const xt = offsetX + tilt;
+      shard.setAttribute('points', `${x1},0 ${x2},0 ${xt+w*0.15},${-h*0.7} ${xt},${-h}`);
+      shard.setAttribute('fill', i === 0 ? glowColor : darkColor);
+      shard.setAttribute('opacity', 0.7 + rng() * 0.3);
+      shard.setAttribute('filter', i === 0 ? 'url(#glow-purple)' : '');
+      g.appendChild(shard);
+
+      // Inner shine line
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', offsetX);
+      line.setAttribute('y1', -3);
+      line.setAttribute('x2', xt + 1);
+      line.setAttribute('y2', -h + 5);
+      line.setAttribute('stroke', '#fff');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('opacity', '0.2');
+      g.appendChild(line);
+    }
+
+    g._propType = 'crystal';
+    g._height = 110;
+    return g;
+  }
+
+  function createBiolumPlantSVG(rng) {
+    const g = document.createElementNS(SVG_NS, 'g');
+    const hue = Math.floor(rng() * 50 + 80); // green-teal
+    const glowColor = `hsl(${hue},90%,55%)`;
+    const stalkCount = 3 + Math.floor(rng() * 4);
+
+    for (let i = 0; i < stalkCount; i++) {
+      const h = 30 + rng() * 50;
+      const curve = (rng() - 0.5) * 40;
+      const stalk = document.createElementNS(SVG_NS, 'path');
+      stalk.setAttribute('d', `M0,0 Q${curve},${-h*0.6} ${curve*0.7},${-h}`);
+      stalk.setAttribute('stroke', `hsl(${hue},70%,25%)`);
+      stalk.setAttribute('stroke-width', 2 + rng() * 2);
+      stalk.setAttribute('fill', 'none');
+      stalk.setAttribute('stroke-linecap', 'round');
+      g.appendChild(stalk);
+
+      // Glowing tip orb
+      const orb = document.createElementNS(SVG_NS, 'circle');
+      orb.setAttribute('cx', curve * 0.7);
+      orb.setAttribute('cy', -h);
+      orb.setAttribute('r', 3 + rng() * 5);
+      orb.setAttribute('fill', glowColor);
+      orb.setAttribute('filter', 'url(#glow-green)');
+      orb.setAttribute('opacity', 0.7 + rng() * 0.3);
+      g.appendChild(orb);
+    }
+
+    g._propType = 'plant';
+    g._height = 80;
+    return g;
+  }
+
+  function createFloatingSpore(rng) {
+    const g = document.createElementNS(SVG_NS, 'g');
+    const hue = Math.floor(rng() * 360);
+    const color = `hsl(${hue},80%,70%)`;
+
+    const body = document.createElementNS(SVG_NS, 'circle');
+    body.setAttribute('cx', 0);
+    body.setAttribute('cy', 0);
+    body.setAttribute('r', 4 + rng() * 6);
+    body.setAttribute('fill', color);
+    body.setAttribute('filter', 'url(#glow-soft)');
+    body.setAttribute('opacity', 0.5 + rng() * 0.4);
+    g.appendChild(body);
+
+    // Tendrils
+    const tCount = 3 + Math.floor(rng() * 3);
+    for (let i = 0; i < tCount; i++) {
+      const a = (i / tCount) * TAU + rng() * 0.5;
+      const len = 8 + rng() * 10;
+      const t = document.createElementNS(SVG_NS, 'line');
+      t.setAttribute('x1', 0);
+      t.setAttribute('y1', 0);
+      t.setAttribute('x2', Math.cos(a) * len);
+      t.setAttribute('y2', Math.sin(a) * len);
+      t.setAttribute('stroke', color);
+      t.setAttribute('stroke-width', '0.8');
+      t.setAttribute('opacity', '0.4');
+      g.appendChild(t);
+    }
+
+    g._propType = 'spore';
+    g._height = 10;
+    g._floatY = -30 - rng() * 60; // height above ground
+    return g;
+  }
+
+  // ==================== WORLD GENERATION ====================
+  function generateChunkProps(cx, cz) {
+    const seed = (cx * 73856093) ^ (cz * 19349663);
+    const rng = seededRand(seed);
+    const props = [];
+
+    for (let i = 0; i < PROPS_PER_CHUNK; i++) {
+      const wx = cx * CHUNK_SIZE + rng() * CHUNK_SIZE;
+      const wz = cz * CHUNK_SIZE + rng() * CHUNK_SIZE;
+      const type = rng();
+      let svgGen;
+      if (type < 0.35) svgGen = createMushroomSVG;
+      else if (type < 0.55) svgGen = createCrystalSVG;
+      else if (type < 0.80) svgGen = createBiolumPlantSVG;
+      else svgGen = createFloatingSpore;
+
+      const propSvg = svgGen(rng);
+      props.push({ wx, wz, svg: propSvg, el: null });
+    }
+    return props;
+  }
+
+  // ==================== SVG ELEMENT POOLING ====================
+  function getGroupEl() {
+    if (propPool.length > 0) return propPool.pop();
+    return document.createElementNS(SVG_NS, 'g');
+  }
+
+  function recycleGroupEl(el) {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    while (el.firstChild) el.removeChild(el.firstChild);
+    el.removeAttribute('transform');
+    el.removeAttribute('opacity');
+    if (propPool.length < MAX_POOL) propPool.push(el);
+  }
+
+  // ==================== PROJECTION ====================
+  function worldToScreen(wx, wz) {
+    const dx = wx - player.x;
+    const dz = wz - player.z;
+    const cosA = Math.cos(player.angle);
+    const sinA = Math.sin(player.angle);
+    // Rotate into view space
+    const vx = dx * cosA + dz * sinA;
+    const vz = -dx * sinA + dz * cosA;
+
+    if (vz <= 0.3) return null; // behind camera
+
+    const focalLen = (vw / 2) / Math.tan(HALF_FOV);
+    const sx = (vw / 2) + (vx / vz) * focalLen;
+    const sy = horizonY + headBobOffset + (0 / vz) * focalLen; // ground plane at y=0
+    const scale = focalLen / vz;
+
+    return { sx, sy, scale, dist: vz };
+  }
+
+  // ==================== RENDERING ====================
+  const renderList = [];
+
+  function renderFrame() {
+    // Clear scene
+    while (scene.firstChild) scene.removeChild(scene.firstChild);
+
+    // Draw ground plane
+    const ground = document.createElementNS(SVG_NS, 'rect');
+    ground.setAttribute('x', 0);
+    ground.setAttribute('y', horizonY + headBobOffset);
+    ground.setAttribute('width', vw);
+    ground.setAttribute('height', vh - horizonY - headBobOffset + 10);
+    ground.setAttribute('fill', 'url(#groundGrad)');
+    scene.appendChild(ground);
+
+    // Ground glow lines for depth
+    for (let i = 0; i < 6; i++) {
+      const zDist = 3 + i * 5;
+      const focalLen = (vw / 2) / Math.tan(HALF_FOV);
+      const lineY = horizonY + headBobOffset + (1 / zDist) * focalLen * 0.5;
+      if (lineY > vh || lineY < horizonY + headBobOffset) continue;
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', 0);
+      line.setAttribute('y1', lineY);
+      line.setAttribute('x2', vw);
+      line.setAttribute('y2', lineY);
+      line.setAttribute('stroke', '#1aff8a');
+      line.setAttribute('stroke-width', '0.5');
+      line.setAttribute('opacity', Math.max(0, 0.12 - i * 0.018));
+      scene.appendChild(line);
+    }
+
+    // Collect visible props
+    renderList.length = 0;
+
+    for (const [key, chunk] of activeChunks) {
+      for (const prop of chunk) {
+        const proj = worldToScreen(prop.wx, prop.wz);
+        if (!proj) continue;
+        if (proj.sx < -200 || proj.sx > vw + 200) continue;
+        if (proj.dist > DRAW_DIST) continue;
+        renderList.push({ prop, proj });
+      }
+    }
+
+    // Sort back-to-front
+    renderList.sort((a, b) => b.proj.dist - a.proj.dist);
+
+    // Render props
+    for (const item of renderList) {
+      const { prop, proj } = item;
+      const s = Math.max(0.05, proj.scale * 0.012);
+      // Fog / distance fade
+      const fogAlpha = Math.max(0, 1 - (proj.dist / DRAW_DIST));
+      const baseY = prop.svg._floatY !== undefined ? proj.sy + prop.svg._floatY * s * 30 : proj.sy;
+
+      const wrapper = getGroupEl();
+      // Clone prop SVG children into wrapper
+      const propClone = prop.svg.cloneNode(true);
+      wrapper.appendChild(propClone);
+      wrapper.setAttribute('transform', `translate(${proj.sx},${baseY}) scale(${s})`);
+      wrapper.setAttribute('opacity', fogAlpha.toFixed(2));
+      scene.appendChild(wrapper);
+
+      // Return wrapper later
+      // We don't pool here since we clear scene each frame
+    }
+
+    // Update ground fog position
+    groundFog.setAttribute('y', horizonY + headBobOffset + (vh - horizonY) * 0.6);
+
+    // Ambient floating particles (close ones)
+    const particleTime = performance.now() * 0.001;
+    for (let i = 0; i < 12; i++) {
+      const seed = i * 7.37;
+      const px = (Math.sin(particleTime * 0.3 + seed) * 0.5 + 0.5) * vw;
+      const py = horizonY + headBobOffset - 30 + Math.sin(particleTime * 0.5 + seed * 2.1) * 80;
+      const sz = 1 + Math.sin(seed) * 0.8;
+      const opc = 0.15 + Math.sin(particleTime + seed) * 0.1;
+      const particle = document.createElementNS(SVG_NS, 'circle');
+      particle.setAttribute('cx', px);
+      particle.setAttribute('cy', py);
+      particle.setAttribute('r', sz);
+      const hues = ['#3affa0','#5be0ff','#c89aff','#ff8adf'];
+      particle.setAttribute('fill', hues[i % hues.length]);
+      particle.setAttribute('opacity', opc);
+      scene.appendChild(particle);
+    }
+  }
+
+  // ==================== CHUNK MANAGEMENT ====================
+  function updateChunks() {
+    const pcx = Math.floor(player.x / CHUNK_SIZE);
+    const pcz = Math.floor(player.z / CHUNK_SIZE);
+    const radius = Math.ceil(DRAW_DIST / CHUNK_SIZE) + 1;
+    const needed = new Set();
+
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dz = -radius; dz <= radius; dz++) {
+        const cx = pcx + dx;
+        const cz = pcz + dz;
+        const key = chunkKey(cx, cz);
+        needed.add(key);
+        if (!activeChunks.has(key)) {
+          activeChunks.set(key, generateChunkProps(cx, cz));
+        }
+      }
+    }
+
+    // Remove far chunks
+    for (const [key] of activeChunks) {
+      if (!needed.has(key)) {
+        activeChunks.delete(key);
+      }
+    }
+  }
+
+  // ==================== INPUT HANDLING ====================
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    e.preventDefault();
+  });
+  document.addEventListener('keyup', e => {
+    keys[e.code] = false;
+  });
+
+  // Mouse drag
+  document.addEventListener('mousedown', e => {
+    mouseDrag = true;
+    lastMouseX = e.clientX;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!mouseDrag) return;
+    const dx = e.clientX - lastMouseX;
+    player.angle += dx * 0.004;
+    lastMouseX = e.clientX;
+  });
+  document.addEventListener('mouseup', () => { mouseDrag = false; });
+
+  // Touch / Joystick
+  function setupJoystick(zoneId, knobId, side) {
+    const zone = document.getElementById(zoneId);
+    const knob = document.getElementById(knobId);
+    const state = joystickState[side];
+    const maxDist = 42;
+
+    zone.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const touch of e.changedTouches) {
+        if (!state.active) {
+          state.active = true;
+          state.id = touch.identifier;
+          updateJoystick(touch, zone, knob, state, maxDist);
+        }
+      }
+    }, { passive: false });
+
+    zone.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === state.id) {
+          updateJoystick(touch, zone, knob, state, maxDist);
+        }
+      }
+    }, { passive: false });
+
+    const endHandler = e => {
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === state.id) {
+          state.active = false;
+          state.id = null;
+          state.x = 0;
+          state.y = 0;
+          knob.style.transform = `translate(0px, 0px)`;
+        }
+      }
+    };
+    zone.addEventListener('touchend', endHandler, { passive: false });
+    zone.addEventListener('touchcancel', endHandler, { passive: false });
+  }
+
+  function updateJoystick(touch, zone, knob, state, maxDist) {
+    const rect = zone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let dx = touch.clientX - cx;
+    let dy = touch.clientY - cy;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > maxDist) {
+      dx = (dx / dist) * maxDist;
+      dy = (dy / dist) * maxDist;
+    }
+    state.x = dx / maxDist;
+    state.y = dy / maxDist;
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
+  setupJoystick('joystick-left', 'knob-left', 'left');
+  setupJoystick('joystick-right', 'knob-right', 'right');
+
+  // Prevent mobile default behaviors
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('gesturechange', e => e.preventDefault());
+
+  // ==================== GAME LOOP ====================
+  let lastTime = performance.now();
+
+  function gameLoop(now) {
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+
+    // Process input
+    let moveF = 0, turnR = 0;
+
+    if (keys['KeyW'] || keys['ArrowUp']) moveF += 1;
+    if (keys['KeyS'] || keys['ArrowDown']) moveF -= 1;
+    if (keys['KeyA'] || keys['ArrowLeft']) turnR -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) turnR += 1;
+
+    // Joystick input
+    moveF -= joystickState.left.y;
+    turnR += joystickState.right.x;
+
+    // Clamp
+    moveF = Math.max(-1, Math.min(1, moveF));
+    turnR = Math.max(-1, Math.min(1, turnR));
+
+    // Apply movement
+    player.angle += turnR * TURN_SPEED * dt;
+    player.x += Math.sin(player.angle) * moveF * MOVE_SPEED * dt;
+    player.z += Math.cos(player.angle) * moveF * MOVE_SPEED * dt;
+
+    // Head bob
+    isMoving = Math.abs(moveF) > 0.1 || Math.abs(turnR) > 0.15;
+    if (isMoving) {
+      headBobPhase += dt * HEAD_BOB_SPEED;
+      headBobOffset = Math.sin(headBobPhase) * HEAD_BOB_AMOUNT;
+    } else {
+      headBobOffset *= 0.9; // ease back
+      headBobPhase = 0;
+    }
+
+    // Update HUD
+    coordsEl.textContent = `${player.x.toFixed(1)}, ${player.z.toFixed(1)} | ${((player.angle / DEG) % 360).toFixed(0)}°`;
+
+    // Update chunks and render
+    updateChunks();
+    renderFrame();
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  // ==================== RESIZE ====================
+  function onResize() {
+    vw = window.innerWidth;
+    vh = window.innerHeight;
+    horizonY = vh * 0.45;
+    svg.setAttribute('viewBox', `0 0 ${vw} ${vh}`);
+  }
+  window.addEventListener('resize', onResize);
+  onResize();
+
+  // ==================== INIT ====================
+  initStars();
+  requestAnimationFrame(gameLoop);
+
+})();
+</script>
+</body>
+</html>
