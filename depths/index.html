@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Depths — Fun with AI</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Quicksand:wght@500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: #040810;
+      color: #c8e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Bioluminescent glow layers */
+    .glow-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse at 25% 75%, rgba(0, 220, 180, 0.08) 0%, transparent 45%),
+        radial-gradient(ellipse at 75% 25%, rgba(80, 140, 255, 0.06) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 90%, rgba(0, 255, 200, 0.05) 0%, transparent 35%),
+        linear-gradient(180deg, #040810 0%, #06101a 40%, #081018 100%);
+    }
+
+    /* Floating particles */
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      animation: float linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 3vw, 2rem);
+    }
+
+    .back-link {
+      display: inline-block;
+      color: rgba(100, 200, 180, 0.45);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #00dcb4; }
+
+    h1 {
+      font-family: 'Cinzel', serif;
+      font-weight: 800;
+      font-size: clamp(2.2rem, 6vw, 3.5rem);
+      text-align: center;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.3em;
+      color: #a0e8d8;
+      text-shadow:
+        0 0 40px rgba(0, 220, 180, 0.4),
+        0 0 80px rgba(0, 220, 180, 0.15);
+      animation: breathe 4s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { text-shadow: 0 0 40px rgba(0, 220, 180, 0.4), 0 0 80px rgba(0, 220, 180, 0.15); }
+      50% { text-shadow: 0 0 60px rgba(0, 220, 180, 0.55), 0 0 120px rgba(0, 220, 180, 0.25); }
+    }
+
+    .tagline {
+      text-align: center;
+      color: rgba(160, 210, 200, 0.45);
+      font-size: clamp(0.8rem, 1.6vw, 0.95rem);
+      margin-bottom: clamp(2rem, 4vw, 3rem);
+      letter-spacing: 0.15em;
+      font-weight: 500;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: clamp(1rem, 2vw, 1.4rem);
+    }
+
+    .card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(1.4rem, 2.5vw, 1.8rem);
+      border-radius: 14px;
+      text-decoration: none;
+      color: #c8e8f0;
+      background: rgba(8, 16, 28, 0.75);
+      border: 1px solid rgba(0, 220, 180, 0.12);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 20%, rgba(0, 220, 180, 0.04), transparent 60%);
+      pointer-events: none;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+    }
+
+    .card-icon {
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      margin-bottom: 0.6rem;
+      filter: drop-shadow(0 0 8px rgba(0, 220, 180, 0.4));
+    }
+
+    .card-title {
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      margin-bottom: 0.4rem;
+    }
+
+    .card-desc {
+      font-size: clamp(0.78rem, 1.3vw, 0.85rem);
+      color: rgba(160, 210, 200, 0.6);
+      line-height: 1.5;
+      flex-grow: 1;
+    }
+
+    .card-tag {
+      display: inline-block;
+      margin-top: 0.8rem;
+      padding: 0.2em 0.7em;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      align-self: flex-start;
+    }
+
+    /* Oregon Wheel card */
+    .card-wheel:hover {
+      box-shadow: 0 0 35px rgba(0, 220, 180, 0.2), 0 0 60px rgba(0, 220, 180, 0.06);
+      border-color: rgba(0, 220, 180, 0.35);
+    }
+    .card-wheel .card-title { color: #64dcc8; }
+    .card-wheel .card-tag { background: rgba(0, 220, 180, 0.1); color: #64dcc8; }
+
+    /* Slot Tracker card */
+    .card-slots:hover {
+      box-shadow: 0 0 35px rgba(100, 140, 255, 0.2), 0 0 60px rgba(100, 140, 255, 0.06);
+      border-color: rgba(100, 140, 255, 0.35);
+    }
+    .card-slots .card-title { color: #8ab4ff; }
+    .card-slots .card-tag { background: rgba(100, 140, 255, 0.1); color: #8ab4ff; }
+
+    footer {
+      text-align: center;
+      margin-top: clamp(2.5rem, 5vw, 4rem);
+      padding-bottom: 1rem;
+      font-size: 0.78rem;
+      color: rgba(120, 180, 170, 0.3);
+      letter-spacing: 0.06em;
+    }
+    footer a { color: rgba(120, 180, 170, 0.4); text-decoration: none; }
+    footer a:hover { color: #00dcb4; }
+
+    @media (max-width: 520px) {
+      .card-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-bg"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="content">
+    <a href="../" class="back-link">&larr; back to hub</a>
+
+    <h1>The Depths</h1>
+    <p class="tagline">Spinners, trackers &amp; curiosities from below</p>
+
+    <div class="card-grid">
+      <a href="oregon-wheel.html" class="card card-wheel">
+        <span class="card-icon">🎡</span>
+        <span class="card-title">Oregon Wheel</span>
+        <span class="card-desc">Spin the wheel and see where fate takes you. A classic randomizer with a twist.</span>
+        <span class="card-tag">spinner</span>
+      </a>
+
+      <a href="slot-tracker.html" class="card card-slots">
+        <span class="card-icon">🎰</span>
+        <span class="card-title">Slot Tracker</span>
+        <span class="card-desc">Track spins, patterns, and streaks. A data-driven companion for the curious gambler.</span>
+        <span class="card-tag">tracker</span>
+      </a>
+    </div>
+
+    <footer>Part of <a href="../">Fun with AI</a></footer>
+  </div>
+
+  <script>
+    // Generate floating bioluminescent particles
+    const container = document.getElementById('particles');
+    const colors = ['rgba(0,220,180,0.6)', 'rgba(80,180,255,0.5)', 'rgba(0,255,200,0.4)', 'rgba(120,200,255,0.45)'];
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 4 + 1;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      p.style.cssText = `
+        width: ${size}px; height: ${size}px;
+        left: ${Math.random() * 100}%;
+        background: ${color};
+        box-shadow: 0 0 ${size * 3}px ${color};
+        animation-duration: ${Math.random() * 12 + 8}s;
+        animation-delay: ${Math.random() * 10}s;
+      `;
+      container.appendChild(p);
+    }
+  </script>
+</body>
+</html>
