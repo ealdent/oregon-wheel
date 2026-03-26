@@ -1391,7 +1391,7 @@ function drawWorldDecor() {
       ctx.closePath(); ctx.fill();
     } else {
       // Glowing dot
-      ctx.beginPath(); ctx.arc(s.x, s.y, p.size * 0.3 + Math.sin(game.time * 2 + p.phase) * 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(0.1, p.size * 0.3 + Math.sin(game.time * 2 + p.phase) * 1.5), 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = 'rgba(46,204,113,0.2)';
       ctx.beginPath(); ctx.arc(s.x, s.y, p.size, 0, Math.PI * 2); ctx.fill();
     }
