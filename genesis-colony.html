@@ -594,7 +594,7 @@ function triggerScreenShake(mag, dur) {
 // ============ INPUT ============
 document.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
-  if (e.key === 'Escape' || e.key === 'p') {
+  if (e.key === 'Escape' || e.key === 'p' || e.key === ' ') {
     if (game && game.phase === 'playing') {
       paused = !paused;
       document.getElementById('pause-hint').style.display = paused ? 'block' : 'none';
