@@ -49,6 +49,10 @@
   .upgrade-card .card-level { font-family: 'Segoe UI', sans-serif; font-size: 11px; color: #ffd700; margin-bottom: 8px; }
   .upgrade-card .card-desc { font-family: 'Segoe UI', sans-serif; font-size: 12px; color: #8899aa; line-height: 1.4; }
   .upgrade-card.new-weapon { border-color: rgba(78,205,196,0.4); }
+  .upgrade-card.prestige-weapon { border-color: rgba(255,215,0,0.6); background: linear-gradient(180deg, #2a1f00 0%, #1a1200 100%); box-shadow: 0 0 20px rgba(255,215,0,0.2); }
+  .upgrade-card.prestige-weapon:hover { border-color: #ffd700; box-shadow: 0 8px 30px rgba(255,215,0,0.4); }
+  .upgrade-card.prestige-weapon .card-level { color: #ffd700; font-weight: bold; }
+  .wlv.prestige { color: #ffd700 !important; }
 
   /* ===== GAME OVER ===== */
   #gameover-screen { background: rgba(0,0,0,0.9); }
@@ -192,18 +196,33 @@ const WEAPON_DEFS = {
     baseRate: 0.45, baseDmg: 12, projSpeed: 500, projRadius: 5, projColor: '#74b9ff',
     piercing: 0, count: 1,
     levelUp: (w) => { w.damage += 5; if (w.level === 3) w.count++; if (w.level === 5) { w.count++; w.piercing++; } w.fireRate *= 0.9; },
+    prestige: {
+      name: 'Nova Cannon', icon: '\u{1F31F}', desc: 'Devastating star-fire bolts with explosive impact',
+      evolve: (w) => { w.damage += 15; w.count += 2; w.piercing += 2; w.fireRate *= 0.8; w.projRadius += 3; w.projColor = '#ffd700'; },
+      levelUp: (w) => { w.damage += 8; w.fireRate *= 0.92; if (w.level % 3 === 0) { w.count++; w.piercing++; } },
+    },
   },
   drones: {
     name: 'Orbital Drones', icon: '\u{1F6F8}',
     desc: 'Drones orbit you, damaging enemies on contact',
     baseRate: 0.5, baseDmg: 8, orbitRadius: 70, orbitSpeed: 3, droneCount: 2, droneRadius: 8,
     levelUp: (w) => { w.damage += 4; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
+    prestige: {
+      name: 'Sentinel Swarm', icon: '\u{1F300}', desc: 'A devastating swarm of autonomous attack drones',
+      evolve: (w) => { w.damage += 12; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 4; },
+      levelUp: (w) => { w.damage += 6; w.droneCount += 2; w.orbitRadius += 10; },
+    },
   },
   shockwave: {
     name: 'Shockwave', icon: '\u{1F4A5}',
     desc: 'Periodic energy pulse damages nearby enemies',
     baseRate: 2.5, baseDmg: 20, pulseRadius: 100,
     levelUp: (w) => { w.damage += 10; w.pulseRadius += 20; w.fireRate *= 0.88; },
+    prestige: {
+      name: 'Cataclysm', icon: '\u{1F30B}', desc: 'Massive seismic detonations obliterate everything nearby',
+      evolve: (w) => { w.damage += 30; w.pulseRadius += 60; w.fireRate *= 0.75; },
+      levelUp: (w) => { w.damage += 15; w.pulseRadius += 25; w.fireRate *= 0.9; },
+    },
   },
   seekers: {
     name: 'Seeker Missiles', icon: '\u{1F3AF}',
@@ -211,18 +230,33 @@ const WEAPON_DEFS = {
     baseRate: 1.2, baseDmg: 25, projSpeed: 280, projRadius: 6, projColor: '#ff6b6b',
     count: 1, homing: true, turnRate: 4,
     levelUp: (w) => { w.damage += 10; if (w.level % 2 === 0) w.count++; w.fireRate *= 0.92; },
+    prestige: {
+      name: 'Hellfire Barrage', icon: '\u{2604}\u{FE0F}', desc: 'Relentless volleys of hyper-tracking warheads',
+      evolve: (w) => { w.damage += 20; w.count += 2; w.fireRate *= 0.7; w.projSpeed += 80; w.turnRate += 2; },
+      levelUp: (w) => { w.damage += 12; if (w.level % 2 === 0) w.count++; w.fireRate *= 0.93; },
+    },
   },
   lightning: {
     name: 'Chain Lightning', icon: '\u{26A1}',
     desc: 'Lightning arcs between nearby enemies',
     baseRate: 1.8, baseDmg: 18, chainCount: 3, chainRange: 120,
     levelUp: (w) => { w.damage += 8; w.chainCount += 1; w.chainRange += 20; w.fireRate *= 0.9; },
+    prestige: {
+      name: 'Storm Wrath', icon: '\u{1F329}\u{FE0F}', desc: 'Apocalyptic lightning storm that decimates hordes',
+      evolve: (w) => { w.damage += 20; w.chainCount += 4; w.chainRange += 60; w.fireRate *= 0.75; },
+      levelUp: (w) => { w.damage += 12; w.chainCount += 2; w.chainRange += 25; w.fireRate *= 0.92; },
+    },
   },
   cryo: {
     name: 'Cryo Field', icon: '\u{2744}\u{FE0F}',
     desc: 'Slows enemies around you',
     baseRate: 3.0, baseDmg: 5, slowRadius: 120, slowFactor: 0.4, slowDuration: 2,
     levelUp: (w) => { w.damage += 3; w.slowRadius += 25; w.slowFactor = Math.max(0.15, w.slowFactor - 0.05); },
+    prestige: {
+      name: 'Absolute Zero', icon: '\u{1F9CA}', desc: 'Deep-freeze aura that shatters frozen enemies',
+      evolve: (w) => { w.damage += 15; w.slowRadius += 60; w.slowFactor = 0.1; w.slowDuration += 1; w.fireRate *= 0.8; },
+      levelUp: (w) => { w.damage += 8; w.slowRadius += 30; w.slowFactor = Math.max(0.05, w.slowFactor - 0.02); },
+    },
   },
 };
 
@@ -534,6 +568,7 @@ function createWeapon(key) {
     slowDuration: def.slowDuration || 0,
     orbitAngle: 0,
     pulseAnim: 0,
+    prestiged: false,
   };
 }
 
@@ -792,7 +827,7 @@ function damageEnemy(enemy, dmg) {
     game.kills++;
     spawnParticles(enemy.x, enemy.y, enemy.color, enemy.boss ? 30 : 8, enemy.boss ? 200 : 80);
     const baseXp = ENEMY_TYPES[enemy.type].xp;
-    const waveMultiplier = 1 + (game.wave - 1) * 0.15;
+    const waveMultiplier = 1 + (game.wave - 1) * 0.075;
     spawnGem(enemy.x, enemy.y, Math.floor(baseXp * waveMultiplier) || 1);
     if (enemy.boss) {
       triggerScreenShake(12, 0.4);
@@ -827,11 +862,22 @@ function getUpgradeChoices() {
   const p = game.player;
   const pool = [];
 
-  // Weapons player already has (can level up)
+  // Weapons player already has (can level up or prestige)
   for (const w of p.weapons) {
-    if (w.level < 6) {
-      const def = WEAPON_DEFS[w.key];
-      pool.push({ type: 'weapon', key: w.key, name: def.name, icon: def.icon, desc: def.desc, level: w.level + 1, isNew: false });
+    const def = WEAPON_DEFS[w.key];
+    if (w.level === 6 && !w.prestiged && def.prestige) {
+      // Offer prestige evolution at level 6
+      const pr = def.prestige;
+      pool.push({ type: 'weapon', key: w.key, name: pr.name, icon: pr.icon, desc: pr.desc, level: 'PRESTIGE', isNew: false, isPrestige: true });
+    } else if (w.level < 6 || w.prestiged) {
+      // Normal level up (pre-prestige caps at 6, post-prestige keeps going)
+      if (w.level < 6 || w.prestiged) {
+        const name = w.prestiged ? def.prestige.name : def.name;
+        const icon = w.prestiged ? def.prestige.icon : def.icon;
+        const desc = w.prestiged ? def.prestige.desc : def.desc;
+        if (!w.prestiged && w.level >= 6) continue; // shouldn't happen, but guard
+        pool.push({ type: 'weapon', key: w.key, name, icon, desc, level: w.level + 1, isNew: false, isPrestige: false });
+      }
     }
   }
 
@@ -863,8 +909,22 @@ function applyUpgrade(choice) {
   if (choice.type === 'weapon') {
     let w = p.weapons.find(w => w.key === choice.key);
     if (w) {
-      w.level++;
-      WEAPON_DEFS[w.key].levelUp(w);
+      const def = WEAPON_DEFS[w.key];
+      if (choice.isPrestige) {
+        // Prestige evolution!
+        w.prestiged = true;
+        w.level = 7;
+        def.prestige.evolve(w);
+        showAnnouncement(`${def.prestige.name} AWAKENED!`, '#ffd700', 3);
+        playSound('levelup');
+      } else {
+        w.level++;
+        if (w.prestiged && def.prestige) {
+          def.prestige.levelUp(w);
+        } else {
+          def.levelUp(w);
+        }
+      }
     } else {
       w = createWeapon(choice.key);
       p.weapons.push(w);
@@ -897,11 +957,12 @@ function showUpgradeScreen() {
 
   choices.forEach(c => {
     const card = document.createElement('div');
-    card.className = 'upgrade-card' + (c.isNew ? ' new-weapon' : '');
+    card.className = 'upgrade-card' + (c.isNew ? ' new-weapon' : '') + (c.isPrestige ? ' prestige-weapon' : '');
+    const levelText = c.isNew ? 'NEW!' : c.isPrestige ? '\u{2B50} PRESTIGE \u{2B50}' : 'Lv ' + c.level;
     card.innerHTML = `
       <span class="card-icon">${c.icon}</span>
       <div class="card-name">${c.name}</div>
-      <div class="card-level">${c.isNew ? 'NEW!' : 'Lv ' + c.level}</div>
+      <div class="card-level">${levelText}</div>
       <div class="card-desc">${c.desc}</div>
     `;
     card.onclick = () => {
@@ -928,7 +989,10 @@ function updateWeaponsDisplay() {
   const el = document.getElementById('weapons-display');
   el.innerHTML = game.player.weapons.map(w => {
     const def = WEAPON_DEFS[w.key];
-    return `<div class="weapon-badge">${def.icon} ${def.name} <span class="wlv">Lv${w.level}</span></div>`;
+    const name = w.prestiged && def.prestige ? def.prestige.name : def.name;
+    const icon = w.prestiged && def.prestige ? def.prestige.icon : def.icon;
+    const lvClass = w.prestiged ? 'wlv prestige' : 'wlv';
+    return `<div class="weapon-badge">${icon} ${name} <span class="${lvClass}">Lv${w.level}</span></div>`;
   }).join('');
 }
 
@@ -1557,9 +1621,9 @@ function updatePlanetaryDefenses() {
   if (level < 3) return; // Defenses unlock at level 3
 
   // Defense tiers based on player level
-  const defenseRange = 200 + level * 20;
-  const defenseDmg = 5 + level * 3;
-  const defenseRate = Math.max(0.3, 1.5 - level * 0.05);
+  const defenseRange = 150 + level * 12;
+  const defenseDmg = 3 + level * 1.5;
+  const defenseRate = Math.max(0.6, 2.0 - level * 0.05);
 
   // Initialize defense timer
   if (g.defenseTimer === undefined) g.defenseTimer = 0;
@@ -1581,7 +1645,7 @@ function updatePlanetaryDefenses() {
   targets.sort((a, b) => a.dist - b.dist);
 
   // Number of shots scales with level
-  const shotCount = Math.min(targets.length, 1 + Math.floor((level - 3) / 4));
+  const shotCount = Math.min(targets.length, 1 + Math.floor((level - 3) / 6));
 
   for (let i = 0; i < shotCount; i++) {
     const target = targets[i].enemy;
@@ -1609,7 +1673,7 @@ function drawPlanetaryDefenses() {
   if (!game || game.player.level < 3) return;
 
   const level = game.player.level;
-  const defenseRange = 200 + level * 20;
+  const defenseRange = 150 + level * 12;
   const s = worldToScreen(0, 0);
 
   // Defense range indicator
