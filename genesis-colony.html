@@ -122,7 +122,7 @@ const CFG = {
   GEM_MAGNET_RANGE: 90,
   GEM_MAGNET_SPEED: 600,
   GEM_BASE_XP: 1,
-  BASE_XP_TO_LEVEL: 8,
+  BASE_XP_TO_LEVEL: 7,
   XP_LEVEL_SCALE: 1.18,
   SPAWN_INTERVAL_BASE: 0.9,
   SPAWN_INTERVAL_MIN: 0.12,
@@ -791,12 +791,15 @@ function damageEnemy(enemy, dmg) {
   if (enemy.hp <= 0) {
     game.kills++;
     spawnParticles(enemy.x, enemy.y, enemy.color, enemy.boss ? 30 : 8, enemy.boss ? 200 : 80);
-    spawnGem(enemy.x, enemy.y, ENEMY_TYPES[enemy.type].xp);
+    const baseXp = ENEMY_TYPES[enemy.type].xp;
+    const waveMultiplier = 1 + (game.wave - 1) * 0.15;
+    spawnGem(enemy.x, enemy.y, Math.floor(baseXp * waveMultiplier) || 1);
     if (enemy.boss) {
       triggerScreenShake(12, 0.4);
       playSound('explosion');
-      // Drop extra gems
-      for (let i = 0; i < 5; i++) spawnGem(enemy.x + rand(-30, 30), enemy.y + rand(-30, 30), 3);
+      // Drop extra gems (also scaled)
+      const bossGemXp = Math.floor(3 * waveMultiplier) || 1;
+      for (let i = 0; i < 5; i++) spawnGem(enemy.x + rand(-30, 30), enemy.y + rand(-30, 30), bossGemXp);
     } else {
       playSound('hit');
     }
@@ -1026,6 +1029,9 @@ function update() {
   // Update weapons
   updateWeapons();
 
+  // Planetary defenses
+  updatePlanetaryDefenses();
+
   // Drone collision
   for (const w of p.weapons) {
     if (w.key === 'drones') {
@@ -1254,6 +1260,9 @@ function render() {
   // Colony structures
   drawColony();
 
+  // Planetary defenses
+  drawPlanetaryDefenses();
+
   // Weapon effects (shockwave, cryo field)
   drawWeaponEffects();
 
@@ -1334,6 +1343,9 @@ function render() {
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath(); ctx.arc(joystick.ox + joystick.dx, joystick.oy + joystick.dy, 24, 0, Math.PI * 2); ctx.fill();
   }
+
+  // Compass pointing to colony
+  drawCompass();
 
   // Announcement overlay
   if (announcement.timer > 0) {
@@ -1494,6 +1506,151 @@ function drawDrones() {
       ctx.fillStyle = '#fff';
       ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI * 2); ctx.fill();
     }
+  }
+}
+
+function drawCompass() {
+  const p = game.player;
+  const d = dist(p.x, p.y, 0, 0);
+  if (d < 200) return; // Don't show when near colony
+
+  const cx = canvas.width - 50;
+  const cy = canvas.height - 50;
+  const a = angle(p.x, p.y, 0, 0);
+
+  // Outer ring
+  ctx.strokeStyle = 'rgba(78,205,196,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2); ctx.stroke();
+
+  // Colony icon in center (small dot)
+  ctx.fillStyle = 'rgba(78,205,196,0.4)';
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+
+  // Arrow pointing toward colony
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(a);
+  ctx.fillStyle = '#4ecdc4';
+  ctx.beginPath();
+  ctx.moveTo(22, 0);
+  ctx.lineTo(12, -6);
+  ctx.lineTo(14, 0);
+  ctx.lineTo(12, 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Distance label
+  const distLabel = d >= 1000 ? `${(d / 1000).toFixed(1)}k` : Math.floor(d).toString();
+  ctx.font = '10px "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(78,205,196,0.7)';
+  ctx.fillText(distLabel, cx, cy + 38);
+}
+
+// ============ PLANETARY DEFENSES ============
+function updatePlanetaryDefenses() {
+  const g = game;
+  const p = g.player;
+  const level = p.level;
+  if (level < 3) return; // Defenses unlock at level 3
+
+  // Defense tiers based on player level
+  const defenseRange = 200 + level * 20;
+  const defenseDmg = 5 + level * 3;
+  const defenseRate = Math.max(0.3, 1.5 - level * 0.05);
+
+  // Initialize defense timer
+  if (g.defenseTimer === undefined) g.defenseTimer = 0;
+  g.defenseTimer += dt;
+
+  if (g.defenseTimer < defenseRate) return;
+  g.defenseTimer = 0;
+
+  // Find enemies near the colony (0,0)
+  const targets = [];
+  for (const e of g.enemies) {
+    if (e.hp <= 0) continue;
+    const d = dist(0, 0, e.x, e.y);
+    if (d < defenseRange) targets.push({ enemy: e, dist: d });
+  }
+  if (targets.length === 0) return;
+
+  // Sort by distance, hit closest
+  targets.sort((a, b) => a.dist - b.dist);
+
+  // Number of shots scales with level
+  const shotCount = Math.min(targets.length, 1 + Math.floor((level - 3) / 4));
+
+  for (let i = 0; i < shotCount; i++) {
+    const target = targets[i].enemy;
+    // Visual: laser beam from colony to enemy
+    spawnDefenseLaser(0, 0, target.x, target.y);
+    damageEnemy(target, Math.floor(defenseDmg * p.damageMult));
+  }
+}
+
+function spawnDefenseLaser(x1, y1, x2, y2) {
+  const steps = 8;
+  for (let i = 0; i < steps; i++) {
+    const t = i / steps;
+    game.particles.push({
+      x: lerp(x1, x2, t) + rand(-3, 3),
+      y: lerp(y1, y2, t) + rand(-3, 3),
+      vx: rand(-10, 10), vy: rand(-10, 10),
+      color: '#4ecdc4', size: rand(1.5, 3.5),
+      lifetime: 0.25, maxLife: 0.25,
+    });
+  }
+}
+
+function drawPlanetaryDefenses() {
+  if (!game || game.player.level < 3) return;
+
+  const level = game.player.level;
+  const defenseRange = 200 + level * 20;
+  const s = worldToScreen(0, 0);
+
+  // Defense range indicator
+  ctx.strokeStyle = `rgba(78,205,196,${0.08 + Math.sin(game.time * 2) * 0.04})`;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.arc(s.x, s.y, defenseRange, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Defense turrets around colony (visual only)
+  const turretCount = Math.min(6, 1 + Math.floor((level - 3) / 3));
+  for (let i = 0; i < turretCount; i++) {
+    const ta = (i / turretCount) * Math.PI * 2 + game.time * 0.2;
+    const tr = 50;
+    const tx = s.x + Math.cos(ta) * tr;
+    const ty = s.y + Math.sin(ta) * tr;
+
+    // Turret base
+    ctx.fillStyle = '#2d3436';
+    ctx.strokeStyle = '#4ecdc4';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // Turret barrel (point at nearest enemy if any)
+    let barrelAngle = ta + Math.PI;
+    for (const e of game.enemies) {
+      if (dist(0, 0, e.x, e.y) < defenseRange) {
+        barrelAngle = angle(tx, ty, worldToScreen(e.x, e.y).x, worldToScreen(e.x, e.y).y);
+        break;
+      }
+    }
+    ctx.strokeStyle = '#4ecdc4';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx + Math.cos(barrelAngle) * 10, ty + Math.sin(barrelAngle) * 10);
+    ctx.stroke();
+
+    // Glow
+    ctx.fillStyle = `rgba(78,205,196,${0.15 + Math.sin(game.time * 4 + i) * 0.1})`;
+    ctx.beginPath(); ctx.arc(tx, ty, 10, 0, Math.PI * 2); ctx.fill();
   }
 }
 
