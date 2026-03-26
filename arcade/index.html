@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arcade — Fun with AI</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Share Tech Mono', monospace;
+      background: #06060f;
+      color: #e0e0e8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated starfield */
+    .stars {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1.5px 1.5px at 60% 20%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 80% 50%, rgba(255,255,255,0.3), transparent),
+        radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1.5px 1.5px at 90% 10%, rgba(255,255,255,0.5), transparent);
+      animation: starDrift 60s linear infinite;
+    }
+
+    @keyframes starDrift {
+      from { transform: translateY(0); }
+      to { transform: translateY(-40px); }
+    }
+
+    /* Scanline overlay */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.06) 2px,
+        rgba(0, 0, 0, 0.06) 4px
+      );
+    }
+
+    .content {
+      position: relative;
+      z-index: 2;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 3vw, 2rem);
+    }
+
+    .back-link {
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.45);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #ff6eb4; }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 5.5vw, 3.5rem);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.3em;
+      background: linear-gradient(90deg, #ff6eb4, #ffb86c, #50fa7b, #8be9fd, #bd93f9, #ff6eb4);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: neonCycle 6s linear infinite;
+    }
+
+    @keyframes neonCycle {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .tagline {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: clamp(0.8rem, 1.6vw, 0.95rem);
+      margin-bottom: clamp(2rem, 4vw, 3rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: clamp(1rem, 2vw, 1.4rem);
+    }
+
+    .game-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(1.2rem, 2.5vw, 1.6rem);
+      border-radius: 12px;
+      text-decoration: none;
+      color: #e0e0e8;
+      background: rgba(20, 20, 40, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      overflow: hidden;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+
+    .game-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+      transition: left 0.5s ease;
+    }
+    .game-card:hover::before { left: 150%; }
+
+    .game-card:hover {
+      transform: translateY(-3px);
+    }
+
+    /* Corner brackets */
+    .game-card::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      pointer-events: none;
+      transition: border-color 0.22s ease;
+    }
+
+    .card-icon {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+      margin-bottom: 0.4rem;
+    }
+
+    .card-desc {
+      font-size: clamp(0.75rem, 1.3vw, 0.82rem);
+      color: rgba(255, 255, 255, 0.55);
+      line-height: 1.5;
+      flex-grow: 1;
+    }
+
+    .card-tag {
+      display: inline-block;
+      margin-top: 0.8rem;
+      padding: 0.2em 0.6em;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      align-self: flex-start;
+    }
+
+    /* Per-card themes */
+    .card-genesis {
+      --accent: #4ecdc4;
+    }
+    .card-genesis:hover {
+      box-shadow: 0 0 30px rgba(78, 205, 196, 0.2);
+      border-color: rgba(78, 205, 196, 0.35);
+    }
+    .card-genesis .card-tag {
+      background: rgba(78, 205, 196, 0.15);
+      color: #4ecdc4;
+    }
+
+    .card-lifelab {
+      --accent: #bd93f9;
+    }
+    .card-lifelab:hover {
+      box-shadow: 0 0 30px rgba(189, 147, 249, 0.2);
+      border-color: rgba(189, 147, 249, 0.35);
+    }
+    .card-lifelab .card-tag {
+      background: rgba(189, 147, 249, 0.15);
+      color: #bd93f9;
+    }
+
+    .card-palebluedot {
+      --accent: #8be9fd;
+    }
+    .card-palebluedot:hover {
+      box-shadow: 0 0 30px rgba(139, 233, 253, 0.2);
+      border-color: rgba(139, 233, 253, 0.35);
+    }
+    .card-palebluedot .card-tag {
+      background: rgba(139, 233, 253, 0.15);
+      color: #8be9fd;
+    }
+
+    .card-scooter {
+      --accent: #ffb86c;
+    }
+    .card-scooter:hover {
+      box-shadow: 0 0 30px rgba(255, 184, 108, 0.2);
+      border-color: rgba(255, 184, 108, 0.35);
+    }
+    .card-scooter .card-tag {
+      background: rgba(255, 184, 108, 0.15);
+      color: #ffb86c;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: clamp(2.5rem, 5vw, 4rem);
+      padding-bottom: 1rem;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.25);
+      letter-spacing: 0.06em;
+    }
+
+    @media (max-width: 520px) {
+      .game-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="scanlines"></div>
+
+  <div class="content">
+    <a href="../" class="back-link">&larr; back to hub</a>
+
+    <h1>Arcade</h1>
+    <p class="tagline">Games &amp; simulations built with AI</p>
+
+    <div class="game-grid">
+      <a href="genesis-colony.html" class="game-card card-genesis">
+        <span class="card-icon">🪐</span>
+        <span class="card-title">Genesis Colony</span>
+        <span class="card-desc">Defend and grow an alien colony with orbital weapons, energy management, and prestige upgrades.</span>
+        <span class="card-tag">strategy</span>
+      </a>
+
+      <a href="life_lab.html" class="game-card card-lifelab">
+        <span class="card-icon">🧬</span>
+        <span class="card-title">Life Lab</span>
+        <span class="card-desc">Explore cellular automata rule variants in an interactive Game of Life sandbox.</span>
+        <span class="card-tag">simulation</span>
+      </a>
+
+      <a href="pale_blue_dot_prologue_prototype.html" class="game-card card-palebluedot">
+        <span class="card-icon">🌍</span>
+        <span class="card-title">Pale Blue Dot</span>
+        <span class="card-desc">A narrative prototype set against the vastness of space. Prologue edition.</span>
+        <span class="card-tag">narrative</span>
+      </a>
+
+      <a href="scooter.html" class="game-card card-scooter">
+        <span class="card-icon">🛴</span>
+        <span class="card-title">Baseboard Bandit</span>
+        <span class="card-desc">Tight-turn scooter action. Weave through obstacles at breakneck speed.</span>
+        <span class="card-tag">action</span>
+      </a>
+    </div>
+
+    <footer>Part of <a href="../" style="color:rgba(255,255,255,0.4);text-decoration:none;">Fun with AI</a></footer>
+  </div>
+</body>
+</html>
