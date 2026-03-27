@@ -137,9 +137,16 @@
     }
 
     .badge-icon {
-      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
-      line-height: 1;
-      filter: grayscale(0.3);
+      width: clamp(64px, 10vw, 90px);
+      height: clamp(64px, 10vw, 90px);
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(180, 100, 30, 0.3));
+      transition: filter 0.3s ease, transform 0.3s ease;
+    }
+
+    .badge:hover .badge-icon {
+      filter: drop-shadow(0 0 14px rgba(200, 120, 40, 0.5)) brightness(1.15);
+      transform: scale(1.08);
     }
 
     .badge-title {
@@ -156,66 +163,72 @@
       line-height: 1.4;
     }
 
-    /* Grimdark badge themes — muted, desaturated tones */
+    /* Grimdark badge themes — ember glows matching icon accents */
     .badge-arcade {
-      border-left: 2px solid rgba(160, 50, 50, 0.5);
-      box-shadow: inset 0 0 20px rgba(160, 50, 50, 0.06);
+      border-left: 2px solid rgba(180, 80, 40, 0.4);
+      box-shadow: inset 0 0 25px rgba(180, 80, 40, 0.06);
     }
     .badge-arcade:hover {
-      box-shadow: 0 0 25px rgba(160, 50, 50, 0.15), inset 0 0 20px rgba(160, 50, 50, 0.08);
-      border-color: rgba(160, 50, 50, 0.45);
+      box-shadow: 0 0 30px rgba(180, 80, 40, 0.18), inset 0 0 25px rgba(180, 80, 40, 0.08);
+      border-color: rgba(180, 80, 40, 0.5);
     }
-    .badge-arcade .badge-title { color: #b86a5a; }
+    .badge-arcade:hover .badge-icon { filter: drop-shadow(0 0 16px rgba(180, 80, 40, 0.6)) brightness(1.15); }
+    .badge-arcade .badge-title { color: #c47a50; }
 
     .badge-tower {
-      border-left: 2px solid rgba(80, 140, 160, 0.4);
-      box-shadow: inset 0 0 20px rgba(80, 140, 160, 0.05);
+      border-left: 2px solid rgba(200, 80, 30, 0.4);
+      box-shadow: inset 0 0 25px rgba(200, 80, 30, 0.05);
     }
     .badge-tower:hover {
-      box-shadow: 0 0 25px rgba(80, 140, 160, 0.12), inset 0 0 20px rgba(80, 140, 160, 0.07);
-      border-color: rgba(80, 140, 160, 0.4);
+      box-shadow: 0 0 30px rgba(200, 80, 30, 0.18), inset 0 0 25px rgba(200, 80, 30, 0.08);
+      border-color: rgba(200, 80, 30, 0.5);
     }
-    .badge-tower .badge-title { color: #7aabb8; }
+    .badge-tower:hover .badge-icon { filter: drop-shadow(0 0 16px rgba(200, 80, 30, 0.6)) brightness(1.15); }
+    .badge-tower .badge-title { color: #c8845a; }
 
     .badge-vector {
-      border-left: 2px solid rgba(80, 160, 80, 0.4);
-      box-shadow: inset 0 0 20px rgba(80, 160, 80, 0.05);
+      border-left: 2px solid rgba(160, 140, 50, 0.4);
+      box-shadow: inset 0 0 25px rgba(160, 140, 50, 0.05);
     }
     .badge-vector:hover {
-      box-shadow: 0 0 25px rgba(80, 160, 80, 0.12), inset 0 0 20px rgba(80, 160, 80, 0.07);
-      border-color: rgba(80, 160, 80, 0.4);
+      box-shadow: 0 0 30px rgba(160, 140, 50, 0.15), inset 0 0 25px rgba(160, 140, 50, 0.07);
+      border-color: rgba(160, 140, 50, 0.45);
     }
-    .badge-vector .badge-title { color: #7aad6e; }
+    .badge-vector:hover .badge-icon { filter: drop-shadow(0 0 16px rgba(160, 140, 50, 0.6)) brightness(1.15); }
+    .badge-vector .badge-title { color: #b8a858; }
 
     .badge-forest {
-      border-left: 2px solid rgba(120, 80, 160, 0.4);
-      box-shadow: inset 0 0 20px rgba(120, 80, 160, 0.05);
+      border-left: 2px solid rgba(200, 140, 30, 0.4);
+      box-shadow: inset 0 0 25px rgba(200, 140, 30, 0.05);
     }
     .badge-forest:hover {
-      box-shadow: 0 0 25px rgba(120, 80, 160, 0.12), inset 0 0 20px rgba(120, 80, 160, 0.07);
-      border-color: rgba(120, 80, 160, 0.4);
+      box-shadow: 0 0 30px rgba(200, 140, 30, 0.18), inset 0 0 25px rgba(200, 140, 30, 0.08);
+      border-color: rgba(200, 140, 30, 0.5);
     }
-    .badge-forest .badge-title { color: #9a80b8; }
+    .badge-forest:hover .badge-icon { filter: drop-shadow(0 0 16px rgba(200, 140, 30, 0.6)) brightness(1.15); }
+    .badge-forest .badge-title { color: #c8a040; }
 
     .badge-depths {
-      border-left: 2px solid rgba(180, 140, 50, 0.4);
-      box-shadow: inset 0 0 20px rgba(180, 140, 50, 0.05);
+      border-left: 2px solid rgba(200, 100, 20, 0.45);
+      box-shadow: inset 0 0 25px rgba(200, 100, 20, 0.06);
     }
     .badge-depths:hover {
-      box-shadow: 0 0 25px rgba(180, 140, 50, 0.12), inset 0 0 20px rgba(180, 140, 50, 0.07);
-      border-color: rgba(180, 140, 50, 0.4);
+      box-shadow: 0 0 30px rgba(200, 100, 20, 0.2), inset 0 0 25px rgba(200, 100, 20, 0.09);
+      border-color: rgba(200, 100, 20, 0.55);
     }
-    .badge-depths .badge-title { color: #bfa050; }
+    .badge-depths:hover .badge-icon { filter: drop-shadow(0 0 18px rgba(200, 100, 20, 0.7)) brightness(1.2); }
+    .badge-depths .badge-title { color: #c88a40; }
 
     .badge-utils {
-      border-left: 2px solid rgba(100, 130, 160, 0.4);
-      box-shadow: inset 0 0 20px rgba(100, 130, 160, 0.05);
+      border-left: 2px solid rgba(180, 120, 50, 0.4);
+      box-shadow: inset 0 0 25px rgba(180, 120, 50, 0.05);
     }
     .badge-utils:hover {
-      box-shadow: 0 0 25px rgba(100, 130, 160, 0.12), inset 0 0 20px rgba(100, 130, 160, 0.07);
-      border-color: rgba(100, 130, 160, 0.4);
+      box-shadow: 0 0 30px rgba(180, 120, 50, 0.15), inset 0 0 25px rgba(180, 120, 50, 0.07);
+      border-color: rgba(180, 120, 50, 0.45);
     }
-    .badge-utils .badge-title { color: #8aa8be; }
+    .badge-utils:hover .badge-icon { filter: drop-shadow(0 0 16px rgba(180, 120, 50, 0.6)) brightness(1.15); }
+    .badge-utils .badge-title { color: #b89860; }
 
     footer {
       margin-top: auto;
@@ -246,37 +259,37 @@
 
     <div class="badge-grid">
       <a href="arcade/" class="badge badge-arcade">
-        <span class="badge-icon">🕹️</span>
+        <img src="images/icons/beaver.png" alt="" class="badge-icon">
         <span class="badge-title">Arcade</span>
         <span class="badge-desc">Interactive games &amp; simulations</span>
       </a>
 
       <a href="tower-def/" class="badge badge-tower">
-        <span class="badge-icon">🏰</span>
+        <img src="images/icons/mountain.png" alt="" class="badge-icon">
         <span class="badge-title">Tower Defense</span>
         <span class="badge-desc">AI-generated tower defense variants</span>
       </a>
 
       <a href="vector-defense/" class="badge badge-vector">
-        <span class="badge-icon">🎯</span>
+        <img src="images/icons/pine.png" alt="" class="badge-icon">
         <span class="badge-title">Vector Defense</span>
         <span class="badge-desc">Retro missile command meets terrain</span>
       </a>
 
       <a href="svg-forest/" class="badge badge-forest">
-        <span class="badge-icon">🌿</span>
+        <img src="images/icons/grape.png" alt="" class="badge-icon">
         <span class="badge-title">SVG Forest</span>
         <span class="badge-desc">Explorable SVG art worlds</span>
       </a>
 
       <a href="depths/" class="badge badge-depths">
-        <span class="badge-icon">🎰</span>
+        <img src="images/icons/gate.png" alt="" class="badge-icon">
         <span class="badge-title">Depths</span>
         <span class="badge-desc">Spinners, trackers &amp; curiosities</span>
       </a>
 
       <a href="utils/" class="badge badge-utils">
-        <span class="badge-icon">🛠️</span>
+        <img src="images/icons/lighthouse.png" alt="" class="badge-icon">
         <span class="badge-title">Utils</span>
         <span class="badge-desc">Infographics, visualizers &amp; data tools</span>
       </a>
