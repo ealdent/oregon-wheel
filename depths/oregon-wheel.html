@@ -3,240 +3,1546 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Spin the Journey</title>
+  <title>The Oregon Wheel</title>
   <style>
-    :root{
-      --bg:#0b1320; --fg:#e8eef8; --muted:#a9b4c3; --accent:#7dd3fc; --card:#121b2e; --btn:#1f2a44;
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Quicksand:wght@500;600;700&display=swap');
+
+    :root {
+      --bg: #040810;
+      --bg-deep: #07101b;
+      --panel: rgba(7, 16, 28, 0.78);
+      --panel-strong: rgba(8, 18, 30, 0.92);
+      --line: rgba(122, 237, 215, 0.14);
+      --line-strong: rgba(122, 237, 215, 0.28);
+      --text: #ebfaf7;
+      --muted: rgba(196, 228, 221, 0.68);
+      --winner: #7af0d1;
+      --winner-soft: rgba(122, 240, 209, 0.22);
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif;
-      background: radial-gradient(1200px 800px at 50% -5%, #182441 0%, var(--bg) 60%);
-      color:var(--fg); display:grid; place-items:center; padding:24px;
+
+    * {
+      box-sizing: border-box;
     }
-    .app{width:min(980px,100%);}
-    h1{margin:0 0 8px; font-weight:700; letter-spacing:.3px}
-    p{margin:0 0 18px; color:var(--muted)}
-    .stage{background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:18px; padding:22px; box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .wrap{display:grid; grid-template-columns:1fr; gap:22px}
-    @media (min-width:880px){ .wrap{grid-template-columns:1.15fr .85fr} }
-    .wheelbox{position:relative; display:grid; place-items:center; aspect-ratio:1/1; width:100%; max-width:520px; margin-inline:auto}
-    canvas{width:100%; height:100%;}
-    .pointer{position:absolute; top:-6px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:16px solid transparent; border-right:16px solid transparent; border-bottom:28px solid var(--accent); filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))}
-    .controls{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-    button{
-      appearance:none; border:1px solid rgba(255,255,255,.12); background:var(--btn); color:var(--fg);
-      padding:10px 16px; border-radius:12px; font-weight:600; cursor:pointer;
-      transition:transform .06s ease, box-shadow .2s ease, background .2s ease;
-      box-shadow:0 6px 18px rgba(0,0,0,.25)
+
+    html,
+    body {
+      min-height: 100%;
     }
-    button:hover{transform:translateY(-1px)}
-    button:active{transform:translateY(0)}
-    .result{font-size:1.15rem; font-weight:700}
-    .list{max-height:420px; overflow:auto; padding:10px; background:rgba(255,255,255,.03); border-radius:12px; border:1px solid rgba(255,255,255,.06)}
-    .pill{display:inline-block; padding:6px 10px; margin:6px; border-radius:999px; font-size:.92rem; background:rgba(125,211,252,.12); border:1px solid rgba(125,211,252,.35)}
-    .dim{opacity:.7}
+
+    body {
+      margin: 0;
+      font-family: "Quicksand", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(0, 220, 180, 0.12), transparent 42%),
+        radial-gradient(ellipse at 78% 14%, rgba(80, 140, 255, 0.12), transparent 36%),
+        radial-gradient(ellipse at 50% 110%, rgba(0, 255, 196, 0.08), transparent 40%),
+        linear-gradient(180deg, #03070e 0%, #06101a 42%, #081019 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)),
+        radial-gradient(circle at 50% 50%, transparent 0 62%, rgba(0, 0, 0, 0.18) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 999px;
+      opacity: 0;
+      animation: float linear infinite;
+    }
+
+    @keyframes float {
+      0% {
+        transform: translateY(105vh) scale(0.2);
+        opacity: 0;
+      }
+      12% {
+        opacity: 1;
+      }
+      88% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-12vh) scale(1);
+        opacity: 0;
+      }
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1280px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(122, 237, 215, 0.58);
+      text-decoration: none;
+      font-size: 0.92rem;
+      margin-bottom: 18px;
+      transition: color 180ms ease, transform 180ms ease;
+    }
+
+    .back-link:hover {
+      color: #8df7dd;
+      transform: translateX(-2px);
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(8, 18, 30, 0.7);
+      border: 1px solid rgba(122, 237, 215, 0.16);
+      color: rgba(188, 243, 232, 0.82);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Cinzel", serif;
+      font-size: clamp(2.2rem, 5.5vw, 4.4rem);
+      line-height: 0.96;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 34px rgba(0, 220, 180, 0.24),
+        0 0 68px rgba(0, 220, 180, 0.1);
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 820px;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.9vw, 1.15rem);
+      line-height: 1.65;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(122, 240, 209, 0.08), transparent 42%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 38%);
+      pointer-events: none;
+    }
+
+    .wheel-panel {
+      padding: 28px;
+      min-height: min(92vh, 930px);
+    }
+
+    .wheel-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .wheel-topline h2,
+    .control-panel > h2 {
+      margin: 0;
+      font-family: "Cinzel", serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 1.2rem;
+    }
+
+    .count-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(122, 240, 209, 0.08);
+      border: 1px solid rgba(122, 240, 209, 0.14);
+      color: rgba(220, 252, 245, 0.82);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .wheel-display {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: min(100%, 760px);
+      margin: 0 auto;
+      aspect-ratio: 1 / 1;
+      isolation: isolate;
+    }
+
+    .wheel-orbit,
+    .wheel-orbit::before {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .wheel-orbit {
+      border: 1px solid rgba(122, 240, 209, 0.08);
+      box-shadow:
+        0 0 40px rgba(0, 220, 180, 0.08),
+        inset 0 0 40px rgba(255, 255, 255, 0.02);
+      animation: orbit-drift 14s linear infinite;
+    }
+
+    .wheel-orbit::before {
+      content: "";
+      inset: 6.5%;
+      border: 1px dashed rgba(140, 215, 255, 0.1);
+      animation: orbit-drift-reverse 20s linear infinite;
+    }
+
+    .wheel-orbit.orbit-two {
+      inset: 4.5%;
+      animation-duration: 18s;
+      animation-direction: reverse;
+    }
+
+    .wheel-orbit.orbit-two::before {
+      inset: 7.5%;
+      border-style: solid;
+      border-color: rgba(255, 214, 107, 0.08);
+      animation-duration: 26s;
+    }
+
+    @keyframes orbit-drift {
+      from {
+        transform: rotate(0deg) scale(1);
+      }
+      50% {
+        transform: rotate(180deg) scale(1.012);
+      }
+      to {
+        transform: rotate(360deg) scale(1);
+      }
+    }
+
+    @keyframes orbit-drift-reverse {
+      from {
+        transform: rotate(360deg);
+      }
+      to {
+        transform: rotate(0deg);
+      }
+    }
+
+    .wheel-shell {
+      position: relative;
+      width: 88%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(10, 30, 39, 0.78) 0 18%, rgba(5, 14, 24, 0.92) 58%, rgba(4, 8, 16, 0.98) 100%);
+      box-shadow:
+        0 0 0 1px rgba(122, 240, 209, 0.12),
+        inset 0 0 44px rgba(255, 255, 255, 0.035),
+        inset 0 -20px 60px rgba(0, 0, 0, 0.35),
+        0 0 120px rgba(0, 220, 180, 0.12);
+      overflow: visible;
+    }
+
+    .wheel-shell::before,
+    .wheel-shell::after {
+      content: "";
+      position: absolute;
+      inset: -1.8%;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .wheel-shell::before {
+      border: 2px solid rgba(122, 240, 209, 0.18);
+      box-shadow:
+        0 0 36px rgba(122, 240, 209, 0.16),
+        inset 0 0 30px rgba(255, 255, 255, 0.035);
+    }
+
+    .wheel-shell::after {
+      inset: 3.8%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    #wheel {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.28));
+    }
+
+    .pointer {
+      position: absolute;
+      top: -4.5%;
+      left: 50%;
+      width: 110px;
+      height: 150px;
+      transform: translateX(-50%);
+      transform-origin: 50% 20%;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .pointer::before {
+      content: "";
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 36px;
+      height: 36px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 30%, #f7fffd 0 18%, #8df7dd 38%, #0fb7a5 100%);
+      box-shadow:
+        0 0 24px rgba(141, 247, 221, 0.55),
+        0 0 40px rgba(141, 247, 221, 0.18);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .pointer::after {
+      content: "";
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 26px solid transparent;
+      border-right: 26px solid transparent;
+      border-top: 78px solid #ffd66b;
+      filter:
+        drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45))
+        drop-shadow(0 0 18px rgba(255, 214, 107, 0.24));
+    }
+
+    .pointer-shadow {
+      position: absolute;
+      top: 48px;
+      left: 50%;
+      width: 78px;
+      height: 26px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255, 214, 107, 0.4), rgba(255, 214, 107, 0));
+      filter: blur(10px);
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .hub-label {
+      position: absolute;
+      width: 24%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.26), transparent 28%),
+        radial-gradient(circle at 50% 42%, rgba(29, 101, 102, 0.5), rgba(6, 20, 31, 0.95));
+      box-shadow:
+        inset 0 0 24px rgba(255, 255, 255, 0.08),
+        0 0 30px rgba(0, 220, 180, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      z-index: 2;
+    }
+
+    .hub-label span {
+      display: inline-grid;
+      place-items: center;
+      width: 74%;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(239, 253, 249, 0.88);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: clamp(0.72rem, 1.3vw, 0.94rem);
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.3;
+      background: rgba(5, 14, 22, 0.28);
+    }
+
+    .burst-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .spark {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 8px;
+      height: 40px;
+      margin: -20px 0 0 -4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), var(--spark-color, rgba(122, 240, 209, 0.9)) 60%, transparent 100%);
+      transform:
+        rotate(var(--spark-angle, 0deg))
+        translateY(calc(var(--spark-distance, 120px) * -1))
+        scaleY(0.3);
+      opacity: 0;
+      animation: spark-burst 820ms cubic-bezier(0.12, 0.8, 0.24, 1) forwards;
+      box-shadow: 0 0 20px var(--spark-color, rgba(122, 240, 209, 0.6));
+    }
+
+    @keyframes spark-burst {
+      0% {
+        opacity: 0;
+        transform:
+          rotate(var(--spark-angle, 0deg))
+          translateY(-22px)
+          scaleY(0.22);
+      }
+      14% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform:
+          rotate(var(--spark-angle, 0deg))
+          translateY(calc(var(--spark-distance, 120px) * -1))
+          scaleY(1.2);
+      }
+    }
+
+    .winner-strip {
+      margin-top: 22px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background:
+        linear-gradient(135deg, rgba(122, 240, 209, 0.14), rgba(80, 180, 255, 0.08)),
+        rgba(8, 18, 30, 0.72);
+      border: 1px solid rgba(122, 240, 209, 0.12);
+      display: grid;
+      gap: 6px;
+    }
+
+    .winner-strip__label {
+      color: rgba(188, 243, 232, 0.72);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .winner-strip__value {
+      font-size: clamp(1.05rem, 2vw, 1.32rem);
+      font-weight: 700;
+    }
+
+    .control-panel {
+      padding: 26px;
+      display: grid;
+      gap: 18px;
+      background: var(--panel-strong);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 14px 14px 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 6px;
+      color: rgba(190, 225, 219, 0.62);
+      font-size: 0.74rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      display: block;
+      font-size: clamp(1.05rem, 1.9vw, 1.4rem);
+      font-weight: 700;
+    }
+
+    .active-card {
+      position: relative;
+      padding: 22px;
+      border-radius: 22px;
+      border: 1px solid rgba(122, 240, 209, 0.14);
+      background:
+        linear-gradient(160deg, var(--winner-soft), rgba(80, 180, 255, 0.08) 54%, rgba(5, 14, 24, 0.55) 100%),
+        rgba(9, 20, 32, 0.92);
+      overflow: hidden;
+    }
+
+    .active-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.1), transparent 34%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 48%);
+      pointer-events: none;
+    }
+
+    .active-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(4, 10, 17, 0.34);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(229, 251, 246, 0.84);
+      font-size: 0.76rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .active-title {
+      margin: 0 0 8px;
+      font-family: "Quicksand", sans-serif;
+      font-size: clamp(1.6rem, 2.6vw, 2.3rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .active-description {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.6;
+      min-height: 3.6em;
+    }
+
+    .active-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(4, 10, 17, 0.34);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: rgba(232, 252, 247, 0.84);
+    }
+
+    .control-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 18px;
+      font: inherit;
+      cursor: pointer;
+      transition:
+        transform 180ms ease,
+        box-shadow 180ms ease,
+        background 180ms ease,
+        border-color 180ms ease,
+        opacity 180ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:focus-visible {
+      outline: 2px solid #9bf7e0;
+      outline-offset: 3px;
+    }
+
+    .button-primary,
+    .button-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 56px;
+      padding: 0 20px;
+      font-weight: 700;
+    }
+
+    .button-primary {
+      flex: 1 1 220px;
+      color: #04231d;
+      background:
+        linear-gradient(135deg, #aafce6 0%, #7af0d1 38%, #4bd3c0 100%);
+      box-shadow:
+        0 16px 30px rgba(8, 187, 158, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+
+    .button-secondary {
+      flex: 0 1 auto;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.035);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    }
+
+    .button-primary[disabled],
+    .button-secondary[disabled] {
+      opacity: 0.58;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .panel-note {
+      margin: -2px 0 0;
+      color: rgba(192, 225, 219, 0.62);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .roster-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 2px;
+    }
+
+    .roster-head h3 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(236, 253, 250, 0.86);
+    }
+
+    .roster-hint {
+      color: rgba(188, 243, 232, 0.58);
+      font-size: 0.8rem;
+    }
+
+    .roster {
+      display: grid;
+      gap: 10px;
+      max-height: 520px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .roster::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .roster::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 999px;
+    }
+
+    .roster::-webkit-scrollbar-thumb {
+      background: rgba(122, 240, 209, 0.18);
+      border-radius: 999px;
+    }
+
+    .journey-pill {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 14px 14px 12px;
+      text-align: left;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .journey-pill.is-active {
+      border-color: var(--winner);
+      background:
+        linear-gradient(135deg, var(--winner-soft), rgba(80, 180, 255, 0.05)),
+        rgba(255, 255, 255, 0.045);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .journey-pill__num,
+    .journey-pill__icon {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(4, 12, 20, 0.42);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-weight: 700;
+    }
+
+    .journey-pill__icon {
+      font-size: 1.2rem;
+    }
+
+    .journey-pill__body {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .journey-pill__title {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .journey-pill__desc {
+      color: rgba(196, 228, 221, 0.7);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .journey-pill__meta {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255, 214, 107, 0.1);
+      border: 1px solid rgba(255, 214, 107, 0.2);
+      color: #ffe6aa;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .wheel-display.is-spinning .wheel-shell {
+      box-shadow:
+        0 0 0 1px rgba(122, 240, 209, 0.16),
+        inset 0 0 44px rgba(255, 255, 255, 0.035),
+        inset 0 -20px 60px rgba(0, 0, 0, 0.35),
+        0 0 150px rgba(0, 220, 180, 0.18);
+    }
+
+    .wheel-display.is-spinning .hub-label {
+      animation: hub-pulse 720ms ease-in-out infinite;
+    }
+
+    @keyframes hub-pulse {
+      0%,
+      100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.025);
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .wheel-panel {
+        min-height: unset;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100vw - 20px, 100%);
+        padding-top: 20px;
+      }
+
+      .wheel-panel,
+      .control-panel {
+        padding: 18px;
+        border-radius: 22px;
+      }
+
+      .wheel-display {
+        width: 100%;
+      }
+
+      .wheel-shell {
+        width: 96%;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .control-actions {
+        flex-direction: column;
+      }
+
+      .button-primary,
+      .button-secondary {
+        width: 100%;
+      }
+
+      .journey-pill {
+        grid-template-columns: auto auto minmax(0, 1fr);
+      }
+
+      .journey-pill__meta {
+        grid-column: 3;
+        justify-self: start;
+      }
+
+      .active-description {
+        min-height: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <main class="app">
-    <header>
-      <h1>Spin the Journey</h1>
-      <p>Click <strong>Spin</strong> to randomly choose one of the journeys. The arrow at the top marks the winner.</p>
+  <div class="particles" id="particles" aria-hidden="true"></div>
+
+  <main class="page">
+    <a class="back-link" href="index.html">&larr; back to the depths</a>
+
+    <header class="hero">
+      <span class="eyebrow">Journey selector live roster</span>
+      <h1>The Oregon Wheel</h1>
+      <p>
+        A fuller, louder, more tactile journey picker. Spin through the current roster, let the wheel chatter under the pointer,
+        and land on a winner that actually feels chosen instead of merely displayed.
+      </p>
     </header>
 
-    <section class="stage wrap">
-      <div class="wheelbox">
-        <div class="pointer" aria-hidden="true"></div>
-        <canvas id="wheel" width="900" height="900" aria-label="Selection wheel"></canvas>
-      </div>
-
-      <div>
-        <div class="controls" style="margin-bottom:12px">
-          <button id="spinBtn">🎡 Spin</button>
-          <button id="shuffleBtn" title="Shuffle slice order">Shuffle</button>
-          <span class="result" id="result">—</span>
+    <section class="stage">
+      <section class="panel wheel-panel">
+        <div class="wheel-topline">
+          <h2>Spin Chamber</h2>
+          <span class="count-chip" id="journeyCount">0 journeys</span>
         </div>
-        <div class="list" id="nameList" aria-live="polite"></div>
-        <p class="dim" style="margin-top:10px">Tip: press <kbd>Space</kbd> to spin.</p>
-      </div>
+
+        <div class="wheel-display" id="wheelDisplay">
+          <div class="wheel-orbit orbit-one"></div>
+          <div class="wheel-orbit orbit-two"></div>
+          <div class="pointer-shadow"></div>
+          <div class="pointer" id="pointer" aria-hidden="true"></div>
+
+          <div class="wheel-shell">
+            <canvas id="wheel" aria-label="Journey selection wheel"></canvas>
+            <div class="hub-label" aria-hidden="true"><span>Spin<br />Fate</span></div>
+          </div>
+
+          <div class="burst-layer" id="burstLayer" aria-hidden="true"></div>
+        </div>
+
+        <div class="winner-strip" aria-live="polite">
+          <span class="winner-strip__label" id="winnerLabel">Preview target</span>
+          <span class="winner-strip__value" id="winnerValue">Standard</span>
+        </div>
+      </section>
+
+      <aside class="panel control-panel">
+        <h2>Control Deck</h2>
+
+        <div class="stats-grid">
+          <div class="stat">
+            <span class="stat-label">Roster</span>
+            <span class="stat-value" id="statRoster">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Current Slot</span>
+            <span class="stat-value" id="statSlot">01</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Spin Count</span>
+            <span class="stat-value" id="statSpins">0</span>
+          </div>
+        </div>
+
+        <section class="active-card" id="activeCard">
+          <div class="active-kicker" id="activeKicker">Preview mode</div>
+          <h2 class="active-title" id="activeTitle">Standard</h2>
+          <p class="active-description" id="activeDescription"></p>
+          <div class="active-meta">
+            <span class="badge" id="activeBadge">🌲 Journey 01</span>
+            <span class="badge" id="activeState">Awaiting spin</span>
+            <span class="badge" id="activeMeta" hidden></span>
+          </div>
+        </section>
+
+        <div class="control-actions">
+          <button class="button-primary" id="spinBtn" type="button">Spin the wheel</button>
+          <button class="button-secondary" id="shuffleBtn" type="button">Shuffle order</button>
+        </div>
+
+        <p class="panel-note">Click a journey below to preview it, or press <kbd>Space</kbd> to spin. Shuffle only changes wheel order, not the roster itself.</p>
+
+        <div class="roster-head">
+          <h3>Journey Roster</h3>
+          <span class="roster-hint">Click to inspect</span>
+        </div>
+
+        <div class="roster" id="roster" aria-live="polite"></div>
+      </aside>
     </section>
   </main>
 
   <script>
-    // ------- Data -------
-    const itemsDefault = [
-      'Standard – The Classic Oregon Journey!',
-      'A Day At The Zoo',
-      'Arcade Quest',
-      'Fear and Loathing in Oregon',
-      'Hollywood Hellscape',
-      'Magic School',
-      'Planet Penguin Episode 1',
-      'St Patricks',
-      'The Gallery',
-      'The Journeyverse #1',
-      'The Journeyverse #2',
-      'The Journeyverse #3',
-      'The Journeyverse #4',
-      'The Journeyverse #5',
-      'The Lion, the Witch and the Delorean',
-      'Two Tickets to Paris',
-      'Wonderland',
-      'Woodstock'
+    const journeysDefault = [
+      {
+        title: "Standard",
+        description: "The Endless Trail. Make critical choices until only one remains.",
+        icon: "🌲"
+      },
+      {
+        title: "A Day At The Zoo",
+        description: "A pleasant walk through a splendid zoo.",
+        icon: "🦁"
+      },
+      {
+        title: "Arcade Quest",
+        description: "A flashback to the classics of yonder.",
+        icon: "🕹️"
+      },
+      {
+        title: "Day Job: Office Life",
+        description: "A day in the life of your average office worker!",
+        icon: "💼"
+      },
+      {
+        title: "Fear and Loathing in Oregon",
+        description: "Desert heat. Bad trips. Worse choices. Reality melts away fast.",
+        icon: "🏜️"
+      },
+      {
+        title: "Hollywood Hellscape",
+        description: "Discover old Hollywood icons with hellish ambition.",
+        icon: "🎬"
+      },
+      {
+        title: "Magic School",
+        description: "Spell your way through exams, chaos, and magical misfires in this entirely original magical adventure.",
+        icon: "🪄"
+      },
+      {
+        title: "Planet Penguin Episode 1",
+        description: "A mindbending sci-fi journey, escape a time loop and find your way to the legendary homeworld of the penguins.",
+        icon: "🐧"
+      },
+      {
+        title: "Planet Penguin Episode 2",
+        description: "Explore and discover the truth about Planet Penguin in a futuristic cityscape. Is it a Dystopia or Utopia? You decide.",
+        icon: "🏙️"
+      },
+      {
+        title: "Potato's Day Out",
+        description: "It's a perfect day for ice-cream. Help Mr. Potato acquire a scoop or two.",
+        icon: "🥔"
+      },
+      {
+        title: "Sojourn Through Japan",
+        description: "Build your reputation amongst the locals and learn a thing or two about the land.",
+        icon: "⛩️"
+      },
+      {
+        title: "St Patricks",
+        description: "Follow the clovers through chaos and charm in a lucky green misadventure.",
+        icon: "🍀"
+      },
+      {
+        title: "Starless Night",
+        description: "A night in the most magical place on earth takes a turn for the worse when the stars start to fade.",
+        icon: "🌠"
+      },
+      {
+        title: "The Gallery",
+        description: "Art meets agony. Only the best survive and earn some Art of their own.",
+        icon: "🎨"
+      },
+      {
+        title: "The Journeyverse #1",
+        description: "The Journeyverse - Episode 1.",
+        icon: "🧭"
+      },
+      {
+        title: "The Journeyverse #2",
+        description: "The Journeyverse - Episode 2.",
+        icon: "🚪"
+      },
+      {
+        title: "The Journeyverse #3",
+        description: "The Journeyverse - Episode 3.",
+        icon: "🚀"
+      },
+      {
+        title: "The Journeyverse #4",
+        description: "The Journeyverse - Episode 4.",
+        icon: "🛰️"
+      },
+      {
+        title: "The Journeyverse #5",
+        description: "The Journeyverse - Episode 5.",
+        icon: "🌌"
+      },
+      {
+        title: "The Lion, the Witch and the Delorean",
+        description: "One moment you're sipping tea with fauns, the next you're racing through time to stop the end of magic itself.",
+        icon: "🦁"
+      },
+      {
+        title: "The Strange Case",
+        description: "Help Dr. Jekyll contain a monstrous transformation that threatens to destroy his soul in not so jolly England.",
+        icon: "🧪"
+      },
+      {
+        title: "Two Tickets to Paris",
+        description: "Romance, mystery, and baguette fueled exploration across the city of lights.",
+        icon: "🗼"
+      },
+      {
+        title: "Voyage to Tobago",
+        description: "An all inclusive trip to the Isles Beneath the Sun.",
+        icon: "🌴"
+      },
+      {
+        title: "Wonderland",
+        description: "Logic left this land long ago. Make sense of nonsense.",
+        icon: "🐇"
+      },
+      {
+        title: "Woodstock",
+        description: "A psychedelic trail of peace, love, and unexpected madness.",
+        icon: "🎸"
+      },
+      {
+        title: "The Suburbs",
+        description: "",
+        icon: "🏘️",
+        meta: "$75,000"
+      },
+      {
+        title: "Trail Of Horror",
+        description: "",
+        icon: "🕯️",
+        meta: "$100,000"
+      }
     ];
-    let items = [...itemsDefault];
 
-    // Emoji mappings for each journey
-    const itemEmojis = {
-      'Standard – The Classic Oregon Journey!': '🌲',
-      'A Day At The Zoo': '🦁',
-      'Arcade Quest': '🕹️',
-      'Fear and Loathing in Oregon': '🦇',
-      'Hollywood Hellscape': '🎬',
-      'Magic School': '🪄',
-      'Planet Penguin Episode 1': '🐧',
-      'St Patricks': '🍀',
-      'The Gallery': '🎨',
-      'The Journeyverse #1': '🌌',
-      'The Journeyverse #2': '⭐',
-      'The Journeyverse #3': '🚀',
-      'The Journeyverse #4': '🌙',
-      'The Journeyverse #5': '🌟',
-      'The Lion, the Witch and the Delorean': '🦁',
-      'Two Tickets to Paris': '🗼',
-      'Wonderland': '🐰',
-      'Woodstock': '🎸'
+    let journeys = journeysDefault.map((journey) => ({ ...journey }));
+
+    const hueBases = [164, 196, 44, 18, 104, 188, 214, 142, 32];
+
+    function paletteFor(index) {
+      const cycle = Math.floor(index / hueBases.length) * 7;
+      const hue = (hueBases[index % hueBases.length] + cycle) % 360;
+      return {
+        inner: `hsla(${hue}, 92%, 68%, 0.98)`,
+        middle: `hsla(${(hue + 10) % 360}, 88%, 54%, 0.98)`,
+        outer: `hsla(${(hue + 18) % 360}, 76%, 34%, 0.98)`,
+        glow: `hsla(${hue}, 95%, 66%, 0.26)`
+      };
+    }
+
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const wheelDisplay = document.getElementById("wheelDisplay");
+    const pointer = document.getElementById("pointer");
+    const burstLayer = document.getElementById("burstLayer");
+    const spinBtn = document.getElementById("spinBtn");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const rosterEl = document.getElementById("roster");
+    const journeyCountEl = document.getElementById("journeyCount");
+    const statRosterEl = document.getElementById("statRoster");
+    const statSlotEl = document.getElementById("statSlot");
+    const statSpinsEl = document.getElementById("statSpins");
+    const winnerLabelEl = document.getElementById("winnerLabel");
+    const winnerValueEl = document.getElementById("winnerValue");
+    const activeCard = document.getElementById("activeCard");
+    const activeKickerEl = document.getElementById("activeKicker");
+    const activeTitleEl = document.getElementById("activeTitle");
+    const activeDescriptionEl = document.getElementById("activeDescription");
+    const activeBadgeEl = document.getElementById("activeBadge");
+    const activeStateEl = document.getElementById("activeState");
+    const activeMetaEl = document.getElementById("activeMeta");
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const state = {
+      rotation: 0,
+      activeIndex: 0,
+      spinCount: 0,
+      spinning: false,
+      lastTickStep: 0,
+      lastTickAt: 0
     };
 
-    // ------- Utilities -------
-    function colorFor(i, n){
-      const hue = (i * (360 / n)) % 360;
-      return `hsl(${hue} 70% 52%)`;
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
     }
 
-    // ------- Main -------
-    const canvas = document.getElementById('wheel');
-    const ctx = canvas.getContext('2d');
-    const r = canvas.width / 2;
-    const center = { x: r, y: r };
-    let rotation = 0; // degrees
-
-    const spinBtn = document.getElementById('spinBtn');
-    const shuffleBtn = document.getElementById('shuffleBtn');
-    const resultEl = document.getElementById('result');
-    const nameList = document.getElementById('nameList');
-
-    function renderList(){
-      nameList.innerHTML = items.map(t=>`<span class="pill">${t}</span>`).join('');
+    function normalizeAngle(angle) {
+      return ((angle % 360) + 360) % 360;
     }
 
-    function drawWheel(){
-      const n = items.length;
-      const sliceRad = (Math.PI * 2) / n;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
 
-      ctx.save();
-      ctx.translate(center.x, center.y);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.translate(-center.x, -center.y);
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
 
-      for(let i=0;i<n;i++){
-        const start = i * sliceRad - Math.PI/2; // 12 o'clock
-        const end = start + sliceRad;
+    function currentSliceAngle() {
+      return 360 / journeys.length;
+    }
 
-        // slice
-        ctx.beginPath();
-        ctx.moveTo(center.x, center.y);
-        ctx.arc(center.x, center.y, r-6, start, end);
-        ctx.closePath();
-        ctx.fillStyle = colorFor(i, n);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,.22)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+    function currentPointerIndex(rotation = state.rotation) {
+      const slice = currentSliceAngle();
+      return ((Math.round(normalizeAngle(-rotation) / slice) % journeys.length) + journeys.length) % journeys.length;
+    }
 
-        // emoji label
-        const mid = (start + end)/2;
-        const emojiR = r * 0.73;        // slightly inside the slice
-        const emoji = itemEmojis[items[i]] || '❓'; // fallback emoji if not found
-        
-        // Position emoji in center of slice
-        const emojiX = center.x + Math.cos(mid) * emojiR;
-        const emojiY = center.y + Math.sin(mid) * emojiR;
-        
-        // Draw emoji
-        ctx.font = '36px system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#000000'; // Black color for better contrast
-        ctx.fillText(emoji, emojiX, emojiY);
+    function updateCounts() {
+      const total = journeys.length;
+      journeyCountEl.textContent = `${total} journeys live`;
+      statRosterEl.textContent = String(total);
+      statSlotEl.textContent = String(state.activeIndex + 1).padStart(2, "0");
+      statSpinsEl.textContent = String(state.spinCount);
+    }
+
+    function updateAccent(index) {
+      const colors = paletteFor(index);
+      document.documentElement.style.setProperty("--winner", colors.inner);
+      document.documentElement.style.setProperty("--winner-soft", colors.glow);
+    }
+
+    function updateActiveCard(index, mode = "preview") {
+      const journey = journeys[index];
+      state.activeIndex = index;
+      updateAccent(index);
+      updateCounts();
+
+      activeKickerEl.textContent = mode === "winner" ? "Chosen by the wheel" : mode === "spinning" ? "Wheel in motion" : "Preview mode";
+      activeTitleEl.textContent = journey.title;
+      activeDescriptionEl.textContent = journey.description || "No additional blurb was provided for this journey in the supplied screenshots.";
+      activeBadgeEl.textContent = `${journey.icon} Journey ${String(index + 1).padStart(2, "0")}`;
+      activeStateEl.textContent = mode === "winner" ? "Winner locked" : mode === "spinning" ? "Spinning..." : "Awaiting spin";
+
+      if (journey.meta) {
+        activeMetaEl.hidden = false;
+        activeMetaEl.textContent = journey.meta;
+      } else {
+        activeMetaEl.hidden = true;
+        activeMetaEl.textContent = "";
       }
 
-      // hub
-      ctx.beginPath();
-      ctx.arc(center.x, center.y, r*0.16, 0, Math.PI*2);
-      ctx.fillStyle = '#0f172a';
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(255,255,255,.35)';
-      ctx.stroke();
+      winnerLabelEl.textContent = mode === "winner" ? "Wheel selected" : mode === "spinning" ? "Fate is turning" : "Preview target";
+      winnerValueEl.textContent = journey.title;
 
+      Array.from(rosterEl.children).forEach((child, rosterIndex) => {
+        child.classList.toggle("is-active", rosterIndex === index);
+      });
+    }
+
+    function renderRoster() {
+      rosterEl.innerHTML = journeys.map((journey, index) => {
+        const description = journey.description || "No additional blurb provided.";
+        return `
+          <button type="button" class="journey-pill${index === state.activeIndex ? " is-active" : ""}" data-index="${index}">
+            <span class="journey-pill__num">${String(index + 1).padStart(2, "0")}</span>
+            <span class="journey-pill__icon">${journey.icon}</span>
+            <span class="journey-pill__body">
+              <span class="journey-pill__title">${journey.title}</span>
+              <span class="journey-pill__desc">${description}</span>
+            </span>
+            ${journey.meta ? `<span class="journey-pill__meta">${journey.meta}</span>` : ""}
+          </button>
+        `;
+      }).join("");
+    }
+
+    function resizeCanvas() {
+      const shell = document.querySelector(".wheel-shell");
+      const size = Math.max(320, Math.floor(shell.clientWidth));
+      const dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+      canvas.width = Math.floor(size * dpr);
+      canvas.height = Math.floor(size * dpr);
+      canvas.style.width = `${size}px`;
+      canvas.style.height = `${size}px`;
+      drawWheel();
+    }
+
+    function drawNumberBadge(x, y, radius, label) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(3, 9, 15, 0.64)";
+      ctx.fill();
+      ctx.lineWidth = Math.max(2, radius * 0.14);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.stroke();
+      ctx.fillStyle = "rgba(241, 252, 249, 0.92)";
+      ctx.font = `700 ${radius * 1.08}px "Quicksand", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, x, y + radius * 0.03);
       ctx.restore();
     }
 
-    function spin(){
-      if(spinning) return;
-      spinning = true;
-      const n = items.length;
-      const slice = 360 / n;
-      const targetIndex = Math.floor(Math.random() * n);
+    function drawWheel() {
+      const size = canvas.width;
+      if (!size) {
+        return;
+      }
 
-      const current = ((rotation % 360) + 360) % 360;
-      const targetCenter = (targetIndex + 0.5) * slice;
-      const baseNeeded = (360 - targetCenter);
-      const spins = 5 + Math.floor(Math.random()*3);
-      const delta = (spins * 360) + ((baseNeeded - current + 360) % 360);
-      const newRotation = rotation + delta;
+      const center = size / 2;
+      const outerRadius = size * 0.458;
+      const innerRadius = size * 0.195;
+      const trackOuter = outerRadius + size * 0.018;
+      const sliceAngle = (Math.PI * 2) / journeys.length;
+      const highlightIndex = state.spinning ? currentPointerIndex() : state.activeIndex;
 
-      const duration = 4200 + Math.random()*800;
-      const start = performance.now();
+      ctx.clearRect(0, 0, size, size);
 
-      function animate(t){
-        const p = Math.min(1, (t - start) / duration);
-        const eased = 1 - Math.pow(1 - p, 3);
-        rotation = rotation + delta * eased;
-        drawWheel();
-        if(p < 1){
-          requestAnimationFrame(animate);
-        } else {
-          rotation = newRotation;
-          drawWheel();
-          resultEl.textContent = items[targetIndex];
-          spinning = false;
+      const backdrop = ctx.createRadialGradient(center, center, innerRadius * 0.35, center, center, outerRadius * 1.15);
+      backdrop.addColorStop(0, "rgba(9, 27, 37, 0.26)");
+      backdrop.addColorStop(0.72, "rgba(8, 17, 26, 0.72)");
+      backdrop.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = backdrop;
+      ctx.beginPath();
+      ctx.arc(center, center, trackOuter * 1.08, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate((state.rotation * Math.PI) / 180);
+      ctx.translate(-center, -center);
+
+      journeys.forEach((journey, index) => {
+        const mid = -Math.PI / 2 + index * sliceAngle;
+        const start = mid - sliceAngle / 2;
+        const end = mid + sliceAngle / 2;
+        const colors = paletteFor(index);
+        const isHighlighted = index === highlightIndex;
+
+        const gradient = ctx.createLinearGradient(
+          center + Math.cos(mid) * innerRadius,
+          center + Math.sin(mid) * innerRadius,
+          center + Math.cos(mid) * outerRadius,
+          center + Math.sin(mid) * outerRadius
+        );
+        gradient.addColorStop(0, colors.inner);
+        gradient.addColorStop(0.45, colors.middle);
+        gradient.addColorStop(1, colors.outer);
+
+        ctx.beginPath();
+        ctx.arc(center, center, outerRadius, start, end);
+        ctx.arc(center, center, innerRadius, end, start, true);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.shadowBlur = isHighlighted ? size * 0.032 : size * 0.014;
+        ctx.shadowColor = colors.glow;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.lineWidth = isHighlighted ? size * 0.006 : size * 0.0034;
+        ctx.strokeStyle = isHighlighted ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 255, 255, 0.12)";
+        ctx.stroke();
+
+        const glowRadius = outerRadius + size * 0.006;
+        if (isHighlighted) {
+          ctx.beginPath();
+          ctx.arc(center, center, glowRadius, start, end);
+          ctx.lineWidth = size * 0.012;
+          ctx.strokeStyle = colors.glow;
+          ctx.stroke();
         }
-      }
-      requestAnimationFrame(animate);
+
+        const badgeRadius = size * 0.023;
+        const badgeDistance = innerRadius + (outerRadius - innerRadius) * 0.24;
+        const iconDistance = innerRadius + (outerRadius - innerRadius) * 0.58;
+        const iconSize = size * 0.053;
+        const badgeX = center + Math.cos(mid) * badgeDistance;
+        const badgeY = center + Math.sin(mid) * badgeDistance;
+        const iconX = center + Math.cos(mid) * iconDistance;
+        const iconY = center + Math.sin(mid) * iconDistance;
+
+        drawNumberBadge(badgeX, badgeY, badgeRadius, String(index + 1));
+
+        ctx.save();
+        ctx.font = `${iconSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+        ctx.shadowBlur = size * 0.015;
+        ctx.fillText(journey.icon, iconX, iconY);
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(center, center, trackOuter, 0, Math.PI * 2);
+      ctx.lineWidth = size * 0.012;
+      ctx.strokeStyle = "rgba(122, 240, 209, 0.18)";
+      ctx.shadowColor = "rgba(122, 240, 209, 0.15)";
+      ctx.shadowBlur = size * 0.02;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(center, center, innerRadius - size * 0.01, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(5, 13, 21, 0.92)";
+      ctx.fill();
+      ctx.lineWidth = size * 0.005;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.stroke();
     }
 
-    function shuffle(){
-      for (let i = items.length - 1; i > 0; i--) {
+    function playPointerTick() {
+      const now = performance.now();
+      if (now - state.lastTickAt < 50) {
+        return;
+      }
+      state.lastTickAt = now;
+
+      pointer.animate(
+        [
+          { transform: "translateX(-50%) rotate(0deg)" },
+          { transform: "translateX(-50%) rotate(-10deg)" },
+          { transform: "translateX(-50%) rotate(4deg)" },
+          { transform: "translateX(-50%) rotate(0deg)" }
+        ],
+        {
+          duration: reducedMotion ? 90 : 150,
+          easing: "cubic-bezier(0.25, 0.9, 0.3, 1)"
+        }
+      );
+    }
+
+    function celebrate(index) {
+      burstLayer.innerHTML = "";
+      if (reducedMotion) {
+        return;
+      }
+
+      const colors = paletteFor(index);
+      const count = 18;
+      for (let i = 0; i < count; i += 1) {
+        const spark = document.createElement("span");
+        spark.className = "spark";
+        spark.style.setProperty("--spark-angle", `${(360 / count) * i + Math.random() * 12}deg`);
+        spark.style.setProperty("--spark-distance", `${115 + Math.random() * 68}px`);
+        spark.style.setProperty("--spark-color", i % 2 ? colors.inner : "#ffd66b");
+        spark.addEventListener("animationend", () => spark.remove(), { once: true });
+        burstLayer.appendChild(spark);
+      }
+    }
+
+    function setSpinningUI(isSpinning) {
+      state.spinning = isSpinning;
+      wheelDisplay.classList.toggle("is-spinning", isSpinning);
+      spinBtn.disabled = isSpinning;
+      shuffleBtn.disabled = isSpinning;
+      spinBtn.textContent = isSpinning ? "Spinning..." : "Spin the wheel";
+    }
+
+    function spin() {
+      if (state.spinning) {
+        return;
+      }
+
+      const targetIndex = Math.floor(Math.random() * journeys.length);
+      const slice = currentSliceAngle();
+      const currentRotation = normalizeAngle(state.rotation);
+      const targetRotation = normalizeAngle(360 - targetIndex * slice);
+      const extraSpins = reducedMotion ? 2 : 6 + Math.floor(Math.random() * 3);
+      const delta = extraSpins * 360 + ((targetRotation - currentRotation + 360) % 360);
+      const startRotation = state.rotation;
+      const endRotation = state.rotation + delta;
+      const overshootRotation = endRotation + slice * 0.32;
+      const duration = reducedMotion ? 1200 : 4600 + Math.random() * 700;
+      const startTime = performance.now();
+
+      setSpinningUI(true);
+      updateActiveCard(targetIndex, "spinning");
+      state.lastTickStep = Math.floor(startRotation / slice);
+
+      function frame(now) {
+        const progress = Math.min(1, (now - startTime) / duration);
+
+        if (progress < 0.88) {
+          state.rotation = lerp(startRotation, overshootRotation, easeOutCubic(progress / 0.88));
+        } else {
+          state.rotation = lerp(overshootRotation, endRotation, easeOutCubic((progress - 0.88) / 0.12));
+        }
+
+        const currentTickStep = Math.floor(state.rotation / slice);
+        if (currentTickStep !== state.lastTickStep) {
+          state.lastTickStep = currentTickStep;
+          playPointerTick();
+        }
+
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        state.rotation = targetRotation;
+        state.spinCount += 1;
+        setSpinningUI(false);
+        updateActiveCard(targetIndex, "winner");
+        celebrate(targetIndex);
+        drawWheel();
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    function shuffleJourneys() {
+      if (state.spinning) {
+        return;
+      }
+
+      for (let i = journeys.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1));
-        [items[i], items[j]] = [items[j], items[i]];
+        [journeys[i], journeys[j]] = [journeys[j], journeys[i]];
       }
+
+      state.rotation = 0;
+      state.activeIndex = 0;
+      renderRoster();
+      updateActiveCard(0, "preview");
       drawWheel();
-      renderList();
-      resultEl.textContent = '—';
     }
 
-    let spinning = false;
-    spinBtn.addEventListener('click', spin);
-    shuffleBtn.addEventListener('click', shuffle);
-    window.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); spin(); }});
+    function handleRosterClick(event) {
+      const button = event.target.closest(".journey-pill");
+      if (!button || state.spinning) {
+        return;
+      }
+      updateActiveCard(Number(button.dataset.index), "preview");
+      drawWheel();
+    }
 
-    renderList();
-    drawWheel();
+    function buildParticles() {
+      const container = document.getElementById("particles");
+      const particleColors = [
+        "rgba(122,240,209,0.5)",
+        "rgba(80,180,255,0.45)",
+        "rgba(255,214,107,0.35)",
+        "rgba(0,255,196,0.3)"
+      ];
+
+      for (let i = 0; i < 28; i += 1) {
+        const particle = document.createElement("span");
+        const size = Math.random() * 4 + 1.5;
+        const color = particleColors[Math.floor(Math.random() * particleColors.length)];
+        particle.className = "particle";
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.left = `${Math.random() * 100}%`;
+        particle.style.background = color;
+        particle.style.boxShadow = `0 0 ${size * 4}px ${color}`;
+        particle.style.animationDuration = `${Math.random() * 11 + 9}s`;
+        particle.style.animationDelay = `${Math.random() * 10}s`;
+        container.appendChild(particle);
+      }
+    }
+
+    spinBtn.addEventListener("click", spin);
+    shuffleBtn.addEventListener("click", shuffleJourneys);
+    rosterEl.addEventListener("click", handleRosterClick);
+    window.addEventListener("keydown", (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        spin();
+      }
+    });
+    window.addEventListener("resize", resizeCanvas);
+    new ResizeObserver(resizeCanvas).observe(document.querySelector(".wheel-shell"));
+
+    buildParticles();
+    renderRoster();
+    updateActiveCard(0, "preview");
+    resizeCanvas();
   </script>
 </body>
 </html>
