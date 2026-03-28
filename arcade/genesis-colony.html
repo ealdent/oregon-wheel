@@ -198,8 +198,8 @@ const WEAPON_DEFS = {
     levelUp: (w) => { w.damage += 5; if (w.level === 3) w.count++; if (w.level === 5) { w.count++; w.piercing++; } w.fireRate *= 0.9; },
     prestige: {
       name: 'Nova Cannon', icon: '\u{1F31F}', desc: 'Devastating star-fire bolts with explosive impact',
-      evolve: (w) => { w.damage += 15; w.count += 2; w.piercing += 2; w.fireRate *= 0.8; w.projRadius += 3; w.projColor = '#ffd700'; },
-      levelUp: (w) => { w.damage += 8; w.fireRate *= 0.92; if (w.level % 3 === 0) { w.count++; w.piercing++; } },
+      evolve: (w) => { w.damage += 8; w.count += 1; w.piercing += 1; w.fireRate *= 0.85; w.projRadius += 2; w.projColor = '#ffd700'; },
+      levelUp: (w) => { w.damage += 5; w.fireRate *= 0.94; if (w.level % 4 === 0) { w.count++; w.piercing++; } },
     },
   },
   drones: {
