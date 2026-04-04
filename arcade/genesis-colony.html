@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.2.0-20260404122600</div>
+  <div class="version-tag">v0.2.0-202604041310</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -176,7 +176,7 @@ const ENEMY_TYPES = {
   bloomer: {
     name: 'Bloomer', hp: 25, speed: 50, radius: 14, damage: 15, xp: 3,
     color: '#f43f5e', eyeColor: '#fff', pupilColor: '#1a1a2e',
-    outline: '#e11d48', ranged: true, fireRate: 2.0, projSpeed: 180,
+    outline: '#e11d48', ranged: true, fireRate: 3.5, projSpeed: 160,
   },
   brute: {
     name: 'Brute', hp: 120, speed: 40, radius: 24, damage: 20, xp: 5,
@@ -207,12 +207,12 @@ const WEAPON_DEFS = {
   drones: {
     name: 'Orbital Drones', icon: '\u{1F6F8}',
     desc: 'Drones orbit you, damaging enemies on contact',
-    baseRate: 0.5, baseDmg: 12, orbitRadius: 70, orbitSpeed: 3, droneCount: 2, droneRadius: 10,
-    levelUp: (w) => { w.damage += 6; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
+    baseRate: 0.5, baseDmg: 18, orbitRadius: 70, orbitSpeed: 3, droneCount: 2, droneRadius: 10,
+    levelUp: (w) => { w.damage += 8; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
     prestige: {
       name: 'Sentinel Swarm', icon: '\u{1F300}', desc: 'A devastating swarm of autonomous attack drones',
-      evolve: (w) => { w.damage += 18; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 5; },
-      levelUp: (w) => { w.damage += 10; w.droneCount += 2; w.orbitRadius += 10; },
+      evolve: (w) => { w.damage += 25; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 6; },
+      levelUp: (w) => { w.damage += 14; w.droneCount += 2; w.orbitRadius += 10; },
     },
   },
   shockwave: {
@@ -229,12 +229,12 @@ const WEAPON_DEFS = {
   seekers: {
     name: 'Seeker Missiles', icon: '\u{1F3AF}',
     desc: 'Homing missiles that track enemies',
-    baseRate: 1.2, baseDmg: 25, projSpeed: 280, projRadius: 6, projColor: '#ff6b6b',
-    count: 1, homing: true, turnRate: 4,
+    baseRate: 1.2, baseDmg: 25, projSpeed: 420, projRadius: 6, projColor: '#ff6b6b',
+    count: 1, homing: true, turnRate: 5,
     levelUp: (w) => { w.damage += 10; if (w.level % 2 === 0) w.count++; w.fireRate *= 0.92; },
     prestige: {
       name: 'Hellfire Barrage', icon: '\u{2604}\u{FE0F}', desc: 'Relentless volleys of hyper-tracking warheads',
-      evolve: (w) => { w.damage += 15; w.count += 1; w.fireRate *= 0.75; w.projSpeed += 80; w.turnRate += 2; },
+      evolve: (w) => { w.damage += 15; w.count += 1; w.fireRate *= 0.75; w.projSpeed += 120; w.turnRate += 3; },
       levelUp: (w) => { w.damage += 10; if (w.level % 3 === 0) w.count++; w.fireRate *= 0.94; },
     },
   },
@@ -588,7 +588,7 @@ function fireProjectile(x, y, vx, vy, dmg, radius, color, piercing, homing, turn
 
 function fireEnemyProjectile(x, y, vx, vy, dmg) {
   game.enemyProjectiles.push({
-    x, y, vx, vy, damage: dmg, radius: 5, color: '#f43f5e', lifetime: 4,
+    x, y, vx, vy, damage: dmg, radius: 5, color: '#f43f5e', lifetime: 2,
   });
 }
 
@@ -1123,7 +1123,7 @@ function update() {
         for (const e of g.enemies) {
           if (e.hp <= 0) continue;
           if (dist(dx, dy, e.x, e.y) < w.droneRadius + e.radius) {
-            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 8));
+            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 12));
           }
         }
       }
@@ -1180,6 +1180,23 @@ function update() {
     if (pr.lifetime <= 0) { g.enemyProjectiles.splice(i, 1); continue; }
     pr.x += pr.vx * dt;
     pr.y += pr.vy * dt;
+    // Drone bullet absorption — drones intercept enemy projectiles
+    let absorbed = false;
+    for (const w of p.weapons) {
+      if (w.key !== 'drones') continue;
+      for (let d = 0; d < w.droneCount; d++) {
+        const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
+        const drx = p.x + Math.cos(da) * w.orbitRadius;
+        const dry = p.y + Math.sin(da) * w.orbitRadius;
+        if (dist(pr.x, pr.y, drx, dry) < w.droneRadius + pr.radius) {
+          spawnParticles(pr.x, pr.y, '#74b9ff', 4, 50, 1);
+          absorbed = true;
+          break;
+        }
+      }
+      if (absorbed) break;
+    }
+    if (absorbed) { g.enemyProjectiles.splice(i, 1); continue; }
     if (dist(pr.x, pr.y, p.x, p.y) < pr.radius + p.radius) {
       damagePlayer(pr.damage);
       g.enemyProjectiles.splice(i, 1);
@@ -1564,10 +1581,42 @@ function render() {
   // Player projectiles
   for (const pr of game.projectiles) {
     const s = worldToScreen(pr.x, pr.y);
-    ctx.fillStyle = pr.color;
-    ctx.beginPath(); ctx.arc(s.x, s.y, pr.radius, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = `${pr.color}66`;
-    ctx.beginPath(); ctx.arc(s.x, s.y, pr.radius * 2, 0, Math.PI * 2); ctx.fill();
+    if (pr.homing) {
+      // Missile shape - pointed nose, fins, exhaust trail
+      const a = Math.atan2(pr.vy, pr.vx);
+      const r = pr.radius;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(a);
+      // Exhaust glow
+      const eg = ctx.createRadialGradient(-r * 2, 0, 0, -r * 2, 0, r * 3);
+      eg.addColorStop(0, 'rgba(255,200,50,0.6)');
+      eg.addColorStop(1, 'rgba(255,100,50,0)');
+      ctx.fillStyle = eg;
+      ctx.beginPath(); ctx.arc(-r * 2, 0, r * 3, 0, Math.PI * 2); ctx.fill();
+      // Body
+      ctx.fillStyle = pr.color;
+      ctx.beginPath();
+      ctx.moveTo(r * 2.5, 0);           // nose
+      ctx.lineTo(-r * 1.2, -r * 0.8);   // top
+      ctx.lineTo(-r * 1.8, -r * 1.5);   // top fin
+      ctx.lineTo(-r * 1.2, -r * 0.5);
+      ctx.lineTo(-r * 1.5, 0);          // tail
+      ctx.lineTo(-r * 1.2, r * 0.5);
+      ctx.lineTo(-r * 1.8, r * 1.5);    // bottom fin
+      ctx.lineTo(-r * 1.2, r * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      // Bright nose tip
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(r * 1.5, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.fillStyle = pr.color;
+      ctx.beginPath(); ctx.arc(s.x, s.y, pr.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `${pr.color}66`;
+      ctx.beginPath(); ctx.arc(s.x, s.y, pr.radius * 2, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   // Player
