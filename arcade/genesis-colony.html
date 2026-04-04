@@ -205,23 +205,23 @@ const WEAPON_DEFS = {
   drones: {
     name: 'Orbital Drones', icon: '\u{1F6F8}',
     desc: 'Drones orbit you, damaging enemies on contact',
-    baseRate: 0.5, baseDmg: 8, orbitRadius: 70, orbitSpeed: 3, droneCount: 2, droneRadius: 8,
-    levelUp: (w) => { w.damage += 4; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
+    baseRate: 0.5, baseDmg: 12, orbitRadius: 70, orbitSpeed: 3, droneCount: 2, droneRadius: 10,
+    levelUp: (w) => { w.damage += 6; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
     prestige: {
       name: 'Sentinel Swarm', icon: '\u{1F300}', desc: 'A devastating swarm of autonomous attack drones',
-      evolve: (w) => { w.damage += 12; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 4; },
-      levelUp: (w) => { w.damage += 6; w.droneCount += 2; w.orbitRadius += 10; },
+      evolve: (w) => { w.damage += 18; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 5; },
+      levelUp: (w) => { w.damage += 10; w.droneCount += 2; w.orbitRadius += 10; },
     },
   },
   shockwave: {
     name: 'Shockwave', icon: '\u{1F4A5}',
     desc: 'Periodic energy pulse damages nearby enemies',
-    baseRate: 2.5, baseDmg: 20, pulseRadius: 100,
-    levelUp: (w) => { w.damage += 10; w.pulseRadius += 20; w.fireRate *= 0.88; },
+    baseRate: 2.0, baseDmg: 40, pulseRadius: 100,
+    levelUp: (w) => { w.damage += 18; w.pulseRadius += 20; w.fireRate *= 0.88; },
     prestige: {
       name: 'Cataclysm', icon: '\u{1F30B}', desc: 'Massive seismic detonations obliterate everything nearby',
-      evolve: (w) => { w.damage += 30; w.pulseRadius += 60; w.fireRate *= 0.75; },
-      levelUp: (w) => { w.damage += 15; w.pulseRadius += 25; w.fireRate *= 0.9; },
+      evolve: (w) => { w.damage += 55; w.pulseRadius += 60; w.fireRate *= 0.7; },
+      levelUp: (w) => { w.damage += 30; w.pulseRadius += 25; w.fireRate *= 0.9; },
     },
   },
   seekers: {
@@ -232,30 +232,30 @@ const WEAPON_DEFS = {
     levelUp: (w) => { w.damage += 10; if (w.level % 2 === 0) w.count++; w.fireRate *= 0.92; },
     prestige: {
       name: 'Hellfire Barrage', icon: '\u{2604}\u{FE0F}', desc: 'Relentless volleys of hyper-tracking warheads',
-      evolve: (w) => { w.damage += 20; w.count += 2; w.fireRate *= 0.7; w.projSpeed += 80; w.turnRate += 2; },
-      levelUp: (w) => { w.damage += 12; if (w.level % 2 === 0) w.count++; w.fireRate *= 0.93; },
+      evolve: (w) => { w.damage += 15; w.count += 1; w.fireRate *= 0.75; w.projSpeed += 80; w.turnRate += 2; },
+      levelUp: (w) => { w.damage += 10; if (w.level % 3 === 0) w.count++; w.fireRate *= 0.94; },
     },
   },
   lightning: {
     name: 'Chain Lightning', icon: '\u{26A1}',
     desc: 'Lightning arcs between nearby enemies',
-    baseRate: 1.8, baseDmg: 18, chainCount: 3, chainRange: 120,
-    levelUp: (w) => { w.damage += 8; w.chainCount += 1; w.chainRange += 20; w.fireRate *= 0.9; },
+    baseRate: 1.5, baseDmg: 25, chainCount: 3, chainRange: 120,
+    levelUp: (w) => { w.damage += 12; w.chainCount += 1; w.chainRange += 20; w.fireRate *= 0.9; },
     prestige: {
       name: 'Storm Wrath', icon: '\u{1F329}\u{FE0F}', desc: 'Apocalyptic lightning storm that decimates hordes',
-      evolve: (w) => { w.damage += 20; w.chainCount += 4; w.chainRange += 60; w.fireRate *= 0.75; },
-      levelUp: (w) => { w.damage += 12; w.chainCount += 2; w.chainRange += 25; w.fireRate *= 0.92; },
+      evolve: (w) => { w.damage += 30; w.chainCount += 4; w.chainRange += 60; w.fireRate *= 0.7; },
+      levelUp: (w) => { w.damage += 18; w.chainCount += 2; w.chainRange += 25; w.fireRate *= 0.9; },
     },
   },
   cryo: {
     name: 'Cryo Field', icon: '\u{2744}\u{FE0F}',
     desc: 'Slows enemies around you',
-    baseRate: 3.0, baseDmg: 5, slowRadius: 120, slowFactor: 0.4, slowDuration: 2,
-    levelUp: (w) => { w.damage += 3; w.slowRadius += 25; w.slowFactor = Math.max(0.15, w.slowFactor - 0.05); },
+    baseRate: 2.0, baseDmg: 20, slowRadius: 120, slowFactor: 0.4, slowDuration: 2,
+    levelUp: (w) => { w.damage += 12; w.slowRadius += 25; w.slowFactor = Math.max(0.15, w.slowFactor - 0.05); w.fireRate *= 0.88; },
     prestige: {
       name: 'Absolute Zero', icon: '\u{1F9CA}', desc: 'Deep-freeze aura that shatters frozen enemies',
-      evolve: (w) => { w.damage += 15; w.slowRadius += 60; w.slowFactor = 0.1; w.slowDuration += 1; w.fireRate *= 0.8; },
-      levelUp: (w) => { w.damage += 8; w.slowRadius += 30; w.slowFactor = Math.max(0.05, w.slowFactor - 0.02); },
+      evolve: (w) => { w.damage += 35; w.slowRadius += 60; w.slowFactor = 0.1; w.slowDuration += 1; w.fireRate *= 0.7; },
+      levelUp: (w) => { w.damage += 18; w.slowRadius += 30; w.slowFactor = Math.max(0.05, w.slowFactor - 0.02); w.fireRate *= 0.87; },
     },
   },
 };
@@ -1106,7 +1106,7 @@ function update() {
         for (const e of g.enemies) {
           if (e.hp <= 0) continue;
           if (dist(dx, dy, e.x, e.y) < w.droneRadius + e.radius) {
-            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 5));
+            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 8));
           }
         }
       }
