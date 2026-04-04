@@ -324,11 +324,13 @@ function createGameState() {
     gems: [],
     particles: [],
     dmgTexts: [],
+    lightningBolts: [],
     worldPlants: [],
     worldRocks: [],
     colony: [],
     camera: { x: 0, y: 0 },
     pendingLevelUps: 0,
+    gemSlurp: 0,
   };
 }
 
@@ -773,15 +775,13 @@ function updateWeapons() {
               if (d < bestD) { bestD = d; best = e; }
             }
             if (best) {
-              // Draw lightning particle chain
-              spawnLightningParticles(current.x, current.y, best.x, best.y);
+              spawnLightningBolt(current.x, current.y, best.x, best.y);
               damageEnemy(best, Math.floor(w.damage * p.damageMult * 0.8));
               chain.push(best);
               current = best;
             } else break;
           }
-          // Draw from player to first
-          spawnLightningParticles(p.x, p.y, first.x, first.y);
+          spawnLightningBolt(p.x, p.y, first.x, first.y);
         }
       }
     }
@@ -803,16 +803,30 @@ function updateWeapons() {
   }
 }
 
-function spawnLightningParticles(x1, y1, x2, y2) {
-  const steps = 6;
-  for (let i = 0; i < steps; i++) {
-    const t = i / steps;
+function spawnLightningBolt(x1, y1, x2, y2) {
+  // Build jagged bolt path
+  const segments = 8;
+  const points = [{ x: x1, y: y1 }];
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const nx = -dy / len, ny = dx / len; // perpendicular
+  for (let i = 1; i < segments; i++) {
+    const t = i / segments;
+    const jitter = rand(-len * 0.12, len * 0.12);
+    points.push({
+      x: lerp(x1, x2, t) + nx * jitter,
+      y: lerp(y1, y2, t) + ny * jitter,
+    });
+  }
+  points.push({ x: x2, y: y2 });
+  game.lightningBolts.push({ points, lifetime: 0.25, maxLife: 0.25 });
+  // Spark particles at endpoints
+  for (let i = 0; i < 3; i++) {
     game.particles.push({
-      x: lerp(x1, x2, t) + rand(-8, 8),
-      y: lerp(y1, y2, t) + rand(-8, 8),
-      vx: rand(-20, 20), vy: rand(-20, 20),
-      color: '#a5f3fc', size: rand(2, 5),
-      lifetime: 0.3, maxLife: 0.3,
+      x: x2 + rand(-6, 6), y: y2 + rand(-6, 6),
+      vx: rand(-40, 40), vy: rand(-40, 40),
+      color: '#e0f7ff', size: rand(2, 4),
+      lifetime: 0.2, maxLife: 0.2,
     });
   }
 }
@@ -832,6 +846,7 @@ function damageEnemy(enemy, dmg) {
     if (enemy.boss) {
       triggerScreenShake(12, 0.4);
       playSound('explosion');
+      game.gemSlurp = 1.5; // Slurp all gems toward player
       // Drop extra gems (also scaled)
       const bossGemXp = Math.floor(3 * waveMultiplier) || 1;
       for (let i = 0; i < 5; i++) spawnGem(enemy.x + rand(-30, 30), enemy.y + rand(-30, 30), bossGemXp);
@@ -1169,6 +1184,9 @@ function update() {
     }
   }
 
+  // Update gem slurp timer
+  if (g.gemSlurp > 0) g.gemSlurp -= dt;
+
   // Update gems
   for (let i = g.gems.length - 1; i >= 0; i--) {
     const gem = g.gems[i];
@@ -1179,7 +1197,13 @@ function update() {
     gem.y += gem.vy * dt;
 
     const d = dist(gem.x, gem.y, p.x, p.y);
-    if (d < p.magnetRange) {
+    if (g.gemSlurp > 0) {
+      // Boss kill: slurp ALL gems toward player at high speed
+      const a = angle(gem.x, gem.y, p.x, p.y);
+      const pull = CFG.GEM_MAGNET_SPEED * 3;
+      gem.vx = Math.cos(a) * pull;
+      gem.vy = Math.sin(a) * pull;
+    } else if (d < p.magnetRange) {
       const a = angle(gem.x, gem.y, p.x, p.y);
       const closeness = 1 - d / p.magnetRange;
       const pull = CFG.GEM_MAGNET_SPEED * (closeness * closeness + 0.3);
@@ -1218,6 +1242,12 @@ function update() {
     pt.y += pt.vy * dt;
     pt.vx *= 0.96;
     pt.vy *= 0.96;
+  }
+
+  // Update lightning bolts
+  for (let i = g.lightningBolts.length - 1; i >= 0; i--) {
+    g.lightningBolts[i].lifetime -= dt;
+    if (g.lightningBolts[i].lifetime <= 0) g.lightningBolts.splice(i, 1);
   }
 
   // Update damage texts
@@ -1286,36 +1316,202 @@ function render() {
     return;
   }
 
-  // Background
-  const grad = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width * 0.7);
-  grad.addColorStop(0, '#102028');
-  grad.addColorStop(1, PAL.bg);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Stars (screen-space, parallax with camera)
+  // Background - phase-based rendering
+  const wave = game.wave;
   const t = game.time;
-  for (const star of stars) {
-    const sx = ((star.x * canvas.width - game.camera.x * 0.02) % canvas.width + canvas.width) % canvas.width;
-    const sy = ((star.y * canvas.height - game.camera.y * 0.02) % canvas.height + canvas.height) % canvas.height;
-    const twinkle = 0.4 + 0.6 * Math.sin(t * star.speed + star.twinkle);
-    ctx.globalAlpha = twinkle * 0.7;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(sx, sy, star.size, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
 
-  // Ground texture - subtle grid
-  ctx.strokeStyle = 'rgba(30, 80, 70, 0.15)';
-  ctx.lineWidth = 1;
-  const gridSize = 80;
-  const offsetX = (-game.camera.x % gridSize + gridSize) % gridSize + screenShake.x;
-  const offsetY = (-game.camera.y % gridSize + gridSize) % gridSize + screenShake.y;
-  for (let x = offsetX - gridSize; x < canvas.width + gridSize; x += gridSize) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-  }
-  for (let y = offsetY - gridSize; y < canvas.height + gridSize; y += gridSize) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  // Smooth transition factor between phases (0-1 over 2 waves)
+  const atmosBlend = clamp((wave - 8) / 2, 0, 1);   // 0 at wave 8, 1 at wave 10+
+  const groundBlend = clamp((wave - 18) / 2, 0, 1);  // 0 at wave 18, 1 at wave 20+
+
+  if (groundBlend > 0) {
+    // Phase 3: Alien forest ground (wave 20+)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    // Lerp from atmosphere to forest sky
+    const r1 = lerp(12, 25, groundBlend), g1 = lerp(20, 10, groundBlend), b1 = lerp(60, 45, groundBlend);
+    const r2 = lerp(30, 15, groundBlend), g2 = lerp(60, 50, groundBlend), b2 = lerp(80, 35, groundBlend);
+    const r3 = lerp(50, 20, groundBlend), g3 = lerp(90, 65, groundBlend), b3 = lerp(70, 30, groundBlend);
+    skyGrad.addColorStop(0, `rgb(${r1|0},${g1|0},${b1|0})`);
+    skyGrad.addColorStop(0.5, `rgb(${r2|0},${g2|0},${b2|0})`);
+    skyGrad.addColorStop(1, `rgb(${r3|0},${g3|0},${b3|0})`);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Background canopy silhouettes
+    if (groundBlend > 0.3) {
+      const canopyAlpha = (groundBlend - 0.3) * 0.4;
+      ctx.fillStyle = `rgba(8, 30, 15, ${canopyAlpha})`;
+      for (let i = 0; i < 12; i++) {
+        const bx = ((i * 137 + game.camera.x * 0.01) % (canvas.width + 200)) - 100;
+        const bh = 80 + (i * 47 % 60);
+        const bw = 60 + (i * 31 % 50);
+        ctx.beginPath();
+        ctx.ellipse(bx, canvas.height * 0.05, bw, bh, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Bottom canopy
+        const bx2 = ((i * 113 + 50 + game.camera.x * 0.015) % (canvas.width + 200)) - 100;
+        ctx.beginPath();
+        ctx.ellipse(bx2, canvas.height * 0.95, bw * 1.2, bh * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Faint remaining stars at top (fade out with groundBlend)
+    if (groundBlend < 1) {
+      const starFade = 1 - groundBlend;
+      for (const star of stars) {
+        if (star.y > 0.3) continue; // Only top stars
+        const sx = ((star.x * canvas.width - game.camera.x * 0.02) % canvas.width + canvas.width) % canvas.width;
+        const sy = star.y * canvas.height * 0.3;
+        const twinkle = 0.4 + 0.6 * Math.sin(t * star.speed + star.twinkle);
+        ctx.globalAlpha = twinkle * 0.3 * starFade;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(sx, sy, star.size * 0.7, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Organic ground texture
+    ctx.strokeStyle = `rgba(20, 70, 40, ${0.08 + groundBlend * 0.07})`;
+    ctx.lineWidth = 1;
+    const gGridSize = 60;
+    const gOffX = (-game.camera.x % gGridSize + gGridSize) % gGridSize + screenShake.x;
+    const gOffY = (-game.camera.y % gGridSize + gGridSize) % gGridSize + screenShake.y;
+    // Wavy organic lines instead of straight grid
+    for (let x = gOffX - gGridSize; x < canvas.width + gGridSize; x += gGridSize) {
+      ctx.beginPath();
+      for (let y = 0; y <= canvas.height; y += 20) {
+        const wx = x + Math.sin(y * 0.02 + t * 0.3 + x * 0.01) * 8;
+        if (y === 0) ctx.moveTo(wx, y); else ctx.lineTo(wx, y);
+      }
+      ctx.stroke();
+    }
+
+  } else if (atmosBlend > 0) {
+    // Phase 2: Upper atmosphere (waves 10-19)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    // Lerp from space to atmosphere
+    const r1 = lerp(16, 12, atmosBlend), g1 = lerp(32, 20, atmosBlend), b1 = lerp(40, 60, atmosBlend);
+    const r2 = lerp(11, 30, atmosBlend), g2 = lerp(16, 60, atmosBlend), b2 = lerp(38, 80, atmosBlend);
+    const r3 = lerp(11, 50, atmosBlend), g3 = lerp(16, 90, atmosBlend), b3 = lerp(38, 70, atmosBlend);
+    skyGrad.addColorStop(0, `rgb(${r1|0},${g1|0},${b1|0})`);
+    skyGrad.addColorStop(0.6, `rgb(${r2|0},${g2|0},${b2|0})`);
+    skyGrad.addColorStop(1, `rgb(${r3|0},${g3|0},${b3|0})`);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Fading stars (visible at top, fade with atmosBlend)
+    const starAlpha = 0.7 * (1 - atmosBlend * 0.7);
+    for (const star of stars) {
+      const sx = ((star.x * canvas.width - game.camera.x * 0.02) % canvas.width + canvas.width) % canvas.width;
+      const sy = ((star.y * canvas.height - game.camera.y * 0.02) % canvas.height + canvas.height) % canvas.height;
+      const vertFade = 1 - (sy / canvas.height) * atmosBlend; // Stars fade toward bottom
+      const twinkle = 0.4 + 0.6 * Math.sin(t * star.speed + star.twinkle);
+      ctx.globalAlpha = twinkle * starAlpha * Math.max(0, vertFade);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(sx, sy, star.size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Wispy clouds drifting across
+    ctx.fillStyle = `rgba(100, 160, 180, ${atmosBlend * 0.08})`;
+    for (let i = 0; i < 8; i++) {
+      const cx = ((i * 200 + t * (15 + i * 5) + game.camera.x * 0.03) % (canvas.width + 400)) - 200;
+      const cy = canvas.height * (0.2 + (i * 0.09));
+      const cw = 150 + (i * 37 % 100);
+      const ch = 20 + (i * 13 % 15);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Atmospheric grid (wind-like horizontal lines)
+    const gridAlpha = lerp(0.15, 0.06, atmosBlend);
+    ctx.strokeStyle = `rgba(30, 80, 70, ${gridAlpha})`;
+    ctx.lineWidth = 1;
+    const gridSize = 80;
+    const offsetX = (-game.camera.x % gridSize + gridSize) % gridSize + screenShake.x;
+    const offsetY = (-game.camera.y % gridSize + gridSize) % gridSize + screenShake.y;
+    // Vertical lines fade out with atmosphere
+    if (atmosBlend < 0.8) {
+      ctx.globalAlpha = 1 - atmosBlend;
+      for (let x = offsetX - gridSize; x < canvas.width + gridSize; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    for (let y = offsetY - gridSize; y < canvas.height + gridSize; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+  } else {
+    // Phase 1: Space (waves 1-9)
+    const grad = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width * 0.7);
+    grad.addColorStop(0, '#102028');
+    grad.addColorStop(1, PAL.bg);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Stars
+    for (const star of stars) {
+      const sx = ((star.x * canvas.width - game.camera.x * 0.02) % canvas.width + canvas.width) % canvas.width;
+      const sy = ((star.y * canvas.height - game.camera.y * 0.02) % canvas.height + canvas.height) % canvas.height;
+      const twinkle = 0.4 + 0.6 * Math.sin(t * star.speed + star.twinkle);
+      ctx.globalAlpha = twinkle * 0.7;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(sx, sy, star.size, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Planet approaching (grows each wave)
+    if (wave >= 1 && wave < 10) {
+      const planetRadius = 20 + wave * 12;
+      const planetX = canvas.width * 0.5;
+      const planetY = -planetRadius * 0.4 + wave * 8; // Rises into view
+      // Atmospheric glow
+      const glowGrad = ctx.createRadialGradient(planetX, planetY, planetRadius * 0.8, planetX, planetY, planetRadius * 1.6);
+      glowGrad.addColorStop(0, 'rgba(26, 188, 156, 0.15)');
+      glowGrad.addColorStop(0.5, 'rgba(26, 188, 156, 0.06)');
+      glowGrad.addColorStop(1, 'rgba(26, 188, 156, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath(); ctx.arc(planetX, planetY, planetRadius * 1.6, 0, Math.PI * 2); ctx.fill();
+      // Planet body
+      const pGrad = ctx.createRadialGradient(planetX - planetRadius * 0.3, planetY - planetRadius * 0.3, 0, planetX, planetY, planetRadius);
+      pGrad.addColorStop(0, '#1abc9c');
+      pGrad.addColorStop(0.5, '#0d7a5f');
+      pGrad.addColorStop(1, '#063b2e');
+      ctx.fillStyle = pGrad;
+      ctx.beginPath(); ctx.arc(planetX, planetY, planetRadius, 0, Math.PI * 2); ctx.fill();
+      // Surface detail bands
+      ctx.strokeStyle = 'rgba(46, 204, 113, 0.2)';
+      ctx.lineWidth = 2;
+      for (let b = 0; b < 3; b++) {
+        const by = planetY - planetRadius * 0.4 + b * planetRadius * 0.4;
+        const bw = Math.sqrt(Math.max(0, planetRadius * planetRadius - (by - planetY) * (by - planetY)));
+        if (bw > 5) {
+          ctx.beginPath();
+          ctx.ellipse(planetX, by, bw, planetRadius * 0.05, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      // Atmosphere rim
+      ctx.strokeStyle = 'rgba(26, 188, 156, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(planetX, planetY, planetRadius + 3, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // Grid
+    ctx.strokeStyle = 'rgba(30, 80, 70, 0.15)';
+    ctx.lineWidth = 1;
+    const gridSize = 80;
+    const offsetX = (-game.camera.x % gridSize + gridSize) % gridSize + screenShake.x;
+    const offsetY = (-game.camera.y % gridSize + gridSize) % gridSize + screenShake.y;
+    for (let x = offsetX - gridSize; x < canvas.width + gridSize; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = offsetY - gridSize; y < canvas.height + gridSize; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
   }
 
   // World decorations (rocks, plants)
@@ -1377,6 +1573,32 @@ function render() {
 
   // Drone weapons
   drawDrones();
+
+  // Lightning bolts
+  for (const bolt of game.lightningBolts) {
+    const alpha = bolt.lifetime / bolt.maxLife;
+    const pts = bolt.points;
+    // Outer glow
+    ctx.strokeStyle = `rgba(165, 243, 252, ${alpha * 0.4})`;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const s = worldToScreen(pts[i].x, pts[i].y);
+      if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+    }
+    ctx.stroke();
+    // Bright core
+    ctx.strokeStyle = `rgba(224, 247, 255, ${alpha * 0.9})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const s = worldToScreen(pts[i].x, pts[i].y);
+      if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+    }
+    ctx.stroke();
+  }
 
   // Particles
   for (const pt of game.particles) {
