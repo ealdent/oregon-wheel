@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.2.3-202604131545</div>
+  <div class="version-tag">v0.2.4-202604131550</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -266,7 +266,7 @@ const WEAPON_DEFS = {
 const PASSIVE_DEFS = {
   armor: { name: 'Colony Armor', icon: '\u{1F6E1}\u{FE0F}', desc: '+20 Max HP', maxLevel: Infinity, apply: (p, lv) => { p.maxHp += 20; p.hp = Math.min(p.hp + 20, p.maxHp); } },
   speed: { name: 'Thruster Boost', icon: '\u{1F680}', desc: '+12% Move Speed', maxLevel: Infinity, apply: (p, lv) => { p.speed *= 1.12; } },
-  magnet: { name: 'Bio Magnet', icon: '\u{1F9F2}', desc: '+40% XP Pickup Range', maxLevel: 5, apply: (p, lv) => { p.magnetRange *= 1.4; } },
+  magnet: { name: 'Bio Magnet', icon: '\u{1F9F2}', desc: '+40% XP Pickup Range', maxLevel: Infinity, apply: (p, lv) => { p.magnetRange *= 1.4; } },
   regen: { name: 'Nano Repair', icon: '\u{1FA79}', desc: '+2 HP/sec Regeneration', maxLevel: Infinity, apply: (p, lv) => { p.regen += 2; } },
   might: { name: 'Overcharge', icon: '\u{1F4AA}', desc: '+15% All Damage', maxLevel: Infinity, apply: (p, lv) => { p.damageMult *= 1.15; } },
   rapid: { name: 'Rapid Deploy', icon: '\u{23E9}', desc: '+12% Attack Speed', maxLevel: Infinity, apply: (p, lv) => { p.attackSpeedMult *= 1.12; } },
