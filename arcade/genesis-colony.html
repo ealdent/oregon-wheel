@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.3.0.2-202604131336</div>
+  <div class="version-tag">v0.3.0.3-202604131502</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -654,7 +654,7 @@ function spawnDmgText(x, y, text, color) {
 function spawnGem(x, y, xp) {
   game.gems.push({
     x: x + rand(-10, 10), y: y + rand(-10, 10),
-    xp, radius: 3 + xp * 0.5,
+    xp, radius: 4 + xp * 0.7,
     vx: rand(-50, 50), vy: rand(-50, 50),
     lifetime: 30,
   });
