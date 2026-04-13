@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.2.6-202604131238</div>
+  <div class="version-tag">v0.3.0-202604131248</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -555,6 +555,12 @@ function spawnBoss(px, py) {
     slowTimer: 0,
     slowFactor: 1,
     boss: true,
+    railTimer: 0,
+    railCharging: false,
+    railChargeTime: 0,
+    railAngle: 0,
+    railBeamTimer: 0,
+    railCooldown: 5,
   });
   triggerScreenShake(10, 0.4);
   spawnParticles(px, py, '#c026d3', 30, 200);
@@ -1125,6 +1131,41 @@ function update() {
       }
     }
 
+    // Boss railgun
+    if (e.boss) {
+      e.railBeamTimer = Math.max(0, e.railBeamTimer - dt);
+      if (!e.railCharging) {
+        e.railTimer += dt;
+        if (e.railTimer >= e.railCooldown) {
+          e.railCharging = true;
+          e.railChargeTime = 0;
+          e.railAngle = angle(e.x, e.y, p.x, p.y);
+          playSound('zap');
+        }
+      } else {
+        e.railChargeTime += dt;
+        if (e.railChargeTime >= 1.5) {
+          // Fire the railgun - hitscan beam bypasses drones
+          e.railCharging = false;
+          e.railTimer = 0;
+          e.railBeamTimer = 0.2;
+          triggerScreenShake(12, 0.3);
+          playSound('shockwave');
+          // Point-to-line hit detection
+          const beamLen = 900;
+          const bx = Math.cos(e.railAngle), by = Math.sin(e.railAngle);
+          const dx = p.x - e.x, dy = p.y - e.y;
+          const along = dx * bx + dy * by;
+          if (along > 0 && along < beamLen) {
+            const perpDist = Math.abs(dx * by - dy * bx);
+            if (perpDist < p.radius + 20) {
+              damagePlayer(40);
+            }
+          }
+        }
+      }
+    }
+
     // Contact damage
     if (dist(e.x, e.y, p.x, p.y) < e.radius + p.radius) {
       damagePlayer(e.damage);
@@ -1601,6 +1642,56 @@ function render() {
   // Enemies
   for (const e of game.enemies) {
     drawEnemy(e);
+  }
+
+  // Boss railgun telegraph & beam
+  for (const e of game.enemies) {
+    if (!e.boss) continue;
+    const es = worldToScreen(e.x, e.y);
+    const beamLen = 900;
+
+    // Telegraph during charge
+    if (e.railCharging) {
+      const progress = e.railChargeTime / 1.5;
+      const pulse = 0.3 + Math.sin(e.railChargeTime * 12) * 0.2;
+      const alpha = (0.15 + progress * 0.6) * (0.8 + pulse * 0.2);
+      const ex = es.x + Math.cos(e.railAngle) * beamLen;
+      const ey = es.y + Math.sin(e.railAngle) * beamLen;
+
+      // Warning line
+      ctx.strokeStyle = `rgba(255, 40, 40, ${alpha})`;
+      ctx.lineWidth = 2 + progress * 4;
+      ctx.setLineDash([8, 12 - progress * 8]);
+      ctx.beginPath(); ctx.moveTo(es.x, es.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Charge glow at boss
+      const glowR = 10 + progress * 20;
+      const glow = ctx.createRadialGradient(es.x, es.y, 0, es.x, es.y, glowR);
+      glow.addColorStop(0, `rgba(255, 60, 60, ${0.6 * progress})`);
+      glow.addColorStop(1, 'rgba(255, 60, 60, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(es.x, es.y, glowR, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Fired beam flash
+    if (e.railBeamTimer > 0) {
+      const alpha = e.railBeamTimer / 0.2;
+      const ex = es.x + Math.cos(e.railAngle) * beamLen;
+      const ey = es.y + Math.sin(e.railAngle) * beamLen;
+
+      // Outer glow
+      ctx.strokeStyle = `rgba(255, 80, 80, ${alpha * 0.5})`;
+      ctx.lineWidth = 16;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(es.x, es.y); ctx.lineTo(ex, ey); ctx.stroke();
+
+      // Core beam
+      ctx.strokeStyle = `rgba(255, 220, 220, ${alpha * 0.9})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(es.x, es.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
   }
 
   // Player projectiles
