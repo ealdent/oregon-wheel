@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.2.5-202604131600</div>
+  <div class="version-tag">v0.2.6-202604131610</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -195,23 +195,23 @@ const WEAPON_DEFS = {
   plasma: {
     name: 'Plasma Bolt', icon: '\u{1F52B}',
     desc: 'Fires energy bolts at the nearest enemy',
-    baseRate: 0.45, baseDmg: 12, projSpeed: 500, projRadius: 5, projColor: '#74b9ff',
+    baseRate: 0.45, baseDmg: 12, projSpeed: 500, projRadius: 2, projColor: '#74b9ff',
     piercing: 0, count: 1,
     levelUp: (w) => { w.damage += 5; if (w.level === 3) w.count++; if (w.level === 5) { w.count++; w.piercing++; } w.fireRate *= 0.9; },
     prestige: {
       name: 'Nova Cannon', icon: '\u{1F31F}', desc: 'Devastating star-fire bolts with explosive impact',
-      evolve: (w) => { w.damage += 8; w.count += 1; w.piercing += 1; w.fireRate *= 0.85; w.projRadius += 2; w.projColor = '#ffd700'; },
+      evolve: (w) => { w.damage += 8; w.count += 1; w.piercing += 1; w.fireRate *= 0.85; w.projColor = '#ffd700'; },
       levelUp: (w) => { w.damage += 5; w.fireRate *= 0.94; if (w.level % 4 === 0) { w.count++; w.piercing++; } },
     },
   },
   drones: {
     name: 'Orbital Drones', icon: '\u{1F6F8}',
     desc: 'Drones orbit you, damaging enemies on contact',
-    baseRate: 0.5, baseDmg: 18, orbitRadius: 70, orbitSpeed: 2.4, droneCount: 2, droneRadius: 10,
+    baseRate: 0.5, baseDmg: 18, orbitRadius: 70, orbitSpeed: 2.4, droneCount: 2, droneRadius: 5,
     levelUp: (w) => { w.damage += 8; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
     prestige: {
       name: 'Sentinel Swarm', icon: '\u{1F300}', desc: 'A devastating swarm of autonomous attack drones',
-      evolve: (w) => { w.damage += 25; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 6; },
+      evolve: (w) => { w.damage += 25; w.droneCount += 3; w.orbitRadius += 30; w.orbitSpeed += 1; w.droneRadius += 3; },
       levelUp: (w) => { w.damage += 14; w.droneCount += 2; w.orbitRadius += 10; },
     },
   },
@@ -748,7 +748,7 @@ function updateWeapons() {
             const a = angle(p.x, p.y, target.x, target.y) + spread;
             fireProjectile(
               p.x, p.y,
-              Math.cos(a) * spd, Math.sin(a) * spd,
+              Math.cos(a) * spd + p.vx, Math.sin(a) * spd + p.vy,
               Math.floor(w.damage * p.damageMult), w.projRadius, w.projColor,
               w.piercing, w.homing, w.turnRate, target
             );
