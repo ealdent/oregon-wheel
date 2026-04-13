@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.3.0.3-202604131502</div>
+  <div class="version-tag">v0.3.0.4-202604131522</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -1108,6 +1108,7 @@ function update() {
     if (dist(p.x, p.y, pool.x, pool.y) < pool.radius) {
       const factor = Math.max(0.2, 1 - pool.intensity * 0.1);
       goopSlow = Math.min(goopSlow, factor);
+      pool.timer -= dt * 3;
     }
   }
   p.goopSlow = goopSlow;
