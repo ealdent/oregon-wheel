@@ -207,7 +207,7 @@ const WEAPON_DEFS = {
   drones: {
     name: 'Orbital Drones', icon: '\u{1F6F8}',
     desc: 'Drones orbit you, damaging enemies on contact',
-    baseRate: 0.5, baseDmg: 18, orbitRadius: 70, orbitSpeed: 3, droneCount: 2, droneRadius: 10,
+    baseRate: 0.5, baseDmg: 18, orbitRadius: 70, orbitSpeed: 2.4, droneCount: 2, droneRadius: 10,
     levelUp: (w) => { w.damage += 8; w.droneCount++; if (w.level >= 4) w.orbitRadius += 15; },
     prestige: {
       name: 'Sentinel Swarm', icon: '\u{1F300}', desc: 'A devastating swarm of autonomous attack drones',
@@ -757,7 +757,7 @@ function updateWeapons() {
     }
 
     if (w.key === 'drones') {
-      w.orbitAngle += w.orbitSpeed * dt;
+      w.orbitAngle += w.orbitSpeed * p.attackSpeedMult * dt;
       // Drones damage on contact is handled in collision section
     }
 
