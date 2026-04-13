@@ -63,7 +63,15 @@
   #gameover-screen .btn { margin-top: 10px; }
 
   /* ===== PAUSE ===== */
-  #pause-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Segoe UI', sans-serif; font-size: 36px; font-weight: 900; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 6px; z-index: 50; display: none; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+  #pause-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Segoe UI', sans-serif; color: rgba(255,255,255,0.9); text-transform: uppercase; z-index: 50; display: none; text-shadow: 0 2px 10px rgba(0,0,0,0.8); text-align: center; }
+  #pause-hint h1 { font-size: 36px; font-weight: 900; letter-spacing: 6px; margin: 0 0 16px 0; }
+  #pause-hint .weapon-stats { background: rgba(0,0,0,0.6); border-radius: 10px; padding: 12px 20px; font-size: 14px; text-transform: none; letter-spacing: 0; text-align: left; min-width: 260px; }
+  #pause-hint .weapon-stats table { width: 100%; border-collapse: collapse; }
+  #pause-hint .weapon-stats th { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; padding: 2px 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.15); text-align: right; }
+  #pause-hint .weapon-stats th:first-child { text-align: left; }
+  #pause-hint .weapon-stats td { padding: 4px 8px; font-variant-numeric: tabular-nums; text-align: right; }
+  #pause-hint .weapon-stats td:first-child { text-align: left; font-weight: 600; }
+  #pause-hint .weapon-stats .no-stats { color: rgba(255,255,255,0.4); font-style: italic; text-align: center; padding: 8px; }
 
   .hidden { display: none !important; }
 
@@ -91,7 +99,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.3.0.4-202604131522</div>
+  <div class="version-tag">v0.3.0.5-202604131527</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -108,7 +116,7 @@
   <button class="btn btn-primary" onclick="startGame()">Try Again</button>
 </div>
 
-<div id="pause-hint">Paused</div>
+<div id="pause-hint"><h1>Paused</h1><div class="weapon-stats" id="pause-stats"></div></div>
 <div id="joystick-zone"></div>
 
 <script>
@@ -344,6 +352,7 @@ function createGameState() {
     worldRocks: [],
     colony: [],
     camera: { x: 0, y: 0 },
+    weaponStats: {},
     pendingLevelUps: 0,
     gemSlurp: 0,
     colonyEra: 'station',
@@ -613,12 +622,13 @@ function createWeapon(key) {
 }
 
 // ============ PROJECTILE FACTORY ============
-function fireProjectile(x, y, vx, vy, dmg, radius, color, piercing, homing, turnRate, targetEnemy) {
+function fireProjectile(x, y, vx, vy, dmg, radius, color, piercing, homing, turnRate, targetEnemy, source) {
   game.projectiles.push({
     x, y, vx, vy, damage: dmg, radius, color,
     piercing, hitEnemies: new Set(),
     lifetime: 3, homing, turnRate: turnRate || 0,
     target: targetEnemy || null,
+    source: source || null,
   });
 }
 
@@ -666,6 +676,32 @@ function triggerScreenShake(mag, dur) {
   screenShake.timer = dur || CFG.SCREEN_SHAKE_DUR;
 }
 
+// ============ PAUSE STATS ============
+const WEAPON_NAMES = {
+  plasma: 'Plasma Bolt', seekers: 'Seeker Missiles', drones: 'Orbital Drones',
+  shockwave: 'Shockwave', lightning: 'Chain Lightning', cryo: 'Cryo Field', colony: 'Colony Defense',
+};
+function updatePauseStats() {
+  const el = document.getElementById('pause-stats');
+  const stats = game ? game.weaponStats : {};
+  const keys = Object.keys(stats).filter(k => stats[k].damage > 0 || stats[k].kills > 0);
+  if (keys.length === 0) { el.innerHTML = '<div class="no-stats">No weapon stats yet</div>'; return; }
+  // Check for prestige names
+  const getName = (key) => {
+    if (WEAPON_NAMES[key]) return WEAPON_NAMES[key];
+    const w = game.player.weapons.find(w => w.key === key);
+    return w ? w.name : key;
+  };
+  const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n.toString();
+  let html = '<table><tr><th>Weapon</th><th>Kills</th><th>Damage</th></tr>';
+  keys.sort((a, b) => stats[b].damage - stats[a].damage);
+  for (const k of keys) {
+    html += `<tr><td>${getName(k)}</td><td>${fmt(stats[k].kills)}</td><td>${fmt(stats[k].damage)}</td></tr>`;
+  }
+  html += '</table>';
+  el.innerHTML = html;
+}
+
 // ============ INPUT ============
 document.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
@@ -673,6 +709,7 @@ document.addEventListener('keydown', e => {
     if (game && game.phase === 'playing') {
       paused = !paused;
       document.getElementById('pause-hint').style.display = paused ? 'block' : 'none';
+      if (paused) updatePauseStats();
     }
   }
 });
@@ -771,7 +808,7 @@ function updateWeapons() {
               p.x, p.y,
               Math.cos(a) * spd + p.vx, Math.sin(a) * spd + p.vy,
               Math.floor(w.damage * p.damageMult), w.projRadius, w.projColor,
-              w.piercing, w.homing, w.turnRate, target
+              w.piercing, w.homing, w.turnRate, target, w.key
             );
           }
         }
@@ -790,7 +827,7 @@ function updateWeapons() {
         playSound('shockwave');
         for (const e of game.enemies) {
           if (dist(p.x, p.y, e.x, e.y) < w.pulseRadius + e.radius) {
-            damageEnemy(e, Math.floor(w.damage * p.damageMult));
+            damageEnemy(e, Math.floor(w.damage * p.damageMult), w.key);
           }
         }
       }
@@ -805,7 +842,7 @@ function updateWeapons() {
           playSound('zap');
           let chain = [first];
           let current = first;
-          damageEnemy(current, Math.floor(w.damage * p.damageMult));
+          damageEnemy(current, Math.floor(w.damage * p.damageMult), w.key);
           for (let c = 1; c < w.chainCount; c++) {
             let best = null, bestD = w.chainRange;
             for (const e of game.enemies) {
@@ -815,7 +852,7 @@ function updateWeapons() {
             }
             if (best) {
               spawnLightningBolt(current.x, current.y, best.x, best.y);
-              damageEnemy(best, Math.floor(w.damage * p.damageMult * 0.8));
+              damageEnemy(best, Math.floor(w.damage * p.damageMult * 0.8), w.key);
               chain.push(best);
               current = best;
             } else break;
@@ -833,7 +870,7 @@ function updateWeapons() {
           if (dist(p.x, p.y, e.x, e.y) < w.slowRadius + e.radius) {
             e.slowTimer = w.slowDuration;
             e.slowFactor = w.slowFactor;
-            damageEnemy(e, Math.floor(w.damage * p.damageMult));
+            damageEnemy(e, Math.floor(w.damage * p.damageMult), w.key);
           }
         }
       }
@@ -871,12 +908,18 @@ function spawnLightningBolt(x1, y1, x2, y2) {
 }
 
 // ============ DAMAGE ENEMY ============
-function damageEnemy(enemy, dmg) {
+function damageEnemy(enemy, dmg, source) {
   enemy.hp -= dmg;
   enemy.flashTimer = CFG.DAMAGE_FLASH_DUR;
   spawnDmgText(enemy.x, enemy.y - enemy.radius, dmg.toString());
 
+  if (source) {
+    if (!game.weaponStats[source]) game.weaponStats[source] = { damage: 0, kills: 0 };
+    game.weaponStats[source].damage += dmg;
+  }
+
   if (enemy.hp <= 0) {
+    if (source) game.weaponStats[source].kills++;
     game.kills++;
     spawnParticles(enemy.x, enemy.y, enemy.color, enemy.boss ? 30 : 8, enemy.boss ? 200 : 80);
     // Gloop leaves poison pool on death
@@ -1237,7 +1280,7 @@ function update() {
         for (const e of g.enemies) {
           if (e.hp <= 0) continue;
           if (dist(dx, dy, e.x, e.y) < w.droneRadius + e.radius) {
-            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 12));
+            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 12), 'drones');
           }
         }
       }
@@ -1275,7 +1318,7 @@ function update() {
       if (e.hp <= 0 || pr.hitEnemies.has(e)) continue;
       if (dist(pr.x, pr.y, e.x, e.y) < pr.radius + e.radius) {
         pr.hitEnemies.add(e);
-        damageEnemy(e, pr.damage);
+        damageEnemy(e, pr.damage, pr.source);
         spawnParticles(pr.x, pr.y, pr.color, 3, 40, 1);
         if (pr.piercing > 0) {
           pr.piercing--;
@@ -2457,7 +2500,7 @@ function updatePlanetaryDefenses() {
     const target = targets[i].enemy;
     // Visual: laser beam from colony to enemy
     spawnDefenseLaser(0, 0, target.x, target.y);
-    damageEnemy(target, Math.floor(defenseDmg * p.damageMult));
+    damageEnemy(target, Math.floor(defenseDmg * p.damageMult), 'colony');
   }
 }
 
