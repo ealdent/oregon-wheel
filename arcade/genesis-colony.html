@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.2.4-202604131550</div>
+  <div class="version-tag">v0.2.5-202604131600</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -132,7 +132,7 @@ const CFG = {
   XP_LEVEL_SCALE: 1.10,
   SPAWN_INTERVAL_BASE: 0.9,
   SPAWN_INTERVAL_MIN: 0.12,
-  SPAWN_RAMP_RATE: 0.02,
+  SPAWN_RAMP_RATE: 0.03,
   DIFFICULTY_TIMER: 30,
   WORLD_PLANT_COUNT: 200,
   WORLD_ROCK_COUNT: 60,
@@ -184,7 +184,7 @@ const ENEMY_TYPES = {
     outline: '#57534e',
   },
   queen: {
-    name: 'Hive Queen', hp: 600, speed: 35, radius: 36, damage: 30, xp: 25,
+    name: 'Hive Queen', hp: 1800, speed: 55, radius: 44, damage: 50, xp: 25,
     color: '#c026d3', eyeColor: '#fbbf24', pupilColor: '#1a1a2e',
     outline: '#a21caf', boss: true,
   },
@@ -535,7 +535,7 @@ function spawnBoss(px, py) {
   const a = rand(0, Math.PI * 2);
   const r = 600;
   const wave = game.wave;
-  const hpScale = 1 + (wave - 1) * 0.5;
+  const hpScale = 1 + (wave - 1) * 0.8;
   game.enemies.push({
     type: 'queen',
     x: px + Math.cos(a) * r, y: py + Math.sin(a) * r,
@@ -1082,7 +1082,7 @@ function update() {
   if (g.spawnTimer >= g.spawnInterval) {
     g.spawnTimer = 0;
     const types = getSpawnTypes();
-    const count = 1 + Math.floor(g.wave * 0.3);
+    const count = 1 + Math.floor(g.wave * 0.6);
     for (let i = 0; i < count; i++) {
       spawnEnemy(types[randInt(0, types.length - 1)], p.x, p.y);
     }
@@ -1119,9 +1119,9 @@ function update() {
     // Boss spawns minions
     if (e.boss) {
       e.fireTimer += dt;
-      if (e.fireTimer >= 3) {
+      if (e.fireTimer >= 2) {
         e.fireTimer = 0;
-        for (let j = 0; j < 3; j++) spawnEnemy('spore', e.x, e.y);
+        for (let j = 0; j < 5; j++) spawnEnemy('spore', e.x, e.y);
       }
     }
 
