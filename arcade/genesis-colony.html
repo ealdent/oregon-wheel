@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.3.0.1-202604131309</div>
+  <div class="version-tag">v0.3.0.2-202604131336</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -276,7 +276,7 @@ const WEAPON_DEFS = {
 const PASSIVE_DEFS = {
   armor: { name: 'Colony Armor', icon: '\u{1F6E1}\u{FE0F}', desc: '+20 Max HP', maxLevel: Infinity, apply: (p, lv) => { p.maxHp += 20; p.hp = Math.min(p.hp + 20, p.maxHp); } },
   speed: { name: 'Thruster Boost', icon: '\u{1F680}', desc: '+12% Move Speed', maxLevel: Infinity, apply: (p, lv) => { p.speed *= 1.12; } },
-  magnet: { name: 'Bio Magnet', icon: '\u{1F9F2}', desc: '+40% XP Pickup Range', maxLevel: Infinity, apply: (p, lv) => { p.magnetRange *= 1.4; } },
+  magnet: { name: 'Bio Magnet', icon: '\u{1F9F2}', desc: '+40% XP Range, +25% Pull Speed', maxLevel: Infinity, apply: (p, lv) => { p.magnetRange *= 1.4; p.magnetSpeedMult *= 1.25; } },
   regen: { name: 'Nano Repair', icon: '\u{1FA79}', desc: '+2 HP/sec Regeneration', maxLevel: Infinity, apply: (p, lv) => { p.regen += 2; } },
   might: { name: 'Overcharge', icon: '\u{1F4AA}', desc: '+15% All Damage', maxLevel: Infinity, apply: (p, lv) => { p.damageMult *= 1.15; } },
   rapid: { name: 'Rapid Deploy', icon: '\u{23E9}', desc: '+12% Attack Speed', maxLevel: Infinity, apply: (p, lv) => { p.attackSpeedMult *= 1.12; } },
@@ -328,6 +328,7 @@ function createGameState() {
       damageMult: 1,
       attackSpeedMult: 1,
       goopSlow: 1,
+      magnetSpeedMult: 1,
       facing: 1, // 1 right, -1 left
       walkAnim: 0,
     },
@@ -653,7 +654,7 @@ function spawnDmgText(x, y, text, color) {
 function spawnGem(x, y, xp) {
   game.gems.push({
     x: x + rand(-10, 10), y: y + rand(-10, 10),
-    xp, radius: 6 + xp,
+    xp, radius: 3 + xp * 0.5,
     vx: rand(-50, 50), vy: rand(-50, 50),
     lifetime: 30,
   });
@@ -1337,7 +1338,7 @@ function update() {
     } else if (d < p.magnetRange) {
       const a = angle(gem.x, gem.y, p.x, p.y);
       const closeness = 1 - d / p.magnetRange;
-      const pull = CFG.GEM_MAGNET_SPEED * (closeness * closeness + 0.3);
+      const pull = CFG.GEM_MAGNET_SPEED * p.magnetSpeedMult * (closeness * closeness + 0.3);
       gem.vx = Math.cos(a) * pull;
       gem.vy = Math.sin(a) * pull;
     }
@@ -1686,17 +1687,23 @@ function render() {
   for (const gem of game.gems) {
     const s = worldToScreen(gem.x, gem.y);
     const pulse = 1 + Math.sin(game.time * 6 + gem.x) * 0.15;
-    ctx.fillStyle = PAL.gemGlow;
-    ctx.beginPath(); ctx.arc(s.x, s.y, gem.radius * 2 * pulse, 0, Math.PI * 2); ctx.fill();
+    const r = gem.radius * pulse;
+    // Outer bloom
+    const bloom = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 3.5);
+    bloom.addColorStop(0, 'rgba(255, 230, 100, 0.35)');
+    bloom.addColorStop(0.4, 'rgba(255, 215, 0, 0.12)');
+    bloom.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    ctx.fillStyle = bloom;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r * 3.5, 0, Math.PI * 2); ctx.fill();
+    // Diamond shape
     ctx.fillStyle = PAL.gem;
     ctx.strokeStyle = '#b8860b';
-    ctx.lineWidth = 1.5;
-    // Diamond shape
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(s.x, s.y - gem.radius * pulse);
-    ctx.lineTo(s.x + gem.radius * 0.7 * pulse, s.y);
-    ctx.lineTo(s.x, s.y + gem.radius * pulse);
-    ctx.lineTo(s.x - gem.radius * 0.7 * pulse, s.y);
+    ctx.moveTo(s.x, s.y - r);
+    ctx.lineTo(s.x + r * 0.7, s.y);
+    ctx.lineTo(s.x, s.y + r);
+    ctx.lineTo(s.x - r * 0.7, s.y);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
   }
