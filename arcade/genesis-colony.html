@@ -91,7 +91,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.2.2-202604131530</div>
+  <div class="version-tag">v0.2.3-202604131545</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -742,12 +742,13 @@ function updateWeapons() {
         const target = nearestEnemy(p.x, p.y, 500);
         if (target) {
           playSound('shoot');
+          const spd = w.key === 'seekers' ? w.projSpeed * p.attackSpeedMult : w.projSpeed;
           for (let i = 0; i < w.count; i++) {
             const spread = (i - (w.count - 1) / 2) * 0.15;
             const a = angle(p.x, p.y, target.x, target.y) + spread;
             fireProjectile(
               p.x, p.y,
-              Math.cos(a) * w.projSpeed, Math.sin(a) * w.projSpeed,
+              Math.cos(a) * spd, Math.sin(a) * spd,
               Math.floor(w.damage * p.damageMult), w.projRadius, w.projColor,
               w.piercing, w.homing, w.turnRate, target
             );
