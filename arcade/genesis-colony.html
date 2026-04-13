@@ -129,7 +129,7 @@ const CFG = {
   GEM_MAGNET_SPEED: 600,
   GEM_BASE_XP: 1,
   BASE_XP_TO_LEVEL: 7,
-  XP_LEVEL_SCALE: 1.18,
+  XP_LEVEL_SCALE: 1.10,
   SPAWN_INTERVAL_BASE: 0.9,
   SPAWN_INTERVAL_MIN: 0.12,
   SPAWN_RAMP_RATE: 0.02,
@@ -241,12 +241,12 @@ const WEAPON_DEFS = {
   lightning: {
     name: 'Chain Lightning', icon: '\u{26A1}',
     desc: 'Lightning arcs between nearby enemies',
-    baseRate: 1.5, baseDmg: 25, chainCount: 3, chainRange: 120,
-    levelUp: (w) => { w.damage += 12; w.chainCount += 1; w.chainRange += 20; w.fireRate *= 0.9; },
+    baseRate: 1.5, baseDmg: 30, chainCount: 3, chainRange: 120,
+    levelUp: (w) => { w.damage += 14; w.chainCount += 1; w.chainRange += 20; w.fireRate *= 0.9; },
     prestige: {
       name: 'Storm Wrath', icon: '\u{1F329}\u{FE0F}', desc: 'Apocalyptic lightning storm that decimates hordes',
-      evolve: (w) => { w.damage += 30; w.chainCount += 4; w.chainRange += 60; w.fireRate *= 0.7; },
-      levelUp: (w) => { w.damage += 18; w.chainCount += 2; w.chainRange += 25; w.fireRate *= 0.9; },
+      evolve: (w) => { w.damage += 36; w.chainCount += 4; w.chainRange += 60; w.fireRate *= 0.7; },
+      levelUp: (w) => { w.damage += 22; w.chainCount += 2; w.chainRange += 25; w.fireRate *= 0.9; },
     },
   },
   cryo: {
@@ -264,12 +264,12 @@ const WEAPON_DEFS = {
 
 // ============ PASSIVE UPGRADE DEFINITIONS ============
 const PASSIVE_DEFS = {
-  armor: { name: 'Colony Armor', icon: '\u{1F6E1}\u{FE0F}', desc: '+20 Max HP', maxLevel: 5, apply: (p, lv) => { p.maxHp += 20; p.hp = Math.min(p.hp + 20, p.maxHp); } },
-  speed: { name: 'Thruster Boost', icon: '\u{1F680}', desc: '+12% Move Speed', maxLevel: 5, apply: (p, lv) => { p.speed *= 1.12; } },
+  armor: { name: 'Colony Armor', icon: '\u{1F6E1}\u{FE0F}', desc: '+20 Max HP', maxLevel: Infinity, apply: (p, lv) => { p.maxHp += 20; p.hp = Math.min(p.hp + 20, p.maxHp); } },
+  speed: { name: 'Thruster Boost', icon: '\u{1F680}', desc: '+12% Move Speed', maxLevel: Infinity, apply: (p, lv) => { p.speed *= 1.12; } },
   magnet: { name: 'Bio Magnet', icon: '\u{1F9F2}', desc: '+40% XP Pickup Range', maxLevel: 5, apply: (p, lv) => { p.magnetRange *= 1.4; } },
-  regen: { name: 'Nano Repair', icon: '\u{1FA79}', desc: '+2 HP/sec Regeneration', maxLevel: 5, apply: (p, lv) => { p.regen += 2; } },
-  might: { name: 'Overcharge', icon: '\u{1F4AA}', desc: '+15% All Damage', maxLevel: 5, apply: (p, lv) => { p.damageMult *= 1.15; } },
-  rapid: { name: 'Rapid Deploy', icon: '\u{23E9}', desc: '+12% Attack Speed', maxLevel: 5, apply: (p, lv) => { p.attackSpeedMult *= 1.12; } },
+  regen: { name: 'Nano Repair', icon: '\u{1FA79}', desc: '+2 HP/sec Regeneration', maxLevel: Infinity, apply: (p, lv) => { p.regen += 2; } },
+  might: { name: 'Overcharge', icon: '\u{1F4AA}', desc: '+15% All Damage', maxLevel: Infinity, apply: (p, lv) => { p.damageMult *= 1.15; } },
+  rapid: { name: 'Rapid Deploy', icon: '\u{23E9}', desc: '+12% Attack Speed', maxLevel: Infinity, apply: (p, lv) => { p.attackSpeedMult *= 1.12; } },
 };
 
 // ============ GAME STATE ============
