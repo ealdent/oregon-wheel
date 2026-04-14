@@ -99,7 +99,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.3.0.5-202604131527</div>
+  <div class="version-tag">v0.3.0.6-202604141813</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -816,7 +816,8 @@ function updateWeapons() {
     }
 
     if (w.key === 'drones') {
-      w.orbitAngle += w.orbitSpeed * p.attackSpeedMult * (p.goopSlow || 1) * dt;
+      w.angularStep = w.orbitSpeed * p.attackSpeedMult * (p.goopSlow || 1) * dt;
+      w.orbitAngle += w.angularStep;
       // Drones damage on contact is handled in collision section
     }
 
@@ -1270,17 +1271,30 @@ function update() {
   // Planetary defenses
   updatePlanetaryDefenses();
 
-  // Drone collision
+  // Drone collision (swept arc to handle high orbit speed)
   for (const w of p.weapons) {
-    if (w.key === 'drones') {
-      for (let d = 0; d < w.droneCount; d++) {
-        const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
-        const dx = p.x + Math.cos(da) * w.orbitRadius;
-        const dy = p.y + Math.sin(da) * w.orbitRadius;
-        for (const e of g.enemies) {
-          if (e.hp <= 0) continue;
-          if (dist(dx, dy, e.x, e.y) < w.droneRadius + e.radius) {
-            damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 12), 'drones');
+    if (w.key !== 'drones') continue;
+    const step = w.angularStep || 0;
+    for (let d = 0; d < w.droneCount; d++) {
+      const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
+      const dx = p.x + Math.cos(da) * w.orbitRadius;
+      const dy = p.y + Math.sin(da) * w.orbitRadius;
+      for (const e of g.enemies) {
+        if (e.hp <= 0) continue;
+        const hitR = w.droneRadius + e.radius;
+        // Fast path: point check at current position
+        if (dist(dx, dy, e.x, e.y) < hitR) {
+          damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 12), 'drones');
+        } else if (step > 0.05) {
+          // Swept arc check: is enemy within orbit band and angular sweep?
+          const d2e = dist(p.x, p.y, e.x, e.y);
+          if (Math.abs(d2e - w.orbitRadius) < hitR) {
+            const ea = Math.atan2(e.y - p.y, e.x - p.x);
+            let diff = ea - (da - step);
+            diff = ((diff % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            if (diff < step + hitR / w.orbitRadius) {
+              damageEnemy(e, Math.floor(w.damage * p.damageMult * dt * 12), 'drones');
+            }
           }
         }
       }
@@ -1337,17 +1351,29 @@ function update() {
     if (pr.lifetime <= 0) { g.enemyProjectiles.splice(i, 1); continue; }
     pr.x += pr.vx * dt;
     pr.y += pr.vy * dt;
-    // Drone bullet absorption — drones intercept enemy projectiles
+    // Drone bullet absorption — drones intercept enemy projectiles (swept arc aware)
     let absorbed = false;
     for (const w of p.weapons) {
       if (w.key !== 'drones') continue;
+      const step = w.angularStep || 0;
       for (let d = 0; d < w.droneCount; d++) {
         const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
         const drx = p.x + Math.cos(da) * w.orbitRadius;
         const dry = p.y + Math.sin(da) * w.orbitRadius;
-        if (dist(pr.x, pr.y, drx, dry) < w.droneRadius + pr.radius) {
-          spawnParticles(pr.x, pr.y, '#74b9ff', 4, 50, 1);
+        const hitR = w.droneRadius + pr.radius;
+        if (dist(pr.x, pr.y, drx, dry) < hitR) {
           absorbed = true;
+        } else if (step > 0.05) {
+          const d2pr = dist(p.x, p.y, pr.x, pr.y);
+          if (Math.abs(d2pr - w.orbitRadius) < hitR) {
+            const pa = Math.atan2(pr.y - p.y, pr.x - p.x);
+            let diff = pa - (da - step);
+            diff = ((diff % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            if (diff < step + hitR / w.orbitRadius) absorbed = true;
+          }
+        }
+        if (absorbed) {
+          spawnParticles(pr.x, pr.y, '#74b9ff', 4, 50, 1);
           break;
         }
       }
