@@ -99,7 +99,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.4.0-202604141908</div>
+  <div class="version-tag">v0.5.0-202604142306</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -201,10 +201,20 @@ const ENEMY_TYPES = {
     color: '#65a30d', eyeColor: '#d9f99d', pupilColor: '#1a1a2e',
     outline: '#4d7c0f',
   },
+  juggernaut: {
+    name: 'Juggernaut', hp: 800, speed: 50, radius: 32, damage: 25, xp: 10,
+    color: '#475569', eyeColor: '#f87171', pupilColor: '#1a1a2e',
+    outline: '#334155', orbiter: true, orbitDist: 380,
+  },
+  kamikaze: {
+    name: 'Kamikaze', hp: 12, speed: 320, radius: 6, damage: 10, xp: 1,
+    color: '#fb923c', eyeColor: '#fff', pupilColor: '#1a1a2e',
+    outline: '#ea580c',
+  },
   queen: {
-    name: 'Hive Queen', hp: 1800, speed: 55, radius: 44, damage: 50, xp: 25,
+    name: 'Hive Queen', hp: 18000, speed: 55, radius: 44, damage: 50, xp: 25,
     color: '#c026d3', eyeColor: '#fbbf24', pupilColor: '#1a1a2e',
-    outline: '#a21caf', boss: true,
+    outline: '#a21caf', boss: true, orbiter: true, orbitDist: 350,
   },
 };
 
@@ -538,11 +548,11 @@ function getSpawnTypes() {
   return types;
 }
 
-function spawnEnemy(typeKey, px, py) {
+function spawnEnemy(typeKey, px, py, nearRange) {
   const def = ENEMY_TYPES[typeKey];
   if (!def) return;
   const a = rand(0, Math.PI * 2);
-  const r = rand(500, 700);
+  const r = nearRange != null ? rand(nearRange * 0.5, nearRange) : rand(500, 700);
   const x = px + Math.cos(a) * r;
   const y = py + Math.sin(a) * r;
   const hpScale = 1 + game.time * 0.008;
@@ -564,6 +574,7 @@ function spawnEnemy(typeKey, px, py) {
     slowTimer: 0,
     slowFactor: 1,
     boss: def.boss || false,
+    orbitDir: def.orbiter ? (Math.random() < 0.5 ? 1 : -1) : 0,
   });
 }
 
@@ -597,7 +608,9 @@ function spawnBoss(px, py) {
     railChargeTime: 0,
     railAngle: 0,
     railBeamTimer: 0,
-    railCooldown: 5,
+    railCooldown: 2.5,
+    barrageTimer: 0,
+    orbitDir: Math.random() < 0.5 ? 1 : -1,
   });
   triggerScreenShake(10, 0.4);
   spawnParticles(px, py, '#c026d3', 30, 200);
@@ -1261,6 +1274,15 @@ function update() {
     }
   }
 
+  // Spawn juggernaut carriers (separate low-rate timer)
+  if (g.wave >= 15) {
+    g.juggernautTimer = (g.juggernautTimer || 0) + dt;
+    if (g.juggernautTimer >= 25) {
+      g.juggernautTimer = 0;
+      spawnEnemy('juggernaut', p.x, p.y);
+    }
+  }
+
   // Update enemies
   for (let i = g.enemies.length - 1; i >= 0; i--) {
     const e = g.enemies[i];
@@ -1271,10 +1293,27 @@ function update() {
     e.anim += dt * 3;
     const speedMult = e.slowTimer > 0 ? e.slowFactor : 1;
 
-    // Move toward player
-    const a = angle(e.x, e.y, p.x, p.y);
-    e.vx = Math.cos(a) * e.speed * speedMult;
-    e.vy = Math.sin(a) * e.speed * speedMult;
+    // Movement
+    const eDist = dist(e.x, e.y, p.x, p.y);
+    const toPlayer = angle(e.x, e.y, p.x, p.y);
+    const eDef2 = ENEMY_TYPES[e.type];
+    if (eDef2.orbiter) {
+      // Orbital movement: maintain distance, strafe around player
+      const orbitDist = eDef2.orbitDist || 350;
+      const tangent = toPlayer + (Math.PI / 2) * (e.orbitDir || 1);
+      let radial = (eDist - orbitDist) / 200;
+      radial = Math.max(-1, Math.min(1, radial));
+      const tangWeight = 1 - Math.abs(radial) * 0.3;
+      let mx = Math.cos(toPlayer) * radial + Math.cos(tangent) * tangWeight;
+      let my = Math.sin(toPlayer) * radial + Math.sin(tangent) * tangWeight;
+      const mag = Math.sqrt(mx * mx + my * my) || 1;
+      e.vx = (mx / mag) * e.speed * speedMult;
+      e.vy = (my / mag) * e.speed * speedMult;
+    } else {
+      // Beeline toward player
+      e.vx = Math.cos(toPlayer) * e.speed * speedMult;
+      e.vy = Math.sin(toPlayer) * e.speed * speedMult;
+    }
     e.x += e.vx * dt;
     e.y += e.vy * dt;
 
@@ -1289,12 +1328,35 @@ function update() {
       }
     }
 
-    // Boss spawns minions
+    // Boss spawns minions + plasma barrage
     if (e.boss) {
       e.fireTimer += dt;
       if (e.fireTimer >= 2) {
         e.fireTimer = 0;
         for (let j = 0; j < 5; j++) spawnEnemy('spore', e.x, e.y);
+      }
+      // Plasma barrage — blockable by drones but overwhelming
+      e.barrageTimer = (e.barrageTimer || 0) + dt;
+      if (e.barrageTimer >= 3.5) {
+        e.barrageTimer = 0;
+        const baseAngle = angle(e.x, e.y, p.x, p.y);
+        const spread = Math.PI / 3;
+        const count = 12;
+        for (let j = 0; j < count; j++) {
+          const ba = baseAngle - spread / 2 + (spread * j / (count - 1));
+          const spd = 220;
+          fireEnemyProjectile(e.x, e.y, Math.cos(ba) * spd, Math.sin(ba) * spd, 15, 6, '#c026d3');
+        }
+        playSound('zap');
+      }
+    }
+
+    // Juggernaut spawns kamikaze drones
+    if (e.type === 'juggernaut') {
+      e.fireTimer += dt;
+      if (e.fireTimer >= 2) {
+        e.fireTimer = 0;
+        for (let j = 0; j < 3; j++) spawnEnemy('kamikaze', e.x, e.y, 40);
       }
     }
 
