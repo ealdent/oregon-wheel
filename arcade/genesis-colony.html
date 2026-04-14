@@ -1373,6 +1373,14 @@ function update() {
         }
       } else {
         e.railChargeTime += dt;
+        // Track player with limited angular speed — compensates for boss orbit
+        // but can't keep up with a fast-moving player strafing transversely
+        const targetAngle = angle(e.x, e.y, p.x, p.y);
+        let angleDiff = targetAngle - e.railAngle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        const maxTrack = 1.0 * dt; // 1.0 rad/s
+        e.railAngle += Math.max(-maxTrack, Math.min(maxTrack, angleDiff));
         if (e.railChargeTime >= 1.5) {
           // Fire the railgun - hitscan beam bypasses drones
           e.railCharging = false;
