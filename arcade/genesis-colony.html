@@ -99,7 +99,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.5.0-202604142306</div>
+  <div class="version-tag">v0.5.0-202604142349</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -1379,7 +1379,7 @@ function update() {
         let angleDiff = targetAngle - e.railAngle;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        const maxTrack = 1.0 * dt; // 1.0 rad/s
+        const maxTrack = 0.4 * dt; // 0.4 rad/s
         e.railAngle += Math.max(-maxTrack, Math.min(maxTrack, angleDiff));
         if (e.railChargeTime >= 1.5) {
           // Fire the railgun - hitscan beam bypasses drones
