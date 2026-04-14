@@ -99,7 +99,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.3.0.6-202604141813</div>
+  <div class="version-tag">v0.4.0-202604141908</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -212,14 +212,27 @@ const ENEMY_TYPES = {
 const WEAPON_DEFS = {
   plasma: {
     name: 'Plasma Bolt', icon: '\u{1F52B}',
-    desc: 'Fires energy bolts at the nearest enemy',
-    baseRate: 0.45, baseDmg: 12, projSpeed: 500, projRadius: 2, projColor: '#74b9ff',
-    piercing: 0, count: 1,
-    levelUp: (w) => { w.damage += 5; if (w.level === 3) w.count++; if (w.level === 5) { w.count++; w.piercing++; } w.fireRate *= 0.9; },
+    desc: 'PDC hardpoints fire at nearby enemies',
+    baseRate: 0.45, baseDmg: 8, projSpeed: 500, projRadius: 2, projColor: '#74b9ff',
+    piercing: 0, hardpoints: 1, burstSizes: [1, 0, 0],
+    levelUp: (w) => {
+      w.damage += 2; w.fireRate *= 0.9;
+      if (w.level === 2) w.burstSizes[0] = 2;
+      if (w.level === 3) { w.hardpoints = 2; w.burstSizes[1] = 1; }
+      if (w.level === 4) w.burstSizes[1] = 2;
+      if (w.level === 5) { w.hardpoints = 3; w.burstSizes[2] = 1; }
+      if (w.level === 6) w.burstSizes[2] = 2;
+    },
     prestige: {
-      name: 'Nova Cannon', icon: '\u{1F31F}', desc: 'Devastating star-fire bolts with explosive impact',
-      evolve: (w) => { w.damage += 8; w.count += 1; w.piercing += 1; w.fireRate *= 0.85; w.projColor = '#ffd700'; },
-      levelUp: (w) => { w.damage += 5; w.fireRate *= 0.94; if (w.level % 4 === 0) { w.count++; w.piercing++; } },
+      name: 'Nova Cannon', icon: '\u{1F31F}', desc: 'Triple-mount rapid-fire defense cannons',
+      evolve: (w) => {
+        w.damage += 4; w.projSpeed *= 1.3; w.fireRate *= 0.85; w.projColor = '#ffd700';
+        for (let i = 0; i < 3; i++) w.burstSizes[i] *= 2;
+      },
+      levelUp: (w) => {
+        w.damage += 3; w.fireRate *= 0.94;
+        if (w.level % 4 === 0) for (let i = 0; i < w.hardpoints; i++) w.burstSizes[i]++;
+      },
     },
   },
   drones: {
@@ -618,6 +631,9 @@ function createWeapon(key) {
     orbitAngle: 0,
     pulseAnim: 0,
     prestiged: false,
+    hardpoints: def.hardpoints || 0,
+    burstSizes: def.burstSizes ? [...def.burstSizes] : [0, 0, 0],
+    burstQueue: [],
   };
 }
 
@@ -786,6 +802,17 @@ function nearestEnemy(x, y, maxDist) {
   return best;
 }
 
+function nearestEnemies(x, y, maxDist, n) {
+  const results = [];
+  for (const e of game.enemies) {
+    if (e.hp <= 0) continue;
+    const d = dist(x, y, e.x, e.y);
+    if (d < maxDist) results.push({ enemy: e, dist: d });
+  }
+  results.sort((a, b) => a.dist - b.dist);
+  return results.slice(0, n).map(r => r.enemy);
+}
+
 // ============ WEAPON UPDATE ============
 function updateWeapons() {
   const p = game.player;
@@ -794,13 +821,60 @@ function updateWeapons() {
     const rate = w.fireRate / p.attackSpeedMult;
     w.timer += dt;
 
-    if (w.key === 'plasma' || w.key === 'seekers') {
+    if (w.key === 'plasma') {
+      // Process burst queue
+      for (let b = w.burstQueue.length - 1; b >= 0; b--) {
+        const burst = w.burstQueue[b];
+        burst.delay -= dt;
+        if (burst.delay <= 0) {
+          const targets = nearestEnemies(p.x, p.y, 250, w.hardpoints);
+          const t = targets[burst.hpIdx] || targets[0];
+          if (t) {
+            const a = angle(p.x, p.y, t.x, t.y);
+            fireProjectile(
+              p.x, p.y,
+              Math.cos(a) * w.projSpeed + p.vx, Math.sin(a) * w.projSpeed + p.vy,
+              Math.floor(w.damage * p.damageMult), w.projRadius, w.projColor,
+              w.piercing, false, 0, t, w.key
+            );
+          }
+          w.burstQueue.splice(b, 1);
+        }
+      }
+      // Main fire timer
+      if (w.timer >= rate) {
+        w.timer = 0;
+        const targets = nearestEnemies(p.x, p.y, 250, w.hardpoints);
+        if (targets.length > 0) {
+          playSound('shoot');
+          for (let hp = 0; hp < w.hardpoints; hp++) {
+            const burstSize = w.burstSizes[hp];
+            if (burstSize <= 0) continue;
+            const t = targets[hp] || targets[0];
+            // Fire first shot immediately
+            const a = angle(p.x, p.y, t.x, t.y);
+            fireProjectile(
+              p.x, p.y,
+              Math.cos(a) * w.projSpeed + p.vx, Math.sin(a) * w.projSpeed + p.vy,
+              Math.floor(w.damage * p.damageMult), w.projRadius, w.projColor,
+              w.piercing, false, 0, t, w.key
+            );
+            // Queue remaining burst shots
+            for (let s = 1; s < burstSize; s++) {
+              w.burstQueue.push({ delay: s * 0.08, hpIdx: hp });
+            }
+          }
+        }
+      }
+    }
+
+    if (w.key === 'seekers') {
       if (w.timer >= rate) {
         w.timer = 0;
         const target = nearestEnemy(p.x, p.y, 500);
         if (target) {
           playSound('shoot');
-          const spd = w.key === 'seekers' ? w.projSpeed * p.attackSpeedMult : w.projSpeed;
+          const spd = w.projSpeed * p.attackSpeedMult;
           for (let i = 0; i < w.count; i++) {
             const spread = (i - (w.count - 1) / 2) * 0.15;
             const a = angle(p.x, p.y, target.x, target.y) + spread;
