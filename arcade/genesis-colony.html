@@ -163,8 +163,8 @@ const PAL = {
   playerSuit: '#dfe6e9',
   hpBar: '#e74c3c',
   xpBar: '#f1c40f',
-  gem: '#ffd700',
-  gemGlow: 'rgba(255,215,0,0.3)',
+  gem: '#5ec4b6',
+  gemGlow: 'rgba(94,196,182,0.2)',
   dmgText: '#ff6b6b',
   healText: '#2ecc71',
 };
@@ -1902,16 +1902,16 @@ function render() {
     const s = worldToScreen(gem.x, gem.y);
     const pulse = 1 + Math.sin(game.time * 6 + gem.x) * 0.15;
     const r = gem.radius * pulse;
-    // Outer bloom
-    const bloom = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 3.5);
-    bloom.addColorStop(0, 'rgba(255, 230, 100, 0.35)');
-    bloom.addColorStop(0.4, 'rgba(255, 215, 0, 0.12)');
-    bloom.addColorStop(1, 'rgba(255, 215, 0, 0)');
+    // Outer bloom (subtle)
+    const bloom = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r * 2.5);
+    bloom.addColorStop(0, 'rgba(94, 196, 182, 0.22)');
+    bloom.addColorStop(0.5, 'rgba(94, 196, 182, 0.06)');
+    bloom.addColorStop(1, 'rgba(94, 196, 182, 0)');
     ctx.fillStyle = bloom;
-    ctx.beginPath(); ctx.arc(s.x, s.y, r * 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x, s.y, r * 2.5, 0, Math.PI * 2); ctx.fill();
     // Diamond shape
     ctx.fillStyle = PAL.gem;
-    ctx.strokeStyle = '#b8860b';
+    ctx.strokeStyle = '#3d9486';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(s.x, s.y - r);
