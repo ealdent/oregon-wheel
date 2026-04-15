@@ -202,9 +202,9 @@ const ENEMY_TYPES = {
     outline: '#4d7c0f',
   },
   juggernaut: {
-    name: 'Juggernaut', hp: 800, speed: 50, radius: 32, damage: 25, xp: 10,
-    color: '#475569', eyeColor: '#f87171', pupilColor: '#1a1a2e',
-    outline: '#334155', orbiter: true, orbitDist: 380,
+    name: 'Juggernaut', hp: 3000, speed: 50, radius: 32, damage: 25, xp: 10,
+    color: '#64748b', eyeColor: '#f87171', pupilColor: '#1a1a2e',
+    outline: '#94a3b8', orbiter: true, orbitDist: 380,
   },
   kamikaze: {
     name: 'Kamikaze', hp: 12, speed: 320, radius: 6, damage: 10, xp: 1,
@@ -1277,9 +1277,11 @@ function update() {
   // Spawn juggernaut carriers (separate low-rate timer)
   if (g.wave >= 15) {
     g.juggernautTimer = (g.juggernautTimer || 0) + dt;
-    if (g.juggernautTimer >= 25) {
+    const jSpawnRate = Math.max(8, 20 - g.wave * 0.5);
+    if (g.juggernautTimer >= jSpawnRate) {
       g.juggernautTimer = 0;
-      spawnEnemy('juggernaut', p.x, p.y);
+      const jCount = 1 + Math.floor((g.wave - 15) / 5);
+      for (let j = 0; j < jCount; j++) spawnEnemy('juggernaut', p.x, p.y);
     }
   }
 
