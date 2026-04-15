@@ -99,7 +99,7 @@
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v0.5.0-202604142349</div>
+  <div class="version-tag">v0.5.0-202604150328</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -202,7 +202,7 @@ const ENEMY_TYPES = {
     outline: '#4d7c0f',
   },
   juggernaut: {
-    name: 'Juggernaut', hp: 3000, speed: 50, radius: 32, damage: 25, xp: 10,
+    name: 'Juggernaut', hp: 3000, speed: 50, radius: 48, damage: 25, xp: 10,
     color: '#64748b', eyeColor: '#f87171', pupilColor: '#1a1a2e',
     outline: '#94a3b8', orbiter: true, orbitDist: 380,
   },
@@ -642,6 +642,7 @@ function createWeapon(key) {
     slowFactor: def.slowFactor || 1,
     slowDuration: def.slowDuration || 0,
     orbitAngle: 0,
+    droneStates: [],
     pulseAnim: 0,
     prestiged: false,
     hardpoints: def.hardpoints || 0,
@@ -903,9 +904,22 @@ function updateWeapons() {
     }
 
     if (w.key === 'drones') {
-      w.angularStep = w.orbitSpeed * p.attackSpeedMult * (p.goopSlow || 1) * dt;
+      // Sync drone states with current count
+      while (w.droneStates.length < w.droneCount) {
+        w.droneStates.push({ hp: 4, maxHp: 4, regenTimer: 0 });
+      }
+      // Regen dead drones
+      for (const ds of w.droneStates) {
+        if (ds.hp <= 0) {
+          ds.regenTimer -= dt;
+          if (ds.regenTimer <= 0) { ds.hp = ds.maxHp; ds.regenTimer = 0; }
+        }
+      }
+      // Orbit speed scales with thruster bonus at half rate
+      const thrustBonus = p.speed / CFG.PLAYER_SPEED;
+      const orbitMult = 1 + (thrustBonus - 1) * 0.5;
+      w.angularStep = w.orbitSpeed * orbitMult * (p.goopSlow || 1) * dt;
       w.orbitAngle += w.angularStep;
-      // Drones damage on contact is handled in collision section
     }
 
     if (w.key === 'shockwave') {
@@ -1353,12 +1367,12 @@ function update() {
       }
     }
 
-    // Juggernaut spawns kamikaze drones
+    // Juggernaut spawns kamikaze drones — constant bombardment
     if (e.type === 'juggernaut') {
       e.fireTimer += dt;
-      if (e.fireTimer >= 2) {
+      if (e.fireTimer >= 0.7) {
         e.fireTimer = 0;
-        for (let j = 0; j < 3; j++) spawnEnemy('kamikaze', e.x, e.y, 40);
+        for (let j = 0; j < 4; j++) spawnEnemy('kamikaze', e.x, e.y, 40);
       }
     }
 
@@ -1422,6 +1436,8 @@ function update() {
     if (w.key !== 'drones') continue;
     const step = w.angularStep || 0;
     for (let d = 0; d < w.droneCount; d++) {
+      const ds = w.droneStates[d];
+      if (ds && ds.hp <= 0) continue; // dead drone
       const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
       const dx = p.x + Math.cos(da) * w.orbitRadius;
       const dy = p.y + Math.sin(da) * w.orbitRadius;
@@ -1503,6 +1519,8 @@ function update() {
       if (w.key !== 'drones') continue;
       const step = w.angularStep || 0;
       for (let d = 0; d < w.droneCount; d++) {
+        const ds = w.droneStates[d];
+        if (ds && ds.hp <= 0) continue; // dead drone can't absorb
         const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
         const drx = p.x + Math.cos(da) * w.orbitRadius;
         const dry = p.y + Math.sin(da) * w.orbitRadius;
@@ -1519,6 +1537,8 @@ function update() {
           }
         }
         if (absorbed) {
+          // Drone takes a hit — dies after 4 hits, 5s regen
+          if (ds) { ds.hp--; if (ds.hp <= 0) ds.regenTimer = 5; }
           spawnParticles(pr.x, pr.y, '#74b9ff', 4, 50, 1);
           break;
         }
@@ -2575,10 +2595,20 @@ function drawDrones() {
   for (const w of p.weapons) {
     if (w.key !== 'drones') continue;
     for (let d = 0; d < w.droneCount; d++) {
+      const ds = w.droneStates[d];
       const da = w.orbitAngle + (d / w.droneCount) * Math.PI * 2;
       const dx = p.x + Math.cos(da) * w.orbitRadius;
       const dy = p.y + Math.sin(da) * w.orbitRadius;
       const s = worldToScreen(dx, dy);
+      if (ds && ds.hp <= 0) {
+        // Dead drone — faint regen ghost
+        const regenProg = 1 - ds.regenTimer / 5;
+        ctx.globalAlpha = 0.15 + regenProg * 0.15;
+        ctx.fillStyle = '#74b9ff';
+        ctx.beginPath(); ctx.arc(s.x, s.y, w.droneRadius, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
       // Glow
       ctx.fillStyle = 'rgba(100,200,255,0.2)';
       ctx.beginPath(); ctx.arc(s.x, s.y, w.droneRadius * 2, 0, Math.PI * 2); ctx.fill();
@@ -2590,6 +2620,16 @@ function drawDrones() {
       // Core
       ctx.fillStyle = '#fff';
       ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI * 2); ctx.fill();
+      // HP indicator — dim pips when damaged
+      if (ds && ds.hp < ds.maxHp) {
+        for (let h = 0; h < ds.maxHp; h++) {
+          const ha = da + (h - (ds.maxHp - 1) / 2) * 0.3;
+          const hx = s.x + Math.cos(ha) * (w.droneRadius + 5);
+          const hy = s.y + Math.sin(ha) * (w.droneRadius + 5);
+          ctx.fillStyle = h < ds.hp ? 'rgba(100,200,255,0.8)' : 'rgba(100,200,255,0.2)';
+          ctx.beginPath(); ctx.arc(hx, hy, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
   }
 }
