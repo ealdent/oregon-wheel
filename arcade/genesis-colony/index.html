@@ -24,8 +24,9 @@
   <div class="subtitle">Survive the New World</div>
   <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
   <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
+  <div id="auto-upgrade-toggle" class="auto-upgrade-toggle" onclick="autoUpgrade = !autoUpgrade; this.classList.toggle('active')"><span class="toggle-icon">&#9889;</span> Auto-Upgrade</div>
   <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
-  <div class="version-tag">v1.0.0-20260415210504</div>
+  <div class="version-tag">v1.1.0-20260415211835</div>
 </div>
 
 <!-- Upgrade Screen -->
@@ -44,6 +45,7 @@
 
 <div id="pause-hint"><h1>Paused</h1><div class="weapon-stats" id="pause-stats"></div></div>
 <div id="joystick-zone"></div>
+<button id="sound-toggle" onclick="toggleSound()">&#x1F50A;</button>
 
 <script src="config.js"></script>
 <script src="utils.js"></script>

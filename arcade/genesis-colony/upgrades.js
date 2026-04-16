@@ -101,9 +101,32 @@ function applyUpgrade(choice) {
   updateWeaponsDisplay();
 }
 
+function rankUpgradeChoice(c) {
+  if (c.isPrestige) return 0;
+  if (c.type === 'weapon' && !c.isNew) return 1;
+  if (c.type === 'weapon' && c.isNew) return 2;
+  return 3; // passive
+}
+
+function cancelAutoUpgrade() {
+  if (autoUpgradeTimer) {
+    clearTimeout(autoUpgradeTimer);
+    autoUpgradeTimer = null;
+  }
+}
+
+function selectUpgrade(choice) {
+  cancelAutoUpgrade();
+  applyUpgrade(choice);
+  document.getElementById('upgrade-screen').classList.add('hidden');
+  game.phase = 'playing';
+  checkPendingLevelUps();
+}
+
 function showUpgradeScreen() {
   game.phase = 'upgrading';
   playSound('levelup');
+  cancelAutoUpgrade();
   const choices = getUpgradeChoices();
   const container = document.getElementById('upgrade-cards');
   container.innerHTML = '';
@@ -118,7 +141,15 @@ function showUpgradeScreen() {
     return;
   }
 
-  choices.forEach(c => {
+  // Find best choice for auto-upgrade
+  let bestIdx = 0;
+  let bestRank = rankUpgradeChoice(choices[0]);
+  for (let i = 1; i < choices.length; i++) {
+    const r = rankUpgradeChoice(choices[i]);
+    if (r < bestRank) { bestRank = r; bestIdx = i; }
+  }
+
+  choices.forEach((c, i) => {
     const card = document.createElement('div');
     card.className = 'upgrade-card' + (c.isNew ? ' new-weapon' : '') + (c.isPrestige ? ' prestige-weapon' : '');
     const levelText = c.isNew ? 'NEW!' : c.isPrestige ? '\u{2B50} PRESTIGE \u{2B50}' : 'Lv ' + c.level;
@@ -128,16 +159,32 @@ function showUpgradeScreen() {
       <div class="card-level">${levelText}</div>
       <div class="card-desc">${c.desc}</div>
     `;
-    card.onclick = () => {
-      applyUpgrade(c);
-      document.getElementById('upgrade-screen').classList.add('hidden');
-      game.phase = 'playing';
-      checkPendingLevelUps();
-    };
+    if (autoUpgrade && i === bestIdx) {
+      card.classList.add('auto-selected');
+      card.insertAdjacentHTML('beforeend', '<div class="auto-countdown">3</div>');
+    }
+    card.onclick = () => selectUpgrade(c);
     container.appendChild(card);
   });
 
   document.getElementById('upgrade-screen').classList.remove('hidden');
+
+  // Auto-upgrade countdown
+  if (autoUpgrade) {
+    const bestChoice = choices[bestIdx];
+    const countdownEl = container.querySelector('.auto-countdown');
+    let remaining = 3;
+    const tick = () => {
+      remaining--;
+      if (remaining <= 0) {
+        selectUpgrade(bestChoice);
+      } else {
+        if (countdownEl) countdownEl.textContent = remaining;
+        autoUpgradeTimer = setTimeout(tick, 1000);
+      }
+    };
+    autoUpgradeTimer = setTimeout(tick, 1000);
+  }
 }
 
 function checkPendingLevelUps() {

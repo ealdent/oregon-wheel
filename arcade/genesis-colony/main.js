@@ -25,6 +25,7 @@ function startGame() {
 
 function gameOver() {
   game.phase = 'dead';
+  cancelAutoUpgrade();
   playSound('explosion');
 
   const min = Math.floor(game.time / 60);

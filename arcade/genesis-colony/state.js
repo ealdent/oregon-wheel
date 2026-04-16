@@ -11,6 +11,8 @@ let keys = {};
 let joystick = { active: false, dx: 0, dy: 0, touchId: null, ox: 0, oy: 0 };
 let paused = false;
 let announcement = { text: '', timer: 0, color: '#fff' };
+let autoUpgrade = false;
+let autoUpgradeTimer = null;
 
 // Stars (fixed screen-space, generated once)
 const stars = [];

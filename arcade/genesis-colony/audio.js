@@ -1,11 +1,18 @@
 // ============ AUDIO (Web Audio API) ============
 let audioCtx = null;
+let soundEnabled = true;
+
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
 
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  document.getElementById('sound-toggle').textContent = soundEnabled ? '\u{1F50A}' : '\u{1F507}';
+}
+
 function playSound(type) {
-  if (!audioCtx) return;
+  if (!soundEnabled || !audioCtx) return;
   const t = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
