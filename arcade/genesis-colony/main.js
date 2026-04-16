@@ -13,6 +13,9 @@ function startGame() {
   document.getElementById('weapons-display').classList.remove('hidden');
   document.getElementById('pause-hint').style.display = 'none';
   paused = false;
+  autoUpgrade = false;
+  document.getElementById('upgrade-auto-toggle').classList.remove('active');
+  document.getElementById('pause-auto-toggle').classList.remove('active');
   keys = {};
   joystick.active = false;
   joystick.dx = 0;

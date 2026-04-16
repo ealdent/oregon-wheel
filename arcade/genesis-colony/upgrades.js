@@ -108,6 +108,12 @@ function rankUpgradeChoice(c) {
   return 3; // passive
 }
 
+function toggleAutoUpgrade() {
+  autoUpgrade = !autoUpgrade;
+  document.getElementById('upgrade-auto-toggle').classList.toggle('active', autoUpgrade);
+  document.getElementById('pause-auto-toggle').classList.toggle('active', autoUpgrade);
+}
+
 function cancelAutoUpgrade() {
   if (autoUpgradeTimer) {
     clearTimeout(autoUpgradeTimer);
