@@ -528,11 +528,18 @@ function drawWeaponEffects() {
       ctx.lineWidth = 6;
       ctx.beginPath(); ctx.arc(ps.x, ps.y, r * 0.8, 0, Math.PI * 2); ctx.stroke();
     }
-    if (w.key === 'cryo' && w.pulseAnim > 0) {
-      ctx.fillStyle = `rgba(100,200,255,${w.pulseAnim * 0.15})`;
+    if (w.key === 'cryo') {
+      // Subtle frosty haze — always on
+      const breath = 0.03 + Math.sin(game.time * 1.5) * 0.01;
+      const haze = ctx.createRadialGradient(ps.x, ps.y, 0, ps.x, ps.y, w.slowRadius);
+      haze.addColorStop(0, `rgba(180,230,255,${breath})`);
+      haze.addColorStop(0.6, `rgba(140,210,250,${breath * 0.5})`);
+      haze.addColorStop(1, 'rgba(140,210,250,0)');
+      ctx.fillStyle = haze;
       ctx.beginPath(); ctx.arc(ps.x, ps.y, w.slowRadius, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = `rgba(100,200,255,${w.pulseAnim * 0.5})`;
-      ctx.lineWidth = 2;
+      // Faint edge ring
+      ctx.strokeStyle = `rgba(160,220,250,${0.06 + Math.sin(game.time * 2) * 0.02})`;
+      ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(ps.x, ps.y, w.slowRadius, 0, Math.PI * 2); ctx.stroke();
     }
   }

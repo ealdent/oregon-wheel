@@ -189,18 +189,21 @@ function updateWeapons() {
     }
 
     if (w.key === 'cryo') {
+      // Continuous effect — slow enemies in range every frame, damage on tick
+      for (const e of game.enemies) {
+        if (dist(p.x, p.y, e.x, e.y) < w.slowRadius + e.radius) {
+          e.slowTimer = w.slowDuration;
+          e.slowFactor = w.slowFactor;
+        }
+      }
       if (w.timer >= rate) {
         w.timer = 0;
-        w.pulseAnim = 1;
         for (const e of game.enemies) {
           if (dist(p.x, p.y, e.x, e.y) < w.slowRadius + e.radius) {
-            e.slowTimer = w.slowDuration;
-            e.slowFactor = w.slowFactor;
             damageEnemy(e, Math.floor(w.damage * p.damageMult), w.key);
           }
         }
       }
-      if (w.pulseAnim > 0) w.pulseAnim = Math.max(0, w.pulseAnim - dt * 2);
     }
   }
 }
