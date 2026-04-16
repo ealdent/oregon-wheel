@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>3 AM — A Sleep Defense Game</title>
+<style>
+  :root {
+    --bg-0: #0a0618;
+    --bg-1: #1a0f35;
+    --panel: #1e1540;
+    --panel-2: #2a2055;
+    --accent: #b794ff;
+    --accent-2: #8b5cf6;
+    --moon: #fff4c2;
+    --good: #7ee0c0;
+    --bad: #ff6b9d;
+    --text: #ede4ff;
+    --muted: #9a8cc7;
+    --border: #3a2a6a;
+    --shadow: 0 6px 22px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: radial-gradient(ellipse at top, #2a1558 0%, #080416 70%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: row;
+    width: 100vw;
+    height: 100vh;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  #game-wrap {
+    flex: 1 1 auto;
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0a0618;
+    box-shadow: var(--shadow), 0 0 60px rgba(139, 92, 246, 0.15);
+    border: 1px solid var(--border);
+    min-width: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+
+  /* The clock */
+  #clock {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "Courier New", monospace;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #ff6b9d;
+    background: rgba(10, 6, 24, 0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    text-shadow: 0 0 8px rgba(255, 107, 157, 0.5);
+    z-index: 2;
+    pointer-events: none;
+  }
+  #clock::before {
+    content: "●";
+    display: inline-block;
+    margin-right: 6px;
+    color: #ff6b9d;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0.2; }
+  }
+
+  #top-hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .stat-badge {
+    background: rgba(30, 21, 64, 0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow);
+  }
+  .stat-badge .label { color: var(--muted); font-weight: 500; font-size: 11px; margin-right: 2px;}
+  .stat-badge .icon { font-size: 16px; }
+  .stat-group { display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto;}
+
+  #wave-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(20, 12, 44, 0.95);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    padding: 24px 44px;
+    font-size: 24px;
+    font-weight: 800;
+    text-align: center;
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 40px rgba(183, 148, 255, 0.5);
+    max-width: 80%;
+  }
+  #wave-banner.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #wave-banner .sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  /* Side panel */
+  #side {
+    width: 330px;
+    flex: 0 0 330px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  #side::-webkit-scrollbar { width: 6px; }
+  #side::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px;}
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+  }
+  .panel h3 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-weight: 800;
+  }
+  .panel .title-big {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--moon);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+    text-transform: none;
+  }
+  .panel .subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  .tower-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .tower-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .tower-btn:hover:not(:disabled) {
+    background: #3a2d72;
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .tower-btn.selected {
+    background: #4a3a8a;
+    border-color: var(--accent);
+    box-shadow: 0 0 14px rgba(183, 148, 255, 0.5);
+  }
+  .tower-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .tower-btn .tname { font-weight: 700; font-size: 12px; text-align: center;}
+  .tower-btn .tcost { color: var(--moon); font-weight: 700; font-size: 12px; }
+  .tower-btn .ticon { font-size: 26px; line-height: 1; }
+
+  #selected-panel { display: none; }
+  #selected-panel.active { display: block; }
+  .selected-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .selected-head .icon-big {
+    font-size: 30px;
+    background: var(--panel-2);
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+  }
+  .selected-head .name { font-size: 15px; font-weight: 700;}
+  .selected-head .tier { color: var(--muted); font-size: 11px;}
+  .flavor { color: var(--muted); font-size: 11px; font-style: italic; margin: 6px 0 8px 0;}
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 2px 0;
+    color: var(--muted);
+  }
+  .stat-row .v { color: var(--text); font-weight: 600;}
+
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 9px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%);
+    color: #1a0940;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.1s;
+  }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
+  .btn.secondary {
+    background: var(--panel-2);
+    color: var(--text);
+  }
+
+  #start-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 800;
+    background: linear-gradient(180deg, var(--moon) 0%, #e8c870 100%);
+    color: #2a1c00;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(255, 244, 194, 0.3);
+    z-index: 3;
+    font-family: inherit;
+    transition: transform 0.1s;
+  }
+  #start-btn:hover { transform: translateX(-50%) translateY(-2px); }
+  #start-btn.hidden { display: none; }
+
+  #speed-btn, #new-game-btn {
+    position: absolute;
+    bottom: 20px;
+    padding: 10px 14px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: inherit;
+    z-index: 3;
+    font-size: 13px;
+  }
+  #speed-btn { right: 20px; }
+  #new-game-btn { left: 20px; }
+
+  #modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 6, 24, 0.9);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  #modal.show { display: flex; }
+  .modal-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    max-width: 420px;
+    box-shadow: var(--shadow);
+  }
+  .modal-card h2 { margin: 0 0 6px 0; font-size: 28px; color: var(--moon);}
+  .modal-card p { color: var(--muted); font-style: italic; line-height: 1.5;}
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    #app { flex-direction: column; padding: 6px; gap: 6px;}
+    #side { width: 100%; flex: 0 0 auto; max-height: 40vh;}
+    #game-wrap { flex: 1 1 auto; min-height: 0;}
+    .tower-grid { grid-template-columns: repeat(5, 1fr);}
+    .tower-btn .tname { font-size: 10px; }
+    .tower-btn .ticon { font-size: 22px;}
+    .stat-badge { font-size: 12px; padding: 6px 8px;}
+    #clock { font-size: 15px;}
+  }
+  @media (max-width: 500px) {
+    .tower-grid { grid-template-columns: repeat(3, 1fr);}
+    #side { max-height: 44vh;}
+  }
+
+  .hint {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 21, 64, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.2s;
+    text-align: center;
+  }
+  .hint.show { opacity: 1; }
+
+  /* Subtle ambient glow on the game-wrap */
+  #game-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.4) 100%);
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="game-wrap">
+    <canvas id="game"></canvas>
+    <div id="clock">3:17 AM</div>
+    <div id="top-hud">
+      <div class="stat-group">
+        <div class="stat-badge"><span class="icon">💤</span><span class="label">Rest</span><span id="lives">20</span></div>
+        <div class="stat-badge"><span class="icon">🧘</span><span class="label">Calm</span><span id="gold">150</span></div>
+      </div>
+      <div class="stat-group">
+        <div class="stat-badge"><span class="icon">🌙</span><span class="label">Hour</span><span id="wave">0</span>/20</div>
+        <div class="stat-badge"><span class="icon">⭐</span><span class="label">Peace</span><span id="score">0</span></div>
+      </div>
+    </div>
+    <div id="wave-banner"><div id="wave-banner-title">Hour 1</div><div class="sub" id="wave-banner-sub"></div></div>
+    <button id="start-btn">▶ Begin the Night</button>
+    <button id="speed-btn">⏩ 1×</button>
+    <button id="new-game-btn">🔄 New Night</button>
+    <div class="hint" id="hint"></div>
+    <div id="modal">
+      <div class="modal-card">
+        <h2 id="modal-title">Morning</h2>
+        <p id="modal-body"></p>
+        <button class="btn" id="modal-btn">Try Tomorrow Night</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="side">
+    <div class="panel">
+      <div class="title-big">Sleep Defense</div>
+      <div class="subtitle">It's 3 AM. Your thoughts won't shut up.</div>
+      <h3 style="margin-top:4px;">Coping Mechanisms</h3>
+      <div class="tower-grid" id="tower-grid"></div>
+      <p style="color: var(--muted); font-size: 11px; margin: 8px 0 0 0; font-style:italic;">Click one, then place it along the neural pathway.</p>
+    </div>
+
+    <div class="panel" id="selected-panel">
+      <h3>Technique</h3>
+      <div class="selected-head">
+        <div class="icon-big" id="sel-icon">🫁</div>
+        <div>
+          <div class="name" id="sel-name"></div>
+          <div class="tier" id="sel-tier"></div>
+        </div>
+      </div>
+      <div class="flavor" id="sel-flavor"></div>
+      <div id="sel-stats"></div>
+      <button class="btn" id="upgrade-btn">⬆ Practice More</button>
+      <button class="btn secondary" id="sell-btn">↩ Abandon</button>
+    </div>
+
+    <div class="panel">
+      <h3>Next Hour</h3>
+      <div id="wave-preview" style="color: var(--muted); font-size: 12px;">Press Begin.</div>
+    </div>
+
+    <div class="panel">
+      <h3>The Rules</h3>
+      <p style="color: var(--muted); font-size: 11px; margin: 0; line-height: 1.6;">
+        Intrusive thoughts march down your neural pathway toward waking consciousness. Stop them with coping techniques. If they reach your waking mind, you lose <em>rest</em>. Survive until dawn — hour 20 — and you get to sleep.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   SLEEP DEFENSE — It's 3 AM and your brain won't shut up
+   Single-file, no dependencies.
+   ========================================================================= */
+
+const rand = (a, b) => Math.random() * (b - a) + a;
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx*dx + dy*dy; };
+const dist = (ax, ay, bx, by) => Math.sqrt(dist2(ax, ay, bx, by));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const TAU = Math.PI * 2;
+const pick = arr => arr[randInt(0, arr.length - 1)];
+
+// -------- Canvas --------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 800, H = 600;
+let DPR = 1;
+let TILE_PX = 40;
+const COLS = 20, ROWS = 15;
+let gridOffsetX = 0, gridOffsetY = 0;
+
+function resize() {
+  const wrap = document.getElementById('game-wrap');
+  const rect = wrap.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = rect.width * DPR;
+  canvas.height = rect.height * DPR;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  const tileW = Math.floor(rect.width / COLS);
+  const tileH = Math.floor(rect.height / ROWS);
+  TILE_PX = Math.max(22, Math.min(tileW, tileH));
+  W = TILE_PX * COLS;
+  H = TILE_PX * ROWS;
+  gridOffsetX = Math.floor((rect.width - W) / 2);
+  gridOffsetY = Math.floor((rect.height - H) / 2);
+}
+window.addEventListener('resize', resize);
+
+// -------- Map generation (a winding neural pathway) --------
+let grid = [];
+let pathCells = [];
+let pathPoints = [];
+let cumDist = [0], pathLen = 0;
+// Dendrite decorations (fake branches off the path)
+let dendrites = [];
+// Background stars (thoughts)
+let stars = [];
+
+function generateMap() {
+  grid = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+  pathCells = [];
+  dendrites = [];
+
+  const startRow = randInt(2, ROWS - 3);
+  const endRow = randInt(2, ROWS - 3);
+  let c = 0, r = startRow;
+  pathCells.push({c, r});
+  grid[r][c] = 1;
+
+  let lastDir = {dx: 1, dy: 0};
+  let safety = 0;
+  while (c < COLS - 1 && safety++ < 400) {
+    const options = [];
+    const pushOpt = (dx, dy, weight) => {
+      const nc = c + dx, nr = r + dy;
+      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+      if (grid[nr][nc] !== 0) return;
+      let touches = 0;
+      for (const [a, b] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const xx = nc + a, yy = nr + b;
+        if (xx < 0 || xx >= COLS || yy < 0 || yy >= ROWS) continue;
+        if (xx === c && yy === r) continue;
+        if (grid[yy][xx] === 1) touches++;
+      }
+      if (touches > 0) return;
+      options.push({dx, dy, w: weight});
+    };
+    pushOpt(1, 0, 5);
+    pushOpt(0, 1, 2);
+    pushOpt(0, -1, 2);
+    if (c > 2 && c < COLS - 5) pushOpt(-1, 0, 0.4);
+
+    if (options.length === 0) {
+      if (c + 1 < COLS && grid[r][c+1] === 0) options.push({dx: 1, dy: 0, w: 1});
+      else break;
+    }
+    for (const o of options) if (o.dx === lastDir.dx && o.dy === lastDir.dy) o.w *= 2.2;
+    const progress = c / COLS;
+    for (const o of options) {
+      if (progress > 0.6) {
+        if ((endRow > r && o.dy > 0) || (endRow < r && o.dy < 0)) o.w *= 1.8;
+      }
+    }
+    const totalW = options.reduce((s, o) => s + o.w, 0);
+    let p = Math.random() * totalW, chosen = options[0];
+    for (const o of options) { p -= o.w; if (p <= 0) { chosen = o; break; } }
+    c += chosen.dx; r += chosen.dy;
+    lastDir = {dx: chosen.dx, dy: chosen.dy};
+    pathCells.push({c, r});
+    grid[r][c] = 1;
+    if (c === COLS - 1) break;
+  }
+  while (pathCells[pathCells.length - 1].c < COLS - 1) {
+    const last = pathCells[pathCells.length - 1];
+    const nc = last.c + 1;
+    if (nc >= COLS) break;
+    if (grid[last.r][nc] === 0) {
+      grid[last.r][nc] = 1;
+      pathCells.push({c: nc, r: last.r});
+    } else break;
+  }
+
+  // Generate fake dendrite branches for decoration
+  for (let i = 2; i < pathCells.length - 2; i += 2) {
+    if (Math.random() < 0.5) {
+      const pc = pathCells[i];
+      const cx = pc.c * TILE_PX + TILE_PX/2;
+      const cy = pc.r * TILE_PX + TILE_PX/2;
+      const ang = rand(0, TAU);
+      const len = rand(TILE_PX * 0.5, TILE_PX * 1.6);
+      dendrites.push({
+        x1: cx, y1: cy,
+        x2: cx + Math.cos(ang) * len,
+        y2: cy + Math.sin(ang) * len,
+        sub: Math.random() < 0.5 ? {ang: ang + rand(-0.8, 0.8), len: len * 0.6} : null,
+      });
+    }
+  }
+
+  // Stars (floating thought motes)
+  stars = [];
+  for (let i = 0; i < 60; i++) {
+    stars.push({
+      x: rand(0, W), y: rand(0, H),
+      r: rand(0.5, 1.8),
+      phase: rand(0, TAU),
+      speed: rand(0.3, 1.2),
+    });
+  }
+
+  buildPathPoints();
+}
+
+function cellCenter(c, r) {
+  return { x: c * TILE_PX + TILE_PX / 2, y: r * TILE_PX + TILE_PX / 2 };
+}
+
+function buildPathPoints() {
+  pathPoints = [];
+  for (let i = 0; i < pathCells.length; i++) {
+    const p = pathCells[i];
+    pathPoints.push(cellCenter(p.c, p.r));
+  }
+  cumDist = [0];
+  for (let i = 1; i < pathPoints.length; i++) {
+    cumDist.push(cumDist[i-1] + dist(pathPoints[i-1].x, pathPoints[i-1].y, pathPoints[i].x, pathPoints[i].y));
+  }
+  pathLen = cumDist[cumDist.length - 1];
+}
+
+function posAtDist(d) {
+  if (d <= 0) return {...pathPoints[0], idx: 0};
+  if (d >= pathLen) return {...pathPoints[pathPoints.length-1], idx: pathPoints.length-1};
+  let lo = 0, hi = cumDist.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (cumDist[mid] <= d) lo = mid; else hi = mid;
+  }
+  const a = pathPoints[lo], b = pathPoints[hi];
+  const segLen = cumDist[hi] - cumDist[lo];
+  const t = segLen > 0 ? (d - cumDist[lo]) / segLen : 0;
+  return {x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), idx: lo};
+}
+
+// -------- Towers: Coping Mechanisms --------
+const TOWERS = {
+  breath: {
+    name: 'Deep Breaths',
+    icon: '🫁',
+    desc: 'Fast, steady, single-target. The classic.',
+    flavor: 'In for four, hold for seven, out for eight.',
+    color: '#8fd9ff',
+    color2: '#4a9cd4',
+    cost: 50,
+    tiers: [
+      { damage: 12, range: 130, fireRate: 1.6, bulletSpeed: 520 },
+      { damage: 20, range: 145, fireRate: 1.9, bulletSpeed: 560, upgCost: 60 },
+      { damage: 34, range: 165, fireRate: 2.2, bulletSpeed: 620, upgCost: 110 },
+      { damage: 58, range: 190, fireRate: 2.6, bulletSpeed: 700, upgCost: 210 },
+    ],
+    projectile: 'bubble',
+  },
+  meditation: {
+    name: 'Meditation',
+    icon: '🧘',
+    desc: 'Calming aura — slows and damages nearby thoughts.',
+    flavor: 'Notice the thought. Let it pass. Do not engage.',
+    color: '#c9a4ff',
+    color2: '#6b4aa8',
+    cost: 80,
+    tiers: [
+      { damage: 4, range: 110, fireRate: 1.2, slow: 0.35, slowDur: 1.0, aoe: true },
+      { damage: 8, range: 125, fireRate: 1.4, slow: 0.45, slowDur: 1.2, aoe: true, upgCost: 90 },
+      { damage: 14, range: 140, fireRate: 1.6, slow: 0.55, slowDur: 1.4, aoe: true, upgCost: 170 },
+      { damage: 24, range: 160, fireRate: 1.8, slow: 0.65, slowDur: 1.7, aoe: true, upgCost: 320 },
+    ],
+  },
+  melatonin: {
+    name: 'Melatonin',
+    icon: '💊',
+    desc: 'Splash damage — hits whole clusters of thoughts.',
+    flavor: 'Should have taken this two hours ago.',
+    color: '#ff9ec7',
+    color2: '#b85585',
+    cost: 110,
+    tiers: [
+      { damage: 28, range: 120, fireRate: 0.55, bulletSpeed: 320, splash: 50 },
+      { damage: 46, range: 135, fireRate: 0.65, bulletSpeed: 340, splash: 58, upgCost: 120 },
+      { damage: 78, range: 150, fireRate: 0.75, bulletSpeed: 360, splash: 68, upgCost: 220 },
+      { damage: 130, range: 170, fireRate: 0.85, bulletSpeed: 400, splash: 80, upgCost: 400 },
+    ],
+    projectile: 'pill',
+  },
+  reframe: {
+    name: 'CBT Reframe',
+    icon: '💭',
+    desc: 'Chains cognitive restructuring between related thoughts.',
+    flavor: 'Is this thought true? Is it helpful? Let\'s examine the evidence.',
+    color: '#ffd76a',
+    color2: '#b88a20',
+    cost: 130,
+    tiers: [
+      { damage: 18, range: 125, fireRate: 1.1, chains: 2 },
+      { damage: 30, range: 140, fireRate: 1.25, chains: 3, upgCost: 150 },
+      { damage: 48, range: 155, fireRate: 1.4, chains: 4, upgCost: 280 },
+      { damage: 78, range: 175, fireRate: 1.6, chains: 6, upgCost: 500 },
+    ],
+  },
+  whitenoise: {
+    name: 'White Noise',
+    icon: '📻',
+    desc: 'Long-range piercing shhh that drowns out a whole line.',
+    flavor: 'Brown noise is better, actually. But we work with what we have.',
+    color: '#b8b8d4',
+    color2: '#5a5a78',
+    cost: 160,
+    tiers: [
+      { damage: 60, range: 260, fireRate: 0.45, bulletSpeed: 1100, pierce: 1 },
+      { damage: 110, range: 290, fireRate: 0.55, bulletSpeed: 1200, pierce: 1, upgCost: 180 },
+      { damage: 200, range: 320, fireRate: 0.65, bulletSpeed: 1300, pierce: 2, upgCost: 340 },
+      { damage: 360, range: 360, fireRate: 0.75, bulletSpeed: 1500, pierce: 3, upgCost: 620 },
+    ],
+  },
+};
+
+function towerStats(type, tier) {
+  const base = TOWERS[type];
+  let stats = {};
+  for (let i = 0; i <= tier; i++) stats = {...stats, ...base.tiers[i]};
+  return stats;
+}
+function towerTotalCost(type, tier) {
+  const base = TOWERS[type];
+  let total = base.cost;
+  for (let i = 1; i <= tier; i++) total += base.tiers[i].upgCost || 0;
+  return total;
+}
+
+// -------- Enemies: Intrusive Thoughts --------
+// Each enemy type has a pool of "taglines" that float above them on spawn
+const ENEMIES = {
+  worry: {
+    name: 'Minor Worry',
+    hp: 40, speed: 55, bounty: 7,
+    color: '#9cb4c9', secondary:'#556575', size: 14, armor: 0,
+    taglines: ['did I lock the door', 'did I reply to Kevin', 'that email', 'am I drinking enough water', 'is that mole new', 'did I leave the stove on'],
+  },
+  cringe: {
+    name: 'Cringe Memory',
+    hp: 22, speed: 105, bounty: 9,
+    color: '#ff9ec7', secondary:'#b55585', size: 11, armor: 0,
+    taglines: ['remember 7th grade', 'that thing you said in 2008', 'the wrong name', 'called teacher "mom"', 'waved back at nobody', 'pushed a pull door'],
+  },
+  work: {
+    name: 'Work Anxiety',
+    hp: 180, speed: 38, bounty: 20,
+    color: '#4a6478', secondary:'#2a3a48', size: 18, armor: 0.35,
+    taglines: ['the deadline', 'that slack message', 'Q4 planning', 'my manager\'s tone', 'the standup tomorrow', 'the PR I never merged'],
+  },
+  todo: {
+    name: 'To-Do Swarm',
+    hp: 12, speed: 75, bounty: 3,
+    color: '#ffd76a', secondary:'#886a20', size: 9, armor: 0,
+    taglines: ['laundry', 'taxes', 'dentist', 'call mom', 'renew passport', 'oil change', 'water the plants', 'replace batteries', 'that one email', 'vacuum', 'reply to group chat'],
+  },
+  regret: {
+    name: 'Old Regret',
+    hp: 95, speed: 50, bounty: 16,
+    color: '#8a6a9a', secondary:'#4a3055', size: 15, armor: 0.25, slowResist: 0.6,
+    taglines: ['should have said yes', 'should have said no', 'that apartment you didn\'t take', 'the job you turned down', 'you should have called', 'the friendship you let fade'],
+  },
+  dread: {
+    name: 'Existential Dread',
+    hp: 320, speed: 30, bounty: 30,
+    color: '#2a1a3a', secondary:'#0a0510', size: 20, armor: 0.45,
+    taglines: ['what is the point', 'heat death of the universe', 'everyone you love will die', 'are you wasting your life', 'what if this is all there is', 'time is passing'],
+  },
+  ghost: {
+    name: 'Ghost of an Ex',
+    hp: 70, speed: 90, bounty: 18,
+    color: '#d4c4ff', secondary:'#7a6aa0', size: 13, armor: 0, slowResist: 0.3,
+    taglines: ['wonder what they\'re doing', 'should I check their instagram', 'remember the trip to Maine', 'I could just text', 'no I shouldn\'t', 'but what if'],
+  },
+  sunday: {
+    name: 'The Sunday Scaries',
+    hp: 2200, speed: 35, bounty: 200,
+    color: '#ff6b6b', secondary:'#8c2b2b', size: 26, armor: 0.4, slowResist: 0.5,
+    taglines: ['monday is coming', 'you didn\'t do anything this weekend', 'the week ahead', 'so much to do', 'you\'re going to be tired'],
+  },
+  threeAM: {
+    name: 'The 3 AM Spiral',
+    hp: 7500, speed: 32, bounty: 600,
+    color: '#1a0a2a', secondary:'#ff6b9d', size: 32, armor: 0.5, slowResist: 0.7,
+    taglines: ['everything is wrong', 'your life is off track', 'you\'re falling behind', 'nobody really likes you', 'you should be further along by now'],
+  },
+};
+
+// -------- Waves: "Hours of the Night" --------
+// Each wave gets a theme/title that feels like a stage of insomnia
+const WAVE_TITLES = [
+  { t: 'Hour 1: Just Lying Here',             s: 'A few small worries creep in.' },
+  { t: 'Hour 2: Can\'t Get Comfortable',      s: 'Flip the pillow. Still thinking.' },
+  { t: 'Hour 3: Cringe Highlight Reel',       s: 'Your brain picks this moment to remember EVERYTHING.' },
+  { t: 'Hour 4: Tomorrow\'s Problems',        s: 'Work stuff you can\'t solve at 11 PM.' },
+  { t: 'Hour 5: The To-Do List',              s: 'A hundred small tasks descend on you at once.' },
+  { t: 'Hour 6: Cringe + Urgency',            s: 'Old memories riding on modern anxiety.' },
+  { t: 'Hour 7: The Regrets Arrive',          s: 'Meditation barely slows them — they resist.' },
+  { t: 'Hour 8: Everything At Once',          s: 'All of it. All at the same time.' },
+  { t: 'Hour 9: Tomorrow\'s Meetings',        s: 'Work anxiety stacks higher.' },
+  { t: 'Hour 10: The Sunday Scaries Arrive',  s: '⚠ Something big is here. ⚠' },
+  { t: 'Hour 11: Ghosts of Exes Past',        s: 'Should not check their Instagram. Will anyway.' },
+  { t: 'Hour 12: Regret Spiral',              s: 'All the roads not taken.' },
+  { t: 'Hour 13: To-Do Tsunami',              s: 'Every task you\'ve ever put off.' },
+  { t: 'Hour 14: Existential Creep',          s: 'The universe is very big and you are very small.' },
+  { t: 'Hour 15: Ghosts + Regrets',           s: 'Slow-resistant. Bring reframes.' },
+  { t: 'Hour 16: Pre-Dawn Panic',             s: 'Work + dread + runners. Brutal.' },
+  { t: 'Hour 17: The Dread Parade',           s: 'Existential dread in formation.' },
+  { t: 'Hour 18: Regret + Swarm',             s: 'Death by a thousand "remembers."' },
+  { t: 'Hour 19: The Scaries Return',         s: '⚠ Another Scaries — and they brought friends.' },
+  { t: 'Hour 20: 3 AM',                       s: '⚠⚠ The Spiral. Everything, everywhere, all at once.' },
+];
+
+const WAVES = [
+  [{type:'worry', count:8, interval:0.8, delay:0}],
+  [{type:'worry', count:10, interval:0.7, delay:0},{type:'cringe', count:4, interval:0.5, delay:3}],
+  [{type:'cringe', count:12, interval:0.5, delay:0}],
+  [{type:'worry', count:6, interval:0.6, delay:0},{type:'work', count:2, interval:1.5, delay:2},{type:'worry', count:8, interval:0.5, delay:4}],
+  [{type:'todo', count:20, interval:0.28, delay:0}],
+  [{type:'cringe', count:10, interval:0.4, delay:0},{type:'work', count:4, interval:1.2, delay:2}],
+  [{type:'regret', count:6, interval:1.0, delay:0},{type:'cringe', count:8, interval:0.45, delay:3}],
+  [{type:'worry', count:14, interval:0.5, delay:0},{type:'todo', count:20, interval:0.25, delay:6}],
+  [{type:'work', count:8, interval:1.0, delay:0},{type:'cringe', count:10, interval:0.4, delay:4}],
+  [{type:'sunday', count:1, interval:1, delay:0},{type:'worry', count:12, interval:0.5, delay:2}],
+  [{type:'ghost', count:10, interval:0.55, delay:0},{type:'work', count:4, interval:1.0, delay:3}],
+  [{type:'regret', count:12, interval:0.7, delay:0}],
+  [{type:'todo', count:35, interval:0.2, delay:0},{type:'cringe', count:8, interval:0.5, delay:5}],
+  [{type:'dread', count:5, interval:1.2, delay:0},{type:'todo', count:20, interval:0.2, delay:4}],
+  [{type:'ghost', count:16, interval:0.45, delay:0},{type:'regret', count:6, interval:0.9, delay:2}],
+  [{type:'work', count:10, interval:0.8, delay:0},{type:'dread', count:3, interval:1.5, delay:5},{type:'cringe', count:12, interval:0.35, delay:2}],
+  [{type:'dread', count:8, interval:1.0, delay:0},{type:'ghost', count:12, interval:0.5, delay:3}],
+  [{type:'regret', count:18, interval:0.6, delay:0},{type:'todo', count:25, interval:0.18, delay:4}],
+  [{type:'sunday', count:1, interval:1, delay:0},{type:'dread', count:6, interval:1.1, delay:2},{type:'ghost', count:14, interval:0.45, delay:5}],
+  [{type:'threeAM', count:1, interval:1, delay:0},{type:'dread', count:10, interval:0.9, delay:3},{type:'regret', count:14, interval:0.6, delay:6},{type:'todo', count:30, interval:0.2, delay:9}],
+];
+
+function hpScale(wave) { return 1 + Math.pow(wave - 1, 1.12) * 0.07; }
+
+// -------- Game state --------
+const Game = {
+  lives: 20,
+  gold: 150,
+  score: 0,
+  wave: 0,
+  waveActive: false,
+  waveQueue: [],
+  spawnTimer: 0,
+  speed: 1,
+  lastTime: 0,
+  enemies: [],
+  towers: [],
+  projectiles: [],
+  effects: [],
+  placingType: null,
+  selectedTower: null,
+  hoverCell: null,
+  gameOver: false,
+  won: false,
+  shake: 0,
+  totalTimeElapsed: 0,
+  clockStartMinutes: 11 * 60 + 17, // 11:17 PM
+};
+
+// -------- Spawning --------
+function startNextWave() {
+  if (Game.waveActive || Game.gameOver) return;
+  Game.wave++;
+  if (Game.wave > WAVES.length) return;
+  Game.waveActive = true;
+  const def = WAVES[Game.wave - 1];
+  Game.waveQueue = [];
+  for (const packet of def) {
+    for (let i = 0; i < packet.count; i++) {
+      Game.waveQueue.push({ t: packet.delay + i * packet.interval, type: packet.type });
+    }
+  }
+  Game.waveQueue.sort((a,b) => a.t - b.t);
+  Game.spawnTimer = 0;
+  showWaveBanner(Game.wave);
+  updateHud();
+  updateStartBtn();
+  updateWavePreview();
+}
+
+function spawnEnemy(typeKey) {
+  const base = ENEMIES[typeKey];
+  const scale = hpScale(Game.wave);
+  const e = {
+    type: typeKey,
+    hp: base.hp * scale, maxHp: base.hp * scale,
+    speed: base.speed,
+    bounty: Math.ceil(base.bounty * (1 + (Game.wave - 1) * 0.04)),
+    color: base.color, secondary: base.secondary,
+    size: base.size,
+    armor: base.armor,
+    slowResist: base.slowResist || 0,
+    dist: -rand(0, 8),
+    slowAmount: 0, slowTime: 0,
+    alive: true,
+    wobble: rand(0, TAU),
+    name: base.name,
+    tagline: pick(base.taglines),
+    taglineLife: 2.2, // show for 2.2s after spawn
+  };
+  Game.enemies.push(e);
+}
+
+// -------- Placement --------
+function canPlaceAt(c, r) {
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return false;
+  return grid[r][c] === 0;
+}
+
+function tryPlaceTower(cx, cy) {
+  const c = Math.floor(cx / TILE_PX);
+  const r = Math.floor(cy / TILE_PX);
+  if (!canPlaceAt(c, r)) return false;
+  const type = Game.placingType;
+  const base = TOWERS[type];
+  if (Game.gold < base.cost) return false;
+  Game.gold -= base.cost;
+  const pos = cellCenter(c, r);
+  const t = {
+    type, tier: 0, c, r, x: pos.x, y: pos.y,
+    cooldown: 0, angle: -Math.PI / 2,
+    kills: 0, totalDamage: 0,
+    totalSpent: base.cost, pulse: 0,
+  };
+  Game.towers.push(t);
+  grid[r][c] = 2;
+  updateHud();
+  updateTowerButtons();
+  return true;
+}
+
+function sellSelected() {
+  if (!Game.selectedTower) return;
+  const t = Game.selectedTower;
+  const refund = Math.floor(t.totalSpent * 0.7);
+  Game.gold += refund;
+  grid[t.r][t.c] = 0;
+  Game.towers = Game.towers.filter(x => x !== t);
+  Game.selectedTower = null;
+  spawnFloater(t.x, t.y, `+${refund}`, '#c9a4ff');
+  updateHud(); updateSelectedPanel(); updateTowerButtons();
+}
+
+function upgradeSelected() {
+  if (!Game.selectedTower) return;
+  const t = Game.selectedTower;
+  const base = TOWERS[t.type];
+  if (t.tier >= 3) return;
+  const cost = base.tiers[t.tier + 1].upgCost;
+  if (Game.gold < cost) return;
+  Game.gold -= cost;
+  t.tier++;
+  t.totalSpent += cost;
+  t.pulse = 1;
+  spawnFloater(t.x, t.y - 20, `Deeper Practice!`, '#7ee0c0');
+  updateHud(); updateSelectedPanel();
+}
+
+// -------- Combat --------
+function updateTowers(dt) {
+  for (const t of Game.towers) {
+    t.pulse = Math.max(0, t.pulse - dt * 2);
+    const stats = towerStats(t.type, t.tier);
+    t.cooldown -= dt;
+
+    if (stats.aoe) {
+      if (t.cooldown <= 0) {
+        let hit = false;
+        for (const e of Game.enemies) {
+          if (!e.alive) continue;
+          if (dist2(t.x, t.y, e.x, e.y) <= stats.range * stats.range) {
+            damageEnemy(e, stats.damage, t);
+            const slowAmt = stats.slow * (1 - e.slowResist);
+            if (slowAmt > e.slowAmount) {
+              e.slowAmount = slowAmt;
+              e.slowTime = stats.slowDur;
+            } else {
+              e.slowTime = Math.max(e.slowTime, stats.slowDur);
+            }
+            hit = true;
+          }
+        }
+        if (hit) {
+          Game.effects.push({kind:'calmPulse', x: t.x, y: t.y, r: 0, maxR: stats.range, life: 0.6, maxLife: 0.6});
+        }
+        t.cooldown = 1 / stats.fireRate;
+      }
+      continue;
+    }
+
+    let best = null;
+    for (const e of Game.enemies) {
+      if (!e.alive) continue;
+      const d = dist2(t.x, t.y, e.x, e.y);
+      if (d > stats.range * stats.range) continue;
+      if (best === null || e.dist > best.dist) best = e;
+    }
+    if (best) {
+      const targetAng = Math.atan2(best.y - t.y, best.x - t.x);
+      let da = targetAng - t.angle;
+      while (da > Math.PI) da -= TAU;
+      while (da < -Math.PI) da += TAU;
+      t.angle += clamp(da, -8*dt, 8*dt);
+
+      if (t.cooldown <= 0 && Math.abs(da) < 0.35) {
+        fireTower(t, best, stats);
+        t.cooldown = 1 / stats.fireRate;
+      }
+    }
+  }
+}
+
+function fireTower(t, target, stats) {
+  if (t.type === 'reframe') {
+    const hit = new Set();
+    let cur = target;
+    let chainsLeft = stats.chains;
+    const segments = [{x: t.x, y: t.y}];
+    while (cur && chainsLeft-- > 0) {
+      hit.add(cur);
+      segments.push({x: cur.x, y: cur.y});
+      damageEnemy(cur, stats.damage, t);
+      let next = null, bestD = 130 * 130;
+      for (const e of Game.enemies) {
+        if (!e.alive || hit.has(e)) continue;
+        const d2 = dist2(cur.x, cur.y, e.x, e.y);
+        if (d2 < bestD) { bestD = d2; next = e; }
+      }
+      cur = next;
+    }
+    Game.effects.push({kind:'reframe', segments, life: 0.35, maxLife: 0.35});
+  } else if (t.type === 'whitenoise') {
+    const dx = Math.cos(t.angle), dy = Math.sin(t.angle);
+    const endX = t.x + dx * stats.range, endY = t.y + dy * stats.range;
+    const candidates = [];
+    for (const e of Game.enemies) {
+      if (!e.alive) continue;
+      const px = e.x - t.x, py = e.y - t.y;
+      const proj = px * dx + py * dy;
+      if (proj < 0 || proj > stats.range) continue;
+      const perp = Math.abs(px * (-dy) + py * dx);
+      if (perp < e.size + 6) candidates.push({e, proj});
+    }
+    candidates.sort((a,b) => a.proj - b.proj);
+    let hits = 0;
+    for (const c of candidates) {
+      if (hits >= stats.pierce) break;
+      damageEnemy(c.e, stats.damage, t);
+      hits++;
+    }
+    Game.effects.push({kind:'shhh', x1: t.x, y1: t.y, x2: endX, y2: endY, life: 0.25, maxLife: 0.25});
+  } else {
+    const dx = target.x - t.x, dy = target.y - t.y;
+    const d = Math.sqrt(dx*dx+dy*dy) || 1;
+    const p = {
+      x: t.x, y: t.y,
+      vx: dx/d * stats.bulletSpeed, vy: dy/d * stats.bulletSpeed,
+      damage: stats.damage,
+      from: t, type: t.type,
+      splash: stats.splash || 0,
+      life: 2.5, target,
+      angle: Math.atan2(dy, dx),
+    };
+    if (t.type === 'melatonin') {
+      p.arc = true;
+      p.startX = t.x; p.startY = t.y;
+      p.endX = target.x; p.endY = target.y;
+      p.t = 0;
+      p.flightTime = d / stats.bulletSpeed;
+      p.spin = 0;
+    }
+    Game.projectiles.push(p);
+  }
+}
+
+function damageEnemy(e, dmg, tower) {
+  const eff = dmg * (1 - e.armor);
+  e.hp -= eff;
+  if (tower) tower.totalDamage += eff;
+  if (e.hp <= 0 && e.alive) {
+    e.alive = false;
+    Game.gold += e.bounty;
+    Game.score += Math.floor(e.bounty * 1.5);
+    if (tower) tower.kills++;
+    spawnFloater(e.x, e.y, `+${e.bounty}`, '#c9a4ff');
+    Game.effects.push({kind:'dissolve', x: e.x, y: e.y, color: e.color, life: 0.5, maxLife: 0.5});
+    updateHud();
+  }
+}
+
+function updateProjectiles(dt) {
+  for (const p of Game.projectiles) {
+    if (p.arc) {
+      p.t += dt;
+      p.spin = (p.spin || 0) + dt * 6;
+      const tp = Math.min(1, p.t / p.flightTime);
+      p.x = lerp(p.startX, p.endX, tp);
+      p.y = lerp(p.startY, p.endY, tp) - Math.sin(tp * Math.PI) * 40;
+      if (tp >= 1) {
+        for (const e of Game.enemies) {
+          if (!e.alive) continue;
+          if (dist2(p.endX, p.endY, e.x, e.y) <= p.splash * p.splash) {
+            damageEnemy(e, p.damage, p.from);
+          }
+        }
+        Game.effects.push({kind:'drowsy', x: p.endX, y: p.endY, r: 0, maxR: p.splash, life: 0.6, maxLife: 0.6});
+        Game.shake = Math.max(Game.shake, 3);
+        p.dead = true;
+      }
+    } else {
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.life -= dt;
+      if (p.life <= 0) { p.dead = true; continue; }
+      for (const e of Game.enemies) {
+        if (!e.alive) continue;
+        if (dist2(p.x, p.y, e.x, e.y) <= (e.size + 3) * (e.size + 3)) {
+          damageEnemy(e, p.damage, p.from);
+          p.dead = true;
+          break;
+        }
+      }
+    }
+  }
+  Game.projectiles = Game.projectiles.filter(p => !p.dead);
+}
+
+function updateEnemies(dt) {
+  for (const e of Game.enemies) {
+    if (!e.alive) continue;
+    let speedMul = 1;
+    if (e.slowTime > 0) {
+      e.slowTime -= dt;
+      speedMul = 1 - e.slowAmount;
+      if (e.slowTime <= 0) { e.slowAmount = 0; }
+    }
+    e.dist += e.speed * speedMul * dt;
+    const p = posAtDist(e.dist);
+    e.x = p.x; e.y = p.y;
+    e.wobble += dt * 6 * speedMul;
+    e.taglineLife -= dt;
+    if (e.dist >= pathLen) {
+      e.alive = false;
+      const cost = (e.type === 'sunday' || e.type === 'threeAM') ? 5 : 1;
+      Game.lives -= cost;
+      Game.shake = Math.max(Game.shake, 8);
+      spawnFloater(e.x - 30, e.y - 20, `-${cost} 💤`, '#ff6b9d');
+      updateHud();
+      if (Game.lives <= 0) endGame(false);
+    }
+  }
+  Game.enemies = Game.enemies.filter(e => e.alive);
+}
+
+function updateWave(dt) {
+  if (!Game.waveActive) return;
+  Game.spawnTimer += dt;
+  while (Game.waveQueue.length && Game.waveQueue[0].t <= Game.spawnTimer) {
+    const s = Game.waveQueue.shift();
+    spawnEnemy(s.type);
+  }
+  if (Game.waveQueue.length === 0 && Game.enemies.length === 0) {
+    Game.waveActive = false;
+    const bonus = 25 + Game.wave * 5;
+    Game.gold += bonus;
+    Game.score += 100 + Game.wave * 20;
+    spawnFloater(W/2, H/2, `Hour ${Game.wave} survived. +${bonus}`, '#7ee0c0');
+    updateHud(); updateStartBtn(); updateWavePreview();
+    if (Game.wave >= WAVES.length) endGame(true);
+  }
+}
+
+function updateEffects(dt) {
+  for (const fx of Game.effects) {
+    fx.life -= dt;
+    if (fx.kind === 'drowsy' || fx.kind === 'calmPulse') {
+      fx.r = fx.maxR * (1 - fx.life / fx.maxLife);
+    }
+    if (fx.kind === 'floater') fx.y -= 30 * dt;
+  }
+  Game.effects = Game.effects.filter(fx => fx.life > 0);
+}
+
+function spawnFloater(x, y, text, color) {
+  Game.effects.push({kind: 'floater', x, y, text, color, life: 1.1, maxLife: 1.1});
+}
+
+// -------- Clock --------
+function updateClock() {
+  // Clock ticks forward through the night. Starts at 11:17 PM, reaches ~6 AM at hour 20.
+  // Each hour survived = about 20 real minutes of in-game time.
+  const inGameMin = Game.clockStartMinutes + Game.wave * 20;
+  const h24 = Math.floor(inGameMin / 60) % 24;
+  const m = inGameMin % 60;
+  const h12 = h24 === 0 ? 12 : (h24 > 12 ? h24 - 12 : h24);
+  const ampm = h24 < 12 || h24 === 24 ? 'AM' : 'PM';
+  const str = `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+  document.getElementById('clock').textContent = str;
+}
+
+// -------- Rendering --------
+function draw() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.save();
+  ctx.scale(DPR, DPR);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  let sx = 0, sy = 0;
+  if (Game.shake > 0) {
+    sx = rand(-Game.shake, Game.shake);
+    sy = rand(-Game.shake, Game.shake);
+    Game.shake *= 0.85;
+    if (Game.shake < 0.3) Game.shake = 0;
+  }
+  ctx.translate(gridOffsetX + sx, gridOffsetY + sy);
+
+  drawBrainBackground();
+  drawDendrites();
+  drawStars();
+  drawPath();
+  drawRangePreview();
+  drawTowers();
+  drawEnemies();
+  drawProjectiles();
+  drawEffects();
+  drawPlacementGhost();
+  drawSelectedRing();
+
+  ctx.restore();
+}
+
+function drawBrainBackground() {
+  // Soft cranial gradient
+  const g = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, Math.max(W, H));
+  g.addColorStop(0, '#1a1040');
+  g.addColorStop(0.6, '#120828');
+  g.addColorStop(1, '#080416');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Brain wrinkles (soft curves in the background)
+  ctx.strokeStyle = 'rgba(100, 70, 160, 0.08)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    const y = (i / 8) * H;
+    ctx.moveTo(0, y);
+    for (let x = 0; x <= W; x += 30) {
+      ctx.lineTo(x, y + Math.sin((x * 0.02) + i) * 15);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawDendrites() {
+  // Fake branching neurons for flavor
+  ctx.strokeStyle = 'rgba(183, 148, 255, 0.15)';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  for (const d of dendrites) {
+    ctx.beginPath();
+    ctx.moveTo(d.x1, d.y1);
+    ctx.lineTo(d.x2, d.y2);
+    ctx.stroke();
+    if (d.sub) {
+      ctx.beginPath();
+      ctx.moveTo(d.x2, d.y2);
+      ctx.lineTo(d.x2 + Math.cos(d.sub.ang) * d.sub.len, d.y2 + Math.sin(d.sub.ang) * d.sub.len);
+      ctx.stroke();
+    }
+    // Tiny dot at end
+    ctx.fillStyle = 'rgba(183, 148, 255, 0.25)';
+    ctx.beginPath();
+    ctx.arc(d.x2, d.y2, 2, 0, TAU);
+    ctx.fill();
+  }
+}
+
+function drawStars() {
+  const t = Date.now() * 0.001;
+  for (const s of stars) {
+    const twinkle = (Math.sin(t * s.speed + s.phase) + 1) * 0.5;
+    ctx.fillStyle = `rgba(237, 228, 255, ${0.2 + twinkle * 0.6})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r + twinkle * 0.6, 0, TAU);
+    ctx.fill();
+  }
+}
+
+function drawPath() {
+  // The "neural pathway": a glowing synaptic line with pulses traveling along it
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Outer glow
+  ctx.strokeStyle = 'rgba(183, 148, 255, 0.18)';
+  ctx.lineWidth = TILE_PX * 1.0;
+  ctx.beginPath();
+  for (let i = 0; i < pathPoints.length; i++) {
+    const p = pathPoints[i];
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  // Darker base
+  ctx.strokeStyle = '#3a2a6a';
+  ctx.lineWidth = TILE_PX * 0.55;
+  ctx.stroke();
+
+  // Bright synaptic core
+  ctx.strokeStyle = '#6b4aa8';
+  ctx.lineWidth = TILE_PX * 0.38;
+  ctx.stroke();
+
+  // Inner flowing light
+  const t = Date.now() * 0.001;
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, '#b794ff');
+  grad.addColorStop(0.5, '#e4d4ff');
+  grad.addColorStop(1, '#b794ff');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = TILE_PX * 0.12;
+  ctx.globalAlpha = 0.6;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Pulses traveling along the pathway
+  for (let k = 0; k < 3; k++) {
+    const phase = ((t * 0.15 + k / 3) % 1) * pathLen;
+    const p = posAtDist(phase);
+    ctx.fillStyle = 'rgba(255, 244, 194, 0.9)';
+    ctx.shadowColor = '#fff4c2';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, TAU);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Start marker — the subconscious door
+  drawSubconscious(pathPoints[0].x, pathPoints[0].y);
+  // End marker — waking mind
+  drawWakingMind(pathPoints[pathPoints.length-1].x, pathPoints[pathPoints.length-1].y);
+}
+
+function drawSubconscious(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  const s = TILE_PX * 0.4;
+  // Swirl portal
+  const t = Date.now() * 0.002;
+  for (let i = 5; i >= 0; i--) {
+    ctx.strokeStyle = `rgba(100, 60, 180, ${0.15 + i * 0.12})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let a = 0; a < TAU; a += 0.1) {
+      const rr = s * (0.3 + i * 0.12) + Math.sin(a * 3 + t + i) * 2;
+      const px = Math.cos(a + t * 0.5 + i * 0.3) * rr;
+      const py = Math.sin(a + t * 0.5 + i * 0.3) * rr;
+      if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  // Label
+  ctx.fillStyle = 'rgba(183, 148, 255, 0.9)';
+  ctx.font = 'bold 10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('SUBCONSCIOUS', 0, s + 14);
+  ctx.restore();
+}
+
+function drawWakingMind(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  const s = TILE_PX * 0.45;
+  // An open, glowing eye
+  ctx.fillStyle = 'rgba(255, 244, 194, 0.9)';
+  ctx.shadowColor = '#fff4c2';
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 1.1, s * 0.65, 0, 0, TAU);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  // Iris
+  ctx.fillStyle = '#4a9cd4';
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.5, 0, TAU);
+  ctx.fill();
+  // Pupil
+  ctx.fillStyle = '#0a0618';
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 0.22, 0, TAU);
+  ctx.fill();
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(-s * 0.1, -s * 0.1, s * 0.08, 0, TAU);
+  ctx.fill();
+  // Label
+  ctx.fillStyle = 'rgba(255, 244, 194, 0.85)';
+  ctx.font = 'bold 10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('AWAKE', 0, s + 14);
+  ctx.restore();
+}
+
+function drawRangePreview() {
+  if (Game.placingType && Game.hoverCell) {
+    const stats = towerStats(Game.placingType, 0);
+    const pos = cellCenter(Game.hoverCell.c, Game.hoverCell.r);
+    const ok = canPlaceAt(Game.hoverCell.c, Game.hoverCell.r);
+    ctx.strokeStyle = ok ? 'rgba(126, 224, 192, 0.8)' : 'rgba(255, 107, 157, 0.8)';
+    ctx.fillStyle = ok ? 'rgba(126, 224, 192, 0.12)' : 'rgba(255, 107, 157, 0.12)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, stats.range, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (Game.selectedTower) {
+    const t = Game.selectedTower;
+    const stats = towerStats(t.type, t.tier);
+    ctx.strokeStyle = 'rgba(183, 148, 255, 0.9)';
+    ctx.fillStyle = 'rgba(183, 148, 255, 0.08)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, stats.range, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawSelectedRing() {
+  if (Game.selectedTower) {
+    const t = Game.selectedTower;
+    ctx.strokeStyle = 'rgba(183, 148, 255, 0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, TILE_PX * 0.5, 0, TAU);
+    ctx.stroke();
+  }
+}
+
+function drawPlacementGhost() {
+  if (!Game.placingType || !Game.hoverCell) return;
+  const c = Game.hoverCell.c, r = Game.hoverCell.r;
+  const pos = cellCenter(c, r);
+  const ok = canPlaceAt(c, r) && Game.gold >= TOWERS[Game.placingType].cost;
+  ctx.globalAlpha = 0.65;
+  drawTowerShape({type: Game.placingType, tier: 0, x: pos.x, y: pos.y, angle: -Math.PI/2, pulse: 0}, ok);
+  ctx.globalAlpha = 1;
+}
+
+function drawTowers() {
+  for (const t of Game.towers) drawTowerShape(t, true);
+}
+
+function drawTowerShape(t, ok) {
+  const base = TOWERS[t.type];
+  const size = TILE_PX * 0.42;
+  ctx.save();
+  ctx.translate(t.x, t.y);
+
+  // Soft shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(0, size*0.7, size*1.0, size*0.28, 0, 0, TAU);
+  ctx.fill();
+
+  // Platform — a soft neural node
+  const pulse = t.pulse || 0;
+  const baseScale = 1 + pulse * 0.15;
+  ctx.save();
+  ctx.scale(baseScale, baseScale);
+  ctx.fillStyle = ok ? '#2a2055' : '#6a2040';
+  ctx.beginPath();
+  ctx.arc(0, 0, size, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = '#4a3a8a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Inner ring
+  ctx.strokeStyle = 'rgba(183, 148, 255, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.75, 0, TAU);
+  ctx.stroke();
+
+  // Tier indicator dots (moon phases)
+  for (let i = 0; i <= t.tier; i++) {
+    const ang = -Math.PI/2 + i * (TAU / 4);
+    const gx = Math.cos(ang) * size * 0.82, gy = Math.sin(ang) * size * 0.82;
+    ctx.fillStyle = '#fff4c2';
+    ctx.shadowColor = '#fff4c2';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(gx, gy, 2.5, 0, TAU);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+
+  ctx.rotate(t.angle + Math.PI/2);
+  const tierBoost = 1 + t.tier * 0.08;
+
+  if (t.type === 'breath') {
+    // Person meditating with breathing circle
+    // Breathing circle pulsing
+    const br = (Math.sin(Date.now() * 0.002) + 1) * 0.5;
+    ctx.strokeStyle = `rgba(143, 217, 255, ${0.4 + br * 0.4})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, -size*0.3, size * (0.4 + br * 0.2) * tierBoost, 0, TAU);
+    ctx.stroke();
+    // Body
+    ctx.fillStyle = base.color;
+    ctx.beginPath();
+    ctx.arc(0, -size*0.3, size*0.32 * tierBoost, 0, TAU);
+    ctx.fill();
+    // Eyes closed (peaceful)
+    ctx.strokeStyle = '#1a2a3a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-size*0.15, -size*0.32);
+    ctx.quadraticCurveTo(-size*0.1, -size*0.28, -size*0.05, -size*0.32);
+    ctx.moveTo(size*0.05, -size*0.32);
+    ctx.quadraticCurveTo(size*0.1, -size*0.28, size*0.15, -size*0.32);
+    ctx.stroke();
+    // Tiny smile
+    ctx.beginPath();
+    ctx.arc(0, -size*0.2, size*0.08, 0, Math.PI);
+    ctx.stroke();
+  } else if (t.type === 'meditation') {
+    // Lotus / mandala
+    for (let i = 0; i < 6; i++) {
+      ctx.save();
+      ctx.rotate(i * TAU / 6);
+      ctx.fillStyle = base.color;
+      ctx.beginPath();
+      ctx.ellipse(0, -size*0.5 * tierBoost, size*0.18, size*0.35 * tierBoost, 0, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = base.color2;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Glowing center
+    const glow = (Math.sin(Date.now() * 0.003) + 1) * 0.5;
+    ctx.fillStyle = `rgba(255, 244, 194, ${0.5 + glow * 0.4})`;
+    ctx.shadowColor = '#fff4c2';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(0, 0, size*0.22, 0, TAU);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // OM symbol
+    ctx.fillStyle = '#6b4aa8';
+    ctx.font = `bold ${Math.floor(size*0.3)}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ॐ', 0, 1);
+  } else if (t.type === 'melatonin') {
+    // A pill bottle
+    ctx.fillStyle = base.color2;
+    ctx.fillRect(-size*0.35, -size*0.25, size*0.7, size*0.75);
+    ctx.fillStyle = base.color;
+    ctx.fillRect(-size*0.35, -size*0.25, size*0.7, size*0.25);
+    // Cap
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-size*0.42, -size*0.55, size*0.84, size*0.3);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-size*0.42, -size*0.55, size*0.84, size*0.3);
+    // Label
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-size*0.28, -size*0.15, size*0.56, size*0.35);
+    ctx.fillStyle = base.color2;
+    ctx.font = `bold ${Math.floor(size*0.18)}px -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Zzz', 0, 0);
+  } else if (t.type === 'reframe') {
+    // Thought bubble with lightbulb inside (cognitive reframing)
+    // Bubble
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(0, -size*0.3, size*0.55 * tierBoost, size*0.5 * tierBoost, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = base.color2;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Small thought puffs below
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(size*0.1 - i*size*0.12, size*0.1 + i*size*0.08, size*(0.12 - i*0.03), 0, TAU);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.stroke();
+    }
+    // Lightbulb inside
+    ctx.fillStyle = base.color;
+    ctx.beginPath();
+    ctx.arc(0, -size*0.35, size*0.2, 0, TAU);
+    ctx.fill();
+    const glow = (Math.sin(Date.now() * 0.005) + 1) * 0.5;
+    ctx.fillStyle = `rgba(255, 255, 200, ${glow})`;
+    ctx.beginPath();
+    ctx.arc(0, -size*0.35, size*0.12, 0, TAU);
+    ctx.fill();
+    // Base of bulb
+    ctx.fillStyle = '#888';
+    ctx.fillRect(-size*0.08, -size*0.18, size*0.16, size*0.08);
+  } else if (t.type === 'whitenoise') {
+    // Radio / noise machine
+    ctx.fillStyle = base.color2;
+    ctx.fillRect(-size*0.45, -size*0.3, size*0.9, size*0.7);
+    ctx.fillStyle = base.color;
+    ctx.fillRect(-size*0.42, -size*0.27, size*0.84, size*0.64);
+    // Speaker grille
+    ctx.fillStyle = '#2a2a3a';
+    ctx.beginPath();
+    ctx.arc(0, size*0.05, size*0.22, 0, TAU);
+    ctx.fill();
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, size*0.05, size*0.08 + i*size*0.05, 0, TAU);
+      ctx.stroke();
+    }
+    // Antenna
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(size*0.3, -size*0.3);
+    ctx.lineTo(size*0.55, -size*0.9);
+    ctx.stroke();
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.arc(size*0.55, -size*0.9, 2, 0, TAU);
+    ctx.fill();
+    // Status LED blinking
+    if ((Date.now() / 400) % 2 < 1) {
+      ctx.fillStyle = '#7ee0c0';
+      ctx.beginPath();
+      ctx.arc(-size*0.3, -size*0.15, 2, 0, TAU);
+      ctx.fill();
+    }
+    // Wavy "shhh" emanating (small)
+    ctx.strokeStyle = 'rgba(200, 200, 230, 0.4)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 2; i++) {
+      ctx.beginPath();
+      ctx.arc(0, size*0.05, size*0.35 + i*size*0.15 + Math.sin(Date.now()*0.01 + i) * 2, -0.6, -Math.PI + 0.6, true);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawEnemies() {
+  for (const e of Game.enemies) {
+    if (!e.alive) continue;
+    ctx.save();
+    ctx.translate(e.x, e.y);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(0, e.size*0.7, e.size*0.8, e.size*0.25, 0, 0, TAU);
+    ctx.fill();
+
+    const wob = Math.sin(e.wobble) * 1.5;
+    ctx.translate(0, wob);
+
+    drawThoughtBubble(e);
+
+    // Slow tint
+    if (e.slowAmount > 0) {
+      ctx.fillStyle = 'rgba(183, 148, 255, 0.35)';
+      ctx.beginPath();
+      ctx.arc(0, 0, e.size + 3, 0, TAU);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // Tagline (floating text on spawn)
+    if (e.taglineLife > 0 && e.tagline) {
+      const alpha = Math.min(1, e.taglineLife / 1.0);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.85})`;
+      ctx.strokeStyle = `rgba(0, 0, 0, ${alpha * 0.7})`;
+      ctx.lineWidth = 3;
+      ctx.font = `italic 11px -apple-system, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.strokeText(`"${e.tagline}"`, e.x, e.y - e.size - 14);
+      ctx.fillText(`"${e.tagline}"`, e.x, e.y - e.size - 14);
+    }
+
+    // Health bar
+    if (e.hp < e.maxHp) {
+      const bw = Math.max(24, e.size * 2), bh = 4;
+      const bx = e.x - bw/2, by = e.y - e.size - 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(bx-1, by-1, bw+2, bh+2);
+      ctx.fillStyle = '#2a0a14';
+      ctx.fillRect(bx, by, bw, bh);
+      const pct = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = pct > 0.5 ? '#7ee0c0' : pct > 0.25 ? '#ffd76a' : '#ff6b9d';
+      ctx.fillRect(bx, by, bw * pct, bh);
+    }
+  }
+}
+
+function drawThoughtBubble(e) {
+  // A thought-bubble body for every enemy, with species-specific flair
+  const s = e.size;
+
+  // Main bubble body (cloud shape, slightly irregular)
+  ctx.fillStyle = e.color;
+  ctx.strokeStyle = e.secondary;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  // Cloud-ish outline using 6 arcs around a center
+  const lobes = 6;
+  for (let i = 0; i <= lobes; i++) {
+    const ang = (i / lobes) * TAU - Math.PI / 2;
+    const r = s * (1 + Math.sin(ang * 3 + e.wobble * 0.5) * 0.08);
+    const x = Math.cos(ang) * r;
+    const y = Math.sin(ang) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else {
+      const prevAng = ((i - 1) / lobes) * TAU - Math.PI / 2;
+      const midAng = (prevAng + ang) / 2;
+      const bulge = s * 1.15;
+      const bx = Math.cos(midAng) * bulge;
+      const by = Math.sin(midAng) * bulge;
+      ctx.quadraticCurveTo(bx, by, x, y);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Trailing tail puffs
+  ctx.beginPath();
+  ctx.arc(-s * 0.55, s * 0.85, s * 0.2, 0, TAU);
+  ctx.arc(-s * 0.85, s * 1.15, s * 0.12, 0, TAU);
+  ctx.fillStyle = e.color;
+  ctx.fill();
+  ctx.stroke();
+
+  // Type-specific features
+  if (e.type === 'work') {
+    // Tie
+    ctx.fillStyle = '#8a3a3a';
+    ctx.beginPath();
+    ctx.moveTo(-s*0.1, s*0.2);
+    ctx.lineTo(s*0.1, s*0.2);
+    ctx.lineTo(s*0.05, s*0.6);
+    ctx.lineTo(-s*0.05, s*0.6);
+    ctx.closePath();
+    ctx.fill();
+    // Worried brow
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-s*0.4, -s*0.45); ctx.lineTo(-s*0.12, -s*0.32);
+    ctx.moveTo(s*0.4, -s*0.45); ctx.lineTo(s*0.12, -s*0.32);
+    ctx.stroke();
+  } else if (e.type === 'cringe') {
+    // Blushing red cheeks
+    ctx.fillStyle = 'rgba(255, 80, 120, 0.6)';
+    ctx.beginPath();
+    ctx.arc(-s*0.45, s*0.1, s*0.2, 0, TAU);
+    ctx.arc(s*0.45, s*0.1, s*0.2, 0, TAU);
+    ctx.fill();
+    // Grimace teeth
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-s*0.2, s*0.25, s*0.4, s*0.12);
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 1;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * s * 0.08, s*0.25);
+      ctx.lineTo(i * s * 0.08, s*0.37);
+      ctx.stroke();
+    }
+  } else if (e.type === 'todo') {
+    // Little checkbox on the bubble
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-s*0.3, -s*0.3, s*0.25, s*0.25);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-s*0.3, -s*0.3, s*0.25, s*0.25);
+  } else if (e.type === 'regret') {
+    // Sad droplet tear
+    ctx.fillStyle = 'rgba(140, 180, 220, 0.8)';
+    ctx.beginPath();
+    ctx.moveTo(-s*0.3, 0);
+    ctx.quadraticCurveTo(-s*0.4, s*0.3, -s*0.25, s*0.4);
+    ctx.quadraticCurveTo(-s*0.1, s*0.3, -s*0.2, 0);
+    ctx.fill();
+  } else if (e.type === 'dread') {
+    // Void-y swirling eyes
+    const sw = Date.now() * 0.005;
+    for (let i = 0; i < 2; i++) {
+      const eyeX = (i === 0 ? -1 : 1) * s * 0.3;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(eyeX, -s*0.1, s*0.2, 0, TAU);
+      ctx.fill();
+      // Spiral inside
+      ctx.strokeStyle = '#ff6b9d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let a = 0; a < TAU * 2; a += 0.2) {
+        const rr = (a / (TAU * 2)) * s * 0.18;
+        const px = eyeX + Math.cos(a + sw) * rr;
+        const py = -s*0.1 + Math.sin(a + sw) * rr;
+        if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    // No mouth — just a void
+    return;
+  } else if (e.type === 'ghost') {
+    // Ghostly trails
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(Math.sin(e.wobble + i * 1.2) * 5, -s * 1.1 - i*4, 3, 0, TAU);
+      ctx.fill();
+    }
+    // Hollow sad eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(-s*0.28, -s*0.1, s*0.1, s*0.18, 0, 0, TAU);
+    ctx.ellipse(s*0.28, -s*0.1, s*0.1, s*0.18, 0, 0, TAU);
+    ctx.fill();
+    return;
+  } else if (e.type === 'sunday' || e.type === 'threeAM') {
+    // Ominous crown of thorns / glow
+    const t = Date.now() * 0.003;
+    for (let i = 0; i < 8; i++) {
+      const ang = i * TAU / 8 + t;
+      ctx.strokeStyle = e.type === 'threeAM' ? '#ff6b9d' : '#ffd76a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * s * 0.9, Math.sin(ang) * s * 0.9);
+      ctx.lineTo(Math.cos(ang) * s * 1.35, Math.sin(ang) * s * 1.35);
+      ctx.stroke();
+    }
+    // Angry eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-s*0.3, -s*0.08, s*0.2, 0, TAU);
+    ctx.arc(s*0.3, -s*0.08, s*0.2, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = e.type === 'threeAM' ? '#ff6b9d' : '#ff6b6b';
+    ctx.beginPath();
+    ctx.arc(-s*0.3, -s*0.08, s*0.1, 0, TAU);
+    ctx.arc(s*0.3, -s*0.08, s*0.1, 0, TAU);
+    ctx.fill();
+    // Jagged mouth
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-s*0.3, s*0.3);
+    for (let i = -2; i <= 2; i++) {
+      ctx.lineTo(i * s * 0.15, s * (0.3 + (i % 2 === 0 ? 0.1 : 0)));
+    }
+    ctx.stroke();
+    return;
+  }
+
+  // Default eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(-s*0.28, -s*0.08, s*0.16, 0, TAU);
+  ctx.arc(s*0.28, -s*0.08, s*0.16, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(-s*0.28, -s*0.08, s*0.08, 0, TAU);
+  ctx.arc(s*0.28, -s*0.08, s*0.08, 0, TAU);
+  ctx.fill();
+
+  // Default mouth
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (e.type === 'todo') {
+    ctx.arc(0, s*0.22, s*0.15, 0, Math.PI);
+  } else {
+    ctx.moveTo(-s*0.15, s*0.3);
+    ctx.lineTo(s*0.15, s*0.3);
+  }
+  ctx.stroke();
+}
+
+function drawProjectiles() {
+  for (const p of Game.projectiles) {
+    if (p.type === 'breath') {
+      // Breath bubble with soft glow
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.fillStyle = 'rgba(143, 217, 255, 0.4)';
+      ctx.shadowColor = '#8fd9ff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, TAU);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath();
+      ctx.arc(-2, -2, 2, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    } else if (p.type === 'melatonin') {
+      // Spinning pill
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.spin || 0);
+      ctx.fillStyle = '#ff9ec7';
+      ctx.fillRect(-8, -3, 8, 6);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, -3, 8, 6);
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-8, -3, 16, 6);
+      ctx.restore();
+    }
+  }
+}
+
+function drawEffects() {
+  for (const fx of Game.effects) {
+    const alpha = fx.life / fx.maxLife;
+    if (fx.kind === 'drowsy') {
+      // Dreamy pink-purple puff with Z's
+      ctx.fillStyle = `rgba(255, 158, 199, ${alpha * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(fx.x, fx.y, fx.r, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255, 200, 220, ${alpha})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // Little Z's
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.font = 'bold 14px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      const lift = (1 - alpha) * 20;
+      ctx.fillText('z', fx.x - 10, fx.y - lift - 10);
+      ctx.fillText('Z', fx.x + 6, fx.y - lift - 20);
+    } else if (fx.kind === 'calmPulse') {
+      ctx.strokeStyle = `rgba(201, 164, 255, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(fx.x, fx.y, fx.r, 0, TAU);
+      ctx.stroke();
+    } else if (fx.kind === 'reframe') {
+      // Yellow lightbulb arcs between segments — a "realization"
+      ctx.strokeStyle = `rgba(255, 215, 106, ${alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i < fx.segments.length; i++) {
+        const a = fx.segments[i];
+        if (i === 0) ctx.moveTo(a.x, a.y);
+        else {
+          const prev = fx.segments[i-1];
+          // Gentle curved arc (it's a reframe, not lightning)
+          const mx = (prev.x + a.x) / 2;
+          const my = (prev.y + a.y) / 2 - 20;
+          ctx.quadraticCurveTo(mx, my, a.x, a.y);
+        }
+      }
+      ctx.stroke();
+      // Small sparkle at each endpoint
+      for (const s of fx.segments) {
+        ctx.fillStyle = `rgba(255, 244, 194, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 3, 0, TAU);
+        ctx.fill();
+      }
+    } else if (fx.kind === 'shhh') {
+      // White-noise wavy beam
+      ctx.strokeStyle = `rgba(200, 210, 230, ${alpha * 0.7})`;
+      ctx.lineWidth = 5;
+      const dx = fx.x2 - fx.x1, dy = fx.y2 - fx.y1;
+      const len = Math.sqrt(dx*dx+dy*dy);
+      const ux = dx / len, uy = dy / len;
+      const px = -uy, py = ux;
+      ctx.beginPath();
+      for (let t = 0; t <= 1; t += 0.05) {
+        const bx = fx.x1 + dx * t + px * Math.sin(t * 40) * 2;
+        const by = fx.y1 + dy * t + py * Math.sin(t * 40) * 2;
+        if (t === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else if (fx.kind === 'dissolve') {
+      // A thought evaporating into mist
+      ctx.fillStyle = fx.color;
+      ctx.globalAlpha = alpha;
+      for (let i = 0; i < 7; i++) {
+        const ang = i * TAU / 7;
+        const r = (1 - alpha) * 22;
+        const px = fx.x + Math.cos(ang) * r;
+        const py = fx.y + Math.sin(ang) * r - (1 - alpha) * 15;
+        ctx.beginPath();
+        ctx.arc(px, py, 3 * alpha + 1, 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    } else if (fx.kind === 'floater') {
+      ctx.fillStyle = fx.color;
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 15px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(fx.text, fx.x, fx.y);
+      ctx.fillText(fx.text, fx.x, fx.y);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// -------- Main loop --------
+function tick(now) {
+  if (!Game.lastTime) Game.lastTime = now;
+  let dt = (now - Game.lastTime) / 1000;
+  Game.lastTime = now;
+  dt = Math.min(dt, 0.1);
+  dt *= Game.speed;
+
+  if (!Game.gameOver) {
+    Game.totalTimeElapsed += dt;
+    updateWave(dt);
+    updateEnemies(dt);
+    updateTowers(dt);
+    updateProjectiles(dt);
+    updateEffects(dt);
+  }
+  updateClock();
+  draw();
+  requestAnimationFrame(tick);
+}
+
+// -------- UI --------
+function updateHud() {
+  document.getElementById('lives').textContent = Math.max(0, Game.lives);
+  document.getElementById('gold').textContent = Game.gold;
+  document.getElementById('score').textContent = Game.score;
+  document.getElementById('wave').textContent = Game.wave;
+  updateTowerButtons();
+}
+
+function updateStartBtn() {
+  const btn = document.getElementById('start-btn');
+  if (Game.gameOver) { btn.classList.add('hidden'); return; }
+  if (Game.waveActive || Game.wave >= WAVES.length) {
+    btn.classList.add('hidden');
+  } else {
+    btn.classList.remove('hidden');
+    btn.textContent = Game.wave === 0 ? '▶ Begin the Night' : `▶ Begin Hour ${Game.wave + 1}`;
+  }
+}
+
+function updateWavePreview() {
+  const next = Game.wave + (Game.waveActive ? 0 : 1);
+  const el = document.getElementById('wave-preview');
+  if (next > WAVES.length) { el.textContent = 'You survived the night!'; return; }
+  const def = WAVES[next - 1];
+  const info = WAVE_TITLES[next - 1];
+  const counts = {};
+  for (const p of def) counts[p.type] = (counts[p.type] || 0) + p.count;
+  el.innerHTML = `<div style="color:var(--moon);font-weight:700;margin-bottom:4px;">${info.t}</div>` +
+    `<div style="font-style:italic;margin-bottom:6px;">${info.s}</div>` +
+    Object.entries(counts).map(([t, c]) =>
+      `<div style="display:flex;justify-content:space-between;margin:2px 0;"><span>${ENEMIES[t].name}</span><span style="color:var(--accent);font-weight:700;">×${c}</span></div>`
+    ).join('') + (Game.waveActive ? '<div style="margin-top:6px;color:var(--good);font-weight:600;">Hour in progress…</div>' : '');
+}
+
+function updateTowerButtons() {
+  const grid = document.getElementById('tower-grid');
+  grid.innerHTML = '';
+  for (const [key, t] of Object.entries(TOWERS)) {
+    const btn = document.createElement('button');
+    btn.className = 'tower-btn';
+    if (Game.placingType === key) btn.classList.add('selected');
+    if (Game.gold < t.cost) btn.disabled = true;
+    btn.innerHTML = `
+      <div class="ticon">${t.icon}</div>
+      <div class="tname">${t.name}</div>
+      <div class="tcost">${t.cost}</div>
+    `;
+    btn.title = `${t.desc}\n"${t.flavor}"`;
+    btn.addEventListener('click', () => {
+      if (Game.gold < t.cost) return;
+      Game.placingType = Game.placingType === key ? null : key;
+      Game.selectedTower = null;
+      updateTowerButtons();
+      updateSelectedPanel();
+      const hint = document.getElementById('hint');
+      if (Game.placingType) {
+        hint.textContent = `Placing ${t.name} — click open brain space to plant it`;
+        hint.classList.add('show');
+      } else {
+        hint.classList.remove('show');
+      }
+    });
+    grid.appendChild(btn);
+  }
+}
+
+function updateSelectedPanel() {
+  const panel = document.getElementById('selected-panel');
+  if (!Game.selectedTower) { panel.classList.remove('active'); return; }
+  panel.classList.add('active');
+  const t = Game.selectedTower;
+  const base = TOWERS[t.type];
+  const stats = towerStats(t.type, t.tier);
+  document.getElementById('sel-icon').textContent = base.icon;
+  document.getElementById('sel-name').textContent = base.name;
+  document.getElementById('sel-tier').textContent = `Level ${t.tier + 1} of 4`;
+  document.getElementById('sel-flavor').textContent = `"${base.flavor}"`;
+
+  const rows = [];
+  const rowHTML = (k, v) => `<div class="stat-row"><span>${k}</span><span class="v">${v}</span></div>`;
+
+  if (t.type === 'meditation') {
+    rows.push(rowHTML('Damage per pulse', stats.damage));
+    rows.push(rowHTML('Slow strength', `${Math.round(stats.slow * 100)}%`));
+    rows.push(rowHTML('Pulse rate', `${stats.fireRate.toFixed(1)}/s`));
+    rows.push(rowHTML('Range', Math.round(stats.range)));
+  } else if (t.type === 'reframe') {
+    rows.push(rowHTML('Damage', stats.damage));
+    rows.push(rowHTML('Chain depth', stats.chains));
+    rows.push(rowHTML('Fire rate', `${stats.fireRate.toFixed(1)}/s`));
+    rows.push(rowHTML('Range', Math.round(stats.range)));
+  } else if (t.type === 'melatonin') {
+    rows.push(rowHTML('Damage', stats.damage));
+    rows.push(rowHTML('Splash radius', Math.round(stats.splash)));
+    rows.push(rowHTML('Fire rate', `${stats.fireRate.toFixed(2)}/s`));
+    rows.push(rowHTML('Range', Math.round(stats.range)));
+  } else if (t.type === 'whitenoise') {
+    rows.push(rowHTML('Damage', stats.damage));
+    rows.push(rowHTML('Pierce', stats.pierce));
+    rows.push(rowHTML('Fire rate', `${stats.fireRate.toFixed(2)}/s`));
+    rows.push(rowHTML('Range', Math.round(stats.range)));
+  } else {
+    rows.push(rowHTML('Damage', stats.damage));
+    rows.push(rowHTML('Fire rate', `${stats.fireRate.toFixed(1)}/s`));
+    rows.push(rowHTML('Range', Math.round(stats.range)));
+  }
+  rows.push(rowHTML('Thoughts dispelled', t.kills));
+  rows.push(rowHTML('Total damage', Math.round(t.totalDamage)));
+  document.getElementById('sel-stats').innerHTML = rows.join('');
+
+  const upBtn = document.getElementById('upgrade-btn');
+  if (t.tier >= 3) {
+    upBtn.textContent = '⭐ Mastered';
+    upBtn.disabled = true;
+  } else {
+    const cost = base.tiers[t.tier + 1].upgCost;
+    upBtn.textContent = `⬆ Practice More — ${cost}`;
+    upBtn.disabled = Game.gold < cost;
+  }
+  document.getElementById('sell-btn').textContent = `↩ Let it go (+${Math.floor(t.totalSpent * 0.7)})`;
+}
+
+function showWaveBanner(n) {
+  const banner = document.getElementById('wave-banner');
+  const info = WAVE_TITLES[n - 1];
+  document.getElementById('wave-banner-title').textContent = info.t;
+  document.getElementById('wave-banner-sub').textContent = info.s;
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 2200);
+}
+
+function endGame(won) {
+  Game.gameOver = true;
+  Game.won = won;
+  const modal = document.getElementById('modal');
+  document.getElementById('modal-title').textContent = won ? '☀️ Dawn.' : '😵 You\'re up all night.';
+  document.getElementById('modal-body').textContent = won
+    ? `The sun is up. You slept. Peace: ${Game.score}.  Tomorrow night, they'll be back.`
+    : `The thoughts overwhelmed you at hour ${Game.wave}. You're going to be exhausted tomorrow. Peace earned: ${Game.score}.`;
+  document.getElementById('modal-btn').textContent = won ? 'Face Another Night' : 'Try Tomorrow Night';
+  modal.classList.add('show');
+  updateStartBtn();
+}
+
+// -------- Input --------
+function canvasToWorld(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {x: clientX - rect.left - gridOffsetX, y: clientY - rect.top - gridOffsetY};
+}
+
+function handleMouseMove(e) {
+  const pt = canvasToWorld(e.clientX, e.clientY);
+  if (Game.placingType) {
+    const c = Math.floor(pt.x / TILE_PX);
+    const r = Math.floor(pt.y / TILE_PX);
+    if (c >= 0 && c < COLS && r >= 0 && r < ROWS) Game.hoverCell = {c, r};
+    else Game.hoverCell = null;
+  } else Game.hoverCell = null;
+}
+
+function handleClick(e) {
+  const pt = canvasToWorld(e.clientX, e.clientY);
+  if (pt.x < 0 || pt.x >= W || pt.y < 0 || pt.y >= H) return;
+  if (Game.placingType) {
+    const placed = tryPlaceTower(pt.x, pt.y);
+    if (placed) {
+      if (Game.gold < TOWERS[Game.placingType].cost) {
+        Game.placingType = null;
+        document.getElementById('hint').classList.remove('show');
+      }
+      updateTowerButtons();
+    }
+    return;
+  }
+  let sel = null, bestD = Infinity;
+  for (const t of Game.towers) {
+    const d2 = dist2(pt.x, pt.y, t.x, t.y);
+    if (d2 < (TILE_PX * 0.5) ** 2 && d2 < bestD) { bestD = d2; sel = t; }
+  }
+  Game.selectedTower = sel;
+  updateSelectedPanel();
+}
+
+canvas.addEventListener('mousemove', handleMouseMove);
+canvas.addEventListener('click', handleClick);
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  Game.placingType = null;
+  Game.selectedTower = null;
+  document.getElementById('hint').classList.remove('show');
+  updateTowerButtons();
+  updateSelectedPanel();
+});
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length !== 1) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  handleMouseMove({clientX: t.clientX, clientY: t.clientY});
+  handleClick({clientX: t.clientX, clientY: t.clientY});
+}, {passive: false});
+
+document.getElementById('start-btn').addEventListener('click', startNextWave);
+document.getElementById('upgrade-btn').addEventListener('click', upgradeSelected);
+document.getElementById('sell-btn').addEventListener('click', sellSelected);
+document.getElementById('speed-btn').addEventListener('click', () => {
+  const speeds = [1, 2, 3];
+  const idx = speeds.indexOf(Game.speed);
+  Game.speed = speeds[(idx + 1) % speeds.length];
+  document.getElementById('speed-btn').textContent = `⏩ ${Game.speed}×`;
+});
+document.getElementById('new-game-btn').addEventListener('click', resetGame);
+document.getElementById('modal-btn').addEventListener('click', resetGame);
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    Game.placingType = null;
+    Game.selectedTower = null;
+    document.getElementById('hint').classList.remove('show');
+    updateTowerButtons();
+    updateSelectedPanel();
+  } else if (e.key === ' ' || e.key === 'Enter') {
+    if (!Game.waveActive && !Game.gameOver) { e.preventDefault(); startNextWave(); }
+  } else if (e.key === 'u' || e.key === 'U') upgradeSelected();
+  else if (e.key === 's' || e.key === 'S') sellSelected();
+  else {
+    const keys = ['1','2','3','4','5'];
+    const idx = keys.indexOf(e.key);
+    if (idx >= 0) {
+      const typeKeys = Object.keys(TOWERS);
+      if (idx < typeKeys.length) {
+        Game.placingType = typeKeys[idx];
+        Game.selectedTower = null;
+        updateTowerButtons();
+        updateSelectedPanel();
+      }
+    }
+  }
+});
+
+// -------- Init / reset --------
+function resetGame() {
+  Game.lives = 20;
+  Game.gold = 150;
+  Game.score = 0;
+  Game.wave = 0;
+  Game.waveActive = false;
+  Game.waveQueue = [];
+  Game.enemies = [];
+  Game.towers = [];
+  Game.projectiles = [];
+  Game.effects = [];
+  Game.placingType = null;
+  Game.selectedTower = null;
+  Game.hoverCell = null;
+  Game.gameOver = false;
+  Game.won = false;
+  Game.shake = 0;
+  Game.speed = 1;
+  Game.totalTimeElapsed = 0;
+  document.getElementById('speed-btn').textContent = `⏩ 1×`;
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('hint').classList.remove('show');
+  resize();
+  generateMap();
+  updateHud();
+  updateTowerButtons();
+  updateSelectedPanel();
+  updateStartBtn();
+  updateWavePreview();
+  updateClock();
+}
+
+resize();
+generateMap();
+updateHud();
+updateTowerButtons();
+updateSelectedPanel();
+updateStartBtn();
+updateWavePreview();
+updateClock();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
