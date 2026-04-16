@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Genesis Colony</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<!-- UI HUD -->
+<div id="ui" class="hidden">
+  <div id="hp-bar" class="ui-bar"><div id="hp-fill" class="ui-bar-fill"></div><div class="ui-bar-label"><span id="hp-label">100 / 100</span><span></span></div></div>
+  <div id="xp-bar" class="ui-bar"><div id="xp-fill" class="ui-bar-fill"></div><div class="ui-bar-label"><span id="xp-label">0 / 10</span><span id="level-label">Lv 1</span></div></div>
+  <div id="stats"><span id="timer-stat">0:00</span><span id="kills-stat">0 kills</span><span id="wave-stat">Wave 1</span></div>
+</div>
+<div id="weapons-display" class="hidden"></div>
+
+<!-- Title Screen -->
+<div id="title-screen" class="screen-overlay">
+  <h1>Genesis Colony</h1>
+  <div class="subtitle">Survive the New World</div>
+  <div class="lore">Year 2847. After centuries aboard the generation ship Prometheus, your colony has finally reached Kepler-442b. But the alien fauna won't let you settle without a fight.</div>
+  <button class="btn btn-primary" onclick="startGame()">Launch Colony</button>
+  <div class="controls-hint">WASD / Arrow Keys to move &bull; Everything else is automatic</div>
+  <div class="version-tag">v1.0.0-20260415210504</div>
+</div>
+
+<!-- Upgrade Screen -->
+<div id="upgrade-screen" class="screen-overlay hidden">
+  <h2>Colony Tech Online</h2>
+  <div class="level-label" id="upgrade-level-label">Level 2</div>
+  <div id="upgrade-cards"></div>
+</div>
+
+<!-- Game Over Screen -->
+<div id="gameover-screen" class="screen-overlay hidden">
+  <h2>Colony Lost</h2>
+  <div id="gameover-stats"></div>
+  <button class="btn btn-primary" onclick="startGame()">Try Again</button>
+</div>
+
+<div id="pause-hint"><h1>Paused</h1><div class="weapon-stats" id="pause-stats"></div></div>
+<div id="joystick-zone"></div>
+
+<script src="config.js"></script>
+<script src="utils.js"></script>
+<script src="audio.js"></script>
+<script src="state.js"></script>
+<script src="input.js"></script>
+<script src="world.js"></script>
+<script src="entities.js"></script>
+<script src="weapons.js"></script>
+<script src="combat.js"></script>
+<script src="upgrades.js"></script>
+<script src="update.js"></script>
+<script src="renderer.js"></script>
+<script src="draw-entities.js"></script>
+<script src="colony-renderer.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
