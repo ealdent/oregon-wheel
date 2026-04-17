@@ -348,8 +348,8 @@
   .modal-card h2 { margin: 0 0 6px 0; font-size: 28px; color: var(--moon);}
   .modal-card p { color: var(--muted); font-style: italic; line-height: 1.5;}
 
-  /* Responsive */
-  @media (max-width: 900px) {
+  /* Responsive — portrait: stack side panel under the game */
+  @media (max-width: 900px) and (orientation: portrait) {
     #app { flex-direction: column; padding: 6px; gap: 6px;}
     #side { width: 100%; flex: 0 0 auto; max-height: 40vh;}
     #game-wrap { flex: 1 1 auto; min-height: 0;}
@@ -359,9 +359,41 @@
     .stat-badge { font-size: 12px; padding: 6px 8px;}
     #clock { font-size: 15px;}
   }
-  @media (max-width: 500px) {
+  @media (max-width: 500px) and (orientation: portrait) {
     .tower-grid { grid-template-columns: repeat(3, 1fr);}
     #side { max-height: 44vh;}
+    .stat-badge .label { display: none; }
+    .stat-badge { padding: 5px 7px; font-size: 11px;}
+  }
+
+  /* Responsive — short/landscape (e.g. iPhone landscape): keep side-by-side, shrink panel */
+  @media (orientation: landscape) and (max-height: 500px) {
+    #app { padding: 4px; gap: 6px;}
+    #side { width: 210px; flex: 0 0 210px; gap: 6px;}
+    .panel { padding: 8px;}
+    .panel h3 { font-size: 11px; margin-bottom: 6px; letter-spacing: 1px;}
+    .panel .title-big { font-size: 14px;}
+    .panel .subtitle { font-size: 10px; margin-bottom: 4px;}
+    .tower-grid { grid-template-columns: repeat(3, 1fr); gap: 5px;}
+    .tower-btn { padding: 6px 3px;}
+    .tower-btn .tname { font-size: 9px;}
+    .tower-btn .tcost { font-size: 10px;}
+    .tower-btn .ticon { font-size: 18px;}
+    .stat-badge { font-size: 11px; padding: 4px 7px;}
+    .stat-badge .label { display: none;}
+    .stat-badge .icon { font-size: 13px;}
+    #clock { font-size: 13px; padding: 4px 10px; letter-spacing: 2px;}
+    #start-btn { padding: 8px 18px; font-size: 13px; bottom: 10px;}
+    #speed-btn, #new-game-btn { padding: 6px 10px; bottom: 10px; font-size: 12px;}
+    #speed-btn { right: 10px;} #new-game-btn { left: 10px;}
+    .selected-head .icon-big { width: 36px; height: 36px; font-size: 20px;}
+    .selected-head .name { font-size: 13px;}
+    .selected-head .tier { font-size: 10px;}
+    .flavor { font-size: 10px; margin: 4px 0 6px 0;}
+    .stat-row { font-size: 11px;}
+    .btn { padding: 7px; font-size: 12px;}
+    #wave-banner { padding: 14px 24px; font-size: 18px;}
+    #wave-banner .sub { font-size: 11px;}
   }
 
   .hint {
@@ -495,7 +527,7 @@ function resize() {
   canvas.style.height = rect.height + 'px';
   const tileW = Math.floor(rect.width / COLS);
   const tileH = Math.floor(rect.height / ROWS);
-  TILE_PX = Math.max(22, Math.min(tileW, tileH));
+  TILE_PX = Math.max(14, Math.min(tileW, tileH));
   W = TILE_PX * COLS;
   H = TILE_PX * ROWS;
   gridOffsetX = Math.floor((rect.width - W) / 2);
