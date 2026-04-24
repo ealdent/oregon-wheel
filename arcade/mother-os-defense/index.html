@@ -250,7 +250,7 @@
     }
 
     .tower-list,
-    .intel-list {
+    .tactics-list {
       display: grid;
       gap: 8px;
       min-height: 0;
@@ -262,8 +262,8 @@
       width: 100%;
       padding: 9px;
       display: grid;
-      grid-template-columns: 44px 1fr auto;
-      gap: 8px;
+      grid-template-columns: 64px 1fr auto;
+      gap: 10px;
       align-items: center;
       text-align: left;
       min-height: 74px;
@@ -275,21 +275,17 @@
       box-shadow: inset 0 0 18px rgba(88, 255, 112, 0.08);
     }
 
-    .tower-code,
-    .enemy-code {
-      display: grid;
-      place-items: center;
-      width: 36px;
-      height: 36px;
+    .tower-preview {
+      width: 58px;
+      height: 52px;
       border: 1px solid var(--line-soft);
-      color: var(--cool);
-      background: rgba(124, 232, 255, 0.07);
-      font-size: 0.78rem;
-      font-weight: 700;
+      background:
+        repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0, 0, 0, 0.13) 3px, rgba(0, 0, 0, 0.13) 5px),
+        rgba(124, 232, 255, 0.055);
+      box-shadow: inset 0 0 18px rgba(124, 232, 255, 0.05);
     }
 
-    .tower-name,
-    .enemy-name {
+    .tower-name {
       display: block;
       color: var(--text);
       font-weight: 700;
@@ -298,7 +294,6 @@
     }
 
     .tower-desc,
-    .enemy-desc,
     .stat-label {
       color: var(--muted);
       font-size: 0.74rem;
@@ -308,6 +303,55 @@
     .tower-cost {
       color: var(--warn);
       font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .tactic-card {
+      border: 1px solid rgba(97, 255, 126, 0.16);
+      background: rgba(97, 255, 126, 0.045);
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .tactic-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #9fffab;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .tactic-copy {
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.35;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .mini-chip {
+      border: 1px solid rgba(124, 232, 255, 0.18);
+      background: rgba(124, 232, 255, 0.06);
+      color: var(--muted);
+      min-width: 0;
+      padding: 6px;
+      font-size: 0.72rem;
+      line-height: 1.25;
+    }
+
+    .mini-chip strong {
+      display: block;
+      color: var(--text);
+      font-size: 0.82rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
     }
 
@@ -447,15 +491,6 @@
       gap: 10px;
     }
 
-    .intel-card {
-      display: grid;
-      grid-template-columns: 40px 1fr;
-      gap: 8px;
-      padding: 8px;
-      border: 1px solid rgba(97, 255, 126, 0.16);
-      background: rgba(97, 255, 126, 0.04);
-    }
-
     .log-list {
       display: grid;
       gap: 5px;
@@ -562,7 +597,7 @@
 
     @media (max-width: 540px) {
       .tower-card {
-        grid-template-columns: 38px 1fr;
+        grid-template-columns: 64px 1fr;
       }
 
       .tower-cost {
@@ -635,8 +670,8 @@
 
       <aside class="panel right-panel">
         <div class="panel-content">
-          <h2>Enemy Designs</h2>
-          <div id="enemyIntel" class="intel-list"></div>
+          <h2>Tactical Control</h2>
+          <div id="sideTactics" class="tactics-list"></div>
           <div class="module">
             <h3 id="inspectorTitle">Selected Node</h3>
             <div id="inspectorBody" class="stat-grid"></div>
@@ -862,7 +897,7 @@
       const els = {
         field: document.getElementById("field"),
         towerList: document.getElementById("towerList"),
-        enemyIntel: document.getElementById("enemyIntel"),
+        sideTactics: document.getElementById("sideTactics"),
         toast: document.getElementById("toast"),
         clock: document.getElementById("clock"),
         linkStatus: document.getElementById("linkStatus"),
@@ -1110,8 +1145,9 @@
           button.type = "button";
           button.className = "tower-card";
           button.dataset.tower = tower.id;
+          button.setAttribute("aria-label", `${tower.name}, ${tower.desc}, cost ${tower.cost}`);
           button.innerHTML = `
-            <span class="tower-code">${tower.code}</span>
+            <canvas class="tower-preview" width="116" height="104" aria-hidden="true"></canvas>
             <span>
               <span class="tower-name">${tower.name}</span>
               <span class="tower-desc">${tower.desc}</span>
@@ -1125,23 +1161,160 @@
             showToast(`${tower.name} queued`);
           });
           els.towerList.appendChild(button);
+          renderTowerPreview(button.querySelector(".tower-preview"), tower);
         }
       }
 
-      function buildEnemyIntel() {
-        els.enemyIntel.innerHTML = "";
-        for (const enemy of Object.values(enemyDefs)) {
-          const card = document.createElement("div");
-          card.className = "intel-card";
-          card.innerHTML = `
-            <span class="enemy-code">${enemy.code}</span>
-            <span>
-              <span class="enemy-name">${enemy.name}</span>
-              <span class="enemy-desc">${enemy.desc}</span>
-            </span>
-          `;
-          els.enemyIntel.appendChild(card);
+      function renderTowerPreview(canvas, tower) {
+        const p = canvas.getContext("2d");
+        p.clearRect(0, 0, canvas.width, canvas.height);
+        p.save();
+        p.translate(canvas.width / 2, canvas.height / 2 + 13);
+        p.scale(1.25, 1.25);
+        p.lineWidth = 2;
+        p.strokeStyle = tower.color;
+        p.fillStyle = "rgba(10,46,17,0.9)";
+        p.shadowColor = tower.color;
+        p.shadowBlur = 8;
+        p.beginPath();
+        p.ellipse(0, 14, 28, 10, 0, 0, Math.PI * 2);
+        p.fill();
+        p.stroke();
+        if (tower.id === "pulse") {
+          p.strokeRect(-16, 4, 32, 15);
+          p.beginPath();
+          p.moveTo(-5, 4);
+          p.lineTo(-2, -30);
+          p.lineTo(2, -30);
+          p.lineTo(5, 4);
+          p.closePath();
+          p.stroke();
+          p.beginPath();
+          p.arc(0, -4, 8, 0, Math.PI * 2);
+          p.stroke();
+        } else if (tower.id === "arc") {
+          for (let i = 0; i < 4; i += 1) {
+            p.beginPath();
+            p.ellipse(0, 2 - i * 9, 18 - i * 2, 5, 0, 0, Math.PI * 2);
+            p.stroke();
+          }
+          p.beginPath();
+          p.moveTo(0, -34);
+          p.lineTo(7, -18);
+          p.lineTo(-5, -4);
+          p.stroke();
+        } else if (tower.id === "cryo") {
+          p.beginPath();
+          p.moveTo(0, -34);
+          p.lineTo(18, -4);
+          p.lineTo(8, 16);
+          p.lineTo(-8, 16);
+          p.lineTo(-18, -4);
+          p.closePath();
+          p.stroke();
+          p.beginPath();
+          p.moveTo(0, -34);
+          p.lineTo(0, 16);
+          p.moveTo(-18, -4);
+          p.lineTo(18, -4);
+          p.stroke();
+        } else if (tower.id === "mine") {
+          p.beginPath();
+          p.arc(0, -4, 22, 0, Math.PI * 2);
+          p.stroke();
+          p.beginPath();
+          p.arc(0, -4, 8, 0, Math.PI * 2);
+          p.stroke();
+          for (let i = 0; i < 8; i += 1) {
+            const a = i * Math.PI / 4;
+            p.beginPath();
+            p.moveTo(Math.cos(a) * 15, -4 + Math.sin(a) * 15);
+            p.lineTo(Math.cos(a) * 24, -4 + Math.sin(a) * 24);
+            p.stroke();
+          }
+        } else {
+          p.beginPath();
+          p.moveTo(0, 12);
+          p.lineTo(0, -34);
+          p.stroke();
+          p.beginPath();
+          p.arc(0, -4, 15, Math.PI * 1.12, Math.PI * 1.88);
+          p.stroke();
+          p.beginPath();
+          p.arc(0, -4, 24, Math.PI * 1.15, Math.PI * 1.85);
+          p.stroke();
+          p.beginPath();
+          p.moveTo(-17, 14);
+          p.lineTo(0, -6);
+          p.lineTo(17, 14);
+          p.stroke();
         }
+        p.restore();
+      }
+
+      function syncSideTactics() {
+        const nextWave = state.gameOver ? state.wave : state.phase === "combat" ? state.wave : state.wave + 1;
+        const forecast = waveForecast(nextWave || 1);
+        const tower = selectedTower();
+        const selected = tower ? towerById[tower.type] : towerById[state.placingType];
+        const buildStatus = state.selectedTowerId
+          ? `${selected.name} MK-${tower.level} selected`
+          : `${selected.name} queued`;
+        const laneStatus = state.phase === "combat"
+          ? `${state.enemies.length} hostiles active`
+          : hover.reason || "Build ready";
+        els.sideTactics.innerHTML = `
+          <div class="tactic-card">
+            <div class="tactic-heading"><span>Next Wave</span><span>${forecast.kind}</span></div>
+            <div class="mini-grid">
+              <span class="mini-chip">Wave<strong>${String(nextWave).padStart(2, "0")}</strong></span>
+              <span class="mini-chip">Length<strong>${forecast.duration}</strong></span>
+              <span class="mini-chip">Threat<strong>${forecast.threat}</strong></span>
+              <span class="mini-chip">Spawn Pack<strong>${forecast.count}</strong></span>
+            </div>
+            <p class="tactic-copy">${forecast.note}</p>
+          </div>
+          <div class="tactic-card">
+            <div class="tactic-heading"><span>Build Doctrine</span><span>${selected.role}</span></div>
+            <p class="tactic-copy">${buildStatus}. ${laneStatus}. Upgrades remain available during combat and planning windows.</p>
+            <div class="mini-grid">
+              <span class="mini-chip">Capacity<strong>${state.towers.length}/${state.towerCapacity}</strong></span>
+              <span class="mini-chip">Credits<strong>$${fmt(state.credits)}</strong></span>
+            </div>
+          </div>
+          <div class="tactic-card">
+            <div class="tactic-heading"><span>Field Systems</span><span>${state.phase.toUpperCase()}</span></div>
+            <div class="mini-grid">
+              <span class="mini-chip">Auto Flow<strong>${state.autoAdvance ? "ON" : "OFF"}</strong></span>
+              <span class="mini-chip">Sim Rate<strong>x${SPEEDS[state.speedIndex]}</strong></span>
+              <span class="mini-chip">Sound<strong>${state.sound ? "ON" : "OFF"}</strong></span>
+              <span class="mini-chip">Core<strong>${state.lives}/25</strong></span>
+            </div>
+          </div>
+        `;
+      }
+
+      function waveForecast(wave) {
+        const bossWave = wave % 5 === 0;
+        const count = bossWave ? Math.min(96, 28 + wave * 4) : Math.min(110, 36 + wave * 5);
+        const interval = bossWave ? Math.max(0.74, 1.25 - wave * 0.01) : Math.max(0.62, 1.32 - wave * 0.012);
+        const seconds = Math.round(count * interval + (bossWave ? 74 : 34) + Math.min(38, wave * 2.4));
+        const threat = bossWave ? "BOSS" : wave < 4 ? "LOW" : wave < 9 ? "MODERATE" : wave < 15 ? "HIGH" : "SEVERE";
+        return {
+          count,
+          threat,
+          kind: bossWave ? "BOSS" : "REGULAR",
+          duration: formatDuration(seconds),
+          note: bossWave
+            ? "Heavy chassis signatures will stretch the engagement. Keep armor disruption and burst damage online."
+            : "Regular wave pacing leaves time for mid-wave upgrades without burying the active route."
+        };
+      }
+
+      function formatDuration(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainder = String(seconds % 60).padStart(2, "0");
+        return `${minutes}:${remainder}`;
       }
 
       function getTowerStats(tower) {
@@ -1905,26 +2078,31 @@
 
       function drawGate(point, entry) {
         ctx.save();
-        ctx.translate(point.x, point.y);
-        ctx.strokeStyle = entry ? "rgba(124,232,255,0.75)" : "rgba(255,95,97,0.75)";
-        ctx.fillStyle = entry ? "rgba(124,232,255,0.12)" : "rgba(255,95,97,0.12)";
-        ctx.lineWidth = 2;
+        const offset = entry ? { x: 88, y: 34 } : { x: -86, y: -42 };
+        ctx.translate(point.x + offset.x, point.y + offset.y);
+        ctx.globalAlpha = 0.48;
+        ctx.strokeStyle = entry ? "rgba(124,232,255,0.72)" : "rgba(255,95,97,0.62)";
+        ctx.fillStyle = entry ? "rgba(124,232,255,0.045)" : "rgba(255,95,97,0.04)";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.rect(-48, -22, 96, 44);
+        ctx.rect(-34, -15, 68, 30);
         ctx.fill();
         ctx.stroke();
+        ctx.font = "700 10px Courier New, monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = entry ? "rgba(196,247,255,0.7)" : "rgba(255,176,176,0.62)";
+        ctx.fillText(entry ? "ENTRY" : "CORE", 0, 4);
         for (let i = -1; i <= 1; i += 1) {
           ctx.beginPath();
           if (entry) {
-            ctx.moveTo(i * 24 - 8, -6);
-            ctx.lineTo(i * 24 + 8, -6);
-            ctx.lineTo(i * 24, 10);
+            ctx.moveTo(-48, i * 7 - 4);
+            ctx.lineTo(-39, i * 7);
+            ctx.lineTo(-48, i * 7 + 4);
           } else {
-            ctx.moveTo(i * 24 - 8, 6);
-            ctx.lineTo(i * 24 + 8, 6);
-            ctx.lineTo(i * 24, -10);
+            ctx.moveTo(48, i * 7 - 4);
+            ctx.lineTo(39, i * 7);
+            ctx.lineTo(48, i * 7 + 4);
           }
-          ctx.closePath();
           ctx.stroke();
         }
         ctx.restore();
@@ -2384,6 +2562,7 @@
         }
 
         els.logList.innerHTML = state.logs.map((item) => `<span>&gt; ${item}</span>`).join("");
+        syncSideTactics();
         syncInspector();
       }
 
@@ -2513,7 +2692,6 @@
       }
 
       buildTowerCards();
-      buildEnemyIntel();
       bindEvents();
       resizeCanvas();
       requestAnimationFrame(resizeCanvas);
