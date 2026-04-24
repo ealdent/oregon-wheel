@@ -1,28 +1,44 @@
-# Oregon Wheel Revamp
+# Single-Page Tower Defense
 
 ## Spec
 
-- [x] Audit the current `depths/oregon-wheel.html` implementation and preserve only the parts worth keeping.
-- [x] Replace the old journey list with the full current roster from the provided screenshots.
-- [x] Redesign the page to better match the visual language of `depths/` while making the wheel feel more polished and intentional.
-- [x] Improve the spin experience with stronger motion, clearer feedback, and a more prominent winner state.
-- [x] Keep the page as a self-contained HTML file with responsive behavior on desktop and mobile.
-- [x] Verify the result with a browser-level render check and document outcomes here.
+- [x] Create a green-field, single-page HTML tower defense game that can be opened directly in a browser with no installs, build step, or external dependencies.
+- [x] Use a fresh unexpected theme, not based on existing local tower-defense files.
+- [x] Generate a random playable track on each new game.
+- [x] Include five distinct tower types, each with four upgrade levels.
+- [x] Include enemies with varied speed, health, armor, behavior, and rewards.
+- [x] Include at least 20 varied waves with between-wave upgrade time.
+- [x] Build a polished, cute, cartoony, responsive UI with a professional feel.
+- [x] Verify the game renders, starts, upgrades towers, advances waves, and remains self-contained.
+
+## Plan
+
+- [x] Define the fantasy, controls, game loop, wave schedule, tower data, enemy data, and random track generator.
+- [x] Implement simulation state separately from canvas rendering inside one HTML file.
+- [x] Build the DOM HUD, tower shop, inspector, upgrade controls, pause/wave controls, and responsive layout.
+- [x] Add cartoon rendering, particles, path variation, tower effects, projectiles, status effects, and wave intermission behavior.
+- [x] Run browser-level smoke tests and static checks for external dependencies.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Task plan written
-- [x] UI and animation revamp implemented
+- [x] Game implemented
 - [x] Verification completed
 
 ## Review
 
-- Rebuilt `depths/oregon-wheel.html` as a more dramatic single-page experience with a bioluminescent stage, donut-style wheel, roster control deck, and stronger winner presentation.
-- Expanded the wheel data to the full 27-journey roster from the supplied screenshots, including `Planet Penguin Episode 2`, `Potato's Day Out`, `The Strange Case`, `Voyage to Tobago`, `The Suburbs`, and `Trail Of Horror`.
-- Verified desktop and mobile rendering with headless Chromium screenshots.
-- Verified spin behavior with a headless Chromium automation pass that clicked `#spinBtn` and confirmed:
-  - `#activeState` becomes `Winner locked`
-  - `#statSpins` increments to `1`
-  - `#winnerLabel` becomes `Wheel selected`
-  - `#spinBtn` returns to `Spin the wheel`
+- Created `tower-def/spin-cycle-skies.html`, a standalone canvas + DOM tower defense game with the unexpected dream laundromat theme.
+- Added `Spin Cycle Skies` to `tower-def/index.html` as a launchable mission card.
+- Implemented a random stitched track generator, 24 varied waves, five enemy types plus boss variants, five tower types, four upgrade purchases per tower, between-wave upgrade windows, selling, speed control, pause, and a charged Spin Cycle field ability.
+- Verified the file is self-contained with no `http`, `https`, `@import`, external stylesheet, or external script references.
+- Verified the inline JavaScript parses with Node.
+- Verified in the browser from `file://`:
+  - page title loads as `Spin Cycle Skies`
+  - no console errors after reload
+  - tower cards and wave controls are visible
+  - tower placement works
+  - planning-phase upgrade works
+  - wave 1 starts
+  - wave 1 resolves back to the planning window for wave 2
+- Checked desktop and narrow mobile screenshots with headless Chrome; fixed the mobile overflow found during verification.
