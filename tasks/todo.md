@@ -1,44 +1,48 @@
-# Single-Page Tower Defense
+# Mother OS Tower Defense
 
 ## Spec
 
-- [x] Create a green-field, single-page HTML tower defense game that can be opened directly in a browser with no installs, build step, or external dependencies.
-- [x] Use a fresh unexpected theme, not based on existing local tower-defense files.
-- [x] Generate a random playable track on each new game.
-- [x] Include five distinct tower types, each with four upgrade levels.
-- [x] Include enemies with varied speed, health, armor, behavior, and rewards.
-- [x] Include at least 20 varied waves with between-wave upgrade time.
-- [x] Build a polished, cute, cartoony, responsive UI with a professional feel.
-- [x] Verify the game renders, starts, upgrades towers, advances waves, and remains self-contained.
+- [x] Create a new no-build browser game under `arcade/mother-os-defense/` that loads directly from `index.html`.
+- [x] Use the supplied image as theme direction: green CRT tactical schematic, industrial sector map, Mother OS interface, tower dossiers, and enemy intel.
+- [x] Implement a substantial tower-defense loop with unlimited waves, regular waves around 1-2 minutes, boss waves closer to 2-3 minutes, and scaling difficulty.
+- [x] Allow tower placement, selling, targeting, mid-wave upgrades, and between-wave upgrades.
+- [x] Include multiple tower designs inspired by the image: pulse needle, arc relay, cryo prism, mine layer, and signal jammer.
+- [x] Include varied enemies inspired by the image: crawler drone, shield beetle, split slime, burrower worm, static wisp, juggernaut walker, phantom mimic, and boss variants.
+- [x] Add player controls for pause, speed, auto-continue between waves, and sound effects on/off.
+- [x] Make the UI responsive, polished, and playable on desktop and mobile without external dependencies.
+- [x] Add the game to `arcade/index.html`.
+- [x] Verify static self-containment, JavaScript parsing, browser boot, core interactions, wave progression, and responsive layout.
 
 ## Plan
 
-- [x] Define the fantasy, controls, game loop, wave schedule, tower data, enemy data, and random track generator.
-- [x] Implement simulation state separately from canvas rendering inside one HTML file.
-- [x] Build the DOM HUD, tower shop, inspector, upgrade controls, pause/wave controls, and responsive layout.
-- [x] Add cartoon rendering, particles, path variation, tower effects, projectiles, status effects, and wave intermission behavior.
-- [x] Run browser-level smoke tests and static checks for external dependencies.
+- [x] Read project instructions, arcade hub conventions, and browser-game workflow guidance.
+- [x] Build a single-file `index.html` with separated simulation, rendering, input, audio, wave, and UI sections.
+- [x] Create the CRT tactical visual system with responsive canvas layout, side/bottom controls, readable HUD, and reduced-motion support.
+- [x] Implement path traversal, enemy behaviors, tower targeting/effects, projectiles, mines, upgrades, economy, lives, and infinite scaling.
+- [x] Update the arcade hub card and styles for the new game.
+- [x] Run verification and record results in this file.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Task plan written
 - [x] Game implemented
+- [x] Arcade index updated
 - [x] Verification completed
 
 ## Review
 
-- Created `tower-def/spin-cycle-skies.html`, a standalone canvas + DOM tower defense game with the unexpected dream laundromat theme.
-- Added `Spin Cycle Skies` to `tower-def/index.html` as a launchable mission card.
-- Implemented a random stitched track generator, 24 varied waves, five enemy types plus boss variants, five tower types, four upgrade purchases per tower, between-wave upgrade windows, selling, speed control, pause, and a charged Spin Cycle field ability.
-- Verified the file is self-contained with no `http`, `https`, `@import`, external stylesheet, or external script references.
-- Verified the inline JavaScript parses with Node.
-- Verified in the browser from `file://`:
-  - page title loads as `Spin Cycle Skies`
-  - no console errors after reload
-  - tower cards and wave controls are visible
+- Created `arcade/mother-os-defense/index.html`, a self-contained canvas + DOM tower defense game with no external dependencies.
+- Added `Mother OS Defense` to `arcade/index.html`.
+- Implemented the CRT tactical Mother OS theme, unlimited generated waves, boss waves, auto-continue toggle, sound toggle, pause/speed controls, five tower designs, seven enemy classes, mid-wave and between-wave upgrades, selling, target modes, mines, projectiles, status effects, and responsive desktop/mobile layouts.
+- Verified inline JavaScript parsing for the new game and arcade index.
+- Verified the new game file contains no `http`, `https`, `@import`, external stylesheet, external script, or `url(...)` references.
+- Verified in headless Chrome from `file://`:
+  - title loads as `Mother OS: Sector-76 Defense`
+  - five tower cards and seven enemy intel cards render
   - tower placement works
-  - planning-phase upgrade works
-  - wave 1 starts
-  - wave 1 resolves back to the planning window for wave 2
-- Checked desktop and narrow mobile screenshots with headless Chrome; fixed the mobile overflow found during verification.
+  - upgrading works (`Pulse Needle MK-1` to `MK-2`)
+  - wave 1 starts and resolves back to planning
+  - auto-continue toggle activates
+  - mobile layout puts the playfield first and sizes the canvas to `350x238` at a 390px viewport
+  - no console errors or warnings were emitted
