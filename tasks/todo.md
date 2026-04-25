@@ -1,36 +1,34 @@
-# Mother OS Operation Countdown Pass
+# Mother OS Non-Boss Enemy Art Pass
 
 ## Spec
 
-- [x] Replace the fixed Sector-76 label with facility names that count down through sectors.
-- [x] Start from a readable example like `Tokamak Facility B Sector 7`.
-- [x] Make Sector 1 the boss zone for the current facility.
-- [x] After the boss sector clears, roll into a new randomized facility with a new sector countdown.
-- [x] Remove the old every-five-waves boss cadence.
-- [x] Surface the operation name in the canvas, side tactics panel, start button, logs, and wave summary.
-- [x] Preserve unlimited waves, existing scaling, and single-file/no-dependency structure.
+- [x] Rework all non-boss enemy visuals to match the new enemy design reference.
+- [x] Preserve the first seven existing enemy identities while improving their silhouettes and line detail.
+- [x] Add the three referenced non-boss designs that are not currently in the game: Harvester Mite, Void Leech, and Obelisk Floater.
+- [x] Use the same high-fidelity schematic language in the right-side threat preview and live path rendering.
+- [x] Keep boss logic intact; this pass is about the non-boss visual catalog.
+- [x] Preserve single-file/no-dependency structure.
 - [x] Verify with static checks and browser screenshots.
 
 ## Plan
 
-- [x] Record the level-naming correction pattern in `tasks/lessons.md`.
-- [x] Inspect current wave, boss, forecast, and Sector-76 rendering code.
-- [x] Add operation generation, sector countdown state, and boss-sector detection.
-- [x] Update forecast, wave generation, completion, logs, and UI rendering to use operation labels.
-- [x] Run parse/self-containment checks and browser layout verification.
+- [x] Record the enemy-art correction pattern in `tasks/lessons.md`.
+- [x] Inspect existing enemy definitions, threat preview drawing, and live enemy drawing.
+- [x] Expand enemy definitions to all ten reference enemies.
+- [x] Build shared schematic enemy drawing primitives and route preview/live render through them.
+- [x] Run parse/self-containment checks and browser visual verification.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Countdown logic implemented
-- [x] UI labels updated
+- [x] Enemy catalog expanded
+- [x] Enemy rendering reworked
 - [x] Verification completed
 
 ## Review
 
-- Initial operation is `Tokamak Facility B Sector 7`.
-- Boss waves now trigger when the current operation reaches Sector 1, not every five waves.
-- Clearing a non-boss sector decrements the current operation sector; clearing a boss sector creates a new randomized facility and sector countdown.
-- The operation label appears in the canvas overlay, right tactics panel, start button, browser title, logs, and wave summary.
-- Browser verification passed at desktop and mobile widths with screenshots at `/tmp/mother-os-zones-desktop.png` and `/tmp/mother-os-zones-mobile.png`.
+- The enemy catalog now contains all ten reference non-boss designs: Crawler Drone, Shield Beetle, Split Slime, Burrower Worm, Static Wisp, Juggernaut Walker, Phantom Mimic, Harvester Mite, Void Leech, and Obelisk Floater.
+- Added Harvester Mite, Void Leech, and Obelisk Floater as unlockable non-boss enemies after the original seven.
+- Preview and live path rendering now route through one shared reference-style schematic drawing function so the side panel and active enemies stay visually consistent.
+- Browser verification generated a 10-enemy lineup screenshot at `/tmp/mother-os-enemy-sheet.png` and a live game screenshot at `/tmp/mother-os-enemies-game.png`.

@@ -7,3 +7,4 @@
 - For tower defense controls, never leave a build tool permanently armed after placement; explicit selection, easy deselection, and refundable misclick recovery are core mobile UX safeguards.
 - In resource-driven games, current currency, health, and score must live near primary controls with stronger visual hierarchy than decorative telemetry such as clocks.
 - For wave-based games, avoid mechanical boss intervals when the player wants world flavor; express cadence through diegetic countdown labels and boss-zone anticipation.
+- When reworking enemies from a lineup reference, mirror the full catalog and distinctive silhouette role of each unit, not just the enemies already present in the current implementation.
