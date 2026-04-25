@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mother OS: Sector-76 Defense</title>
+  <title>Mother OS: Operation Countdown</title>
   <style>
     :root {
       --bg: #020602;
@@ -111,7 +111,7 @@
 
     .topline {
       display: grid;
-      grid-template-columns: minmax(210px, 0.82fr) minmax(440px, 760px) minmax(180px, 0.7fr);
+      grid-template-columns: minmax(210px, 0.76fr) minmax(440px, 760px) minmax(260px, 0.82fr);
       gap: 12px;
       align-items: stretch;
       margin-bottom: 10px;
@@ -166,6 +166,94 @@
     .topcell.right {
       align-items: flex-end;
       text-align: right;
+    }
+
+    .topcell.resource-cell {
+      align-items: stretch;
+      text-align: left;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 10px;
+    }
+
+    .resource-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      min-width: 0;
+      text-transform: uppercase;
+    }
+
+    .resource-title {
+      color: #c6ffcb;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(97, 255, 126, 0.36);
+    }
+
+    .resource-clock {
+      color: var(--dim);
+      font-size: 0.74rem;
+      white-space: nowrap;
+    }
+
+    .resource-grid {
+      display: grid;
+      grid-template-columns: 1.18fr 0.8fr 1fr;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .resource-chip {
+      min-width: 0;
+      border: 1px solid rgba(97, 255, 126, 0.18);
+      background:
+        repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0, 0, 0, 0.12) 3px, rgba(0, 0, 0, 0.12) 5px),
+        rgba(97, 255, 126, 0.055);
+      padding: 7px 8px;
+      box-shadow: inset 0 0 16px rgba(97, 255, 126, 0.05);
+    }
+
+    .resource-chip span {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 0.6rem;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .resource-chip strong {
+      display: block;
+      color: var(--text);
+      font-size: clamp(0.86rem, 1.02vw, 1.08rem);
+      font-weight: 700;
+      line-height: 1.05;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .resource-chip.credits {
+      border-color: rgba(255, 207, 90, 0.34);
+      background:
+        repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0, 0, 0, 0.14) 3px, rgba(0, 0, 0, 0.14) 5px),
+        rgba(255, 207, 90, 0.095);
+    }
+
+    .resource-chip.credits strong {
+      color: #ffdf69;
+      font-size: clamp(0.98rem, 1.18vw, 1.22rem);
+      text-shadow: 0 0 14px rgba(255, 207, 90, 0.34);
+    }
+
+    .resource-chip.health strong {
+      color: #c6ffcb;
+    }
+
+    .resource-chip.points strong {
+      color: #c4f7ff;
     }
 
     .back-link {
@@ -395,6 +483,10 @@
       white-space: nowrap;
     }
 
+    .mini-chip.wide {
+      grid-column: 1 / -1;
+    }
+
     .canvas-shell {
       position: relative;
       min-height: 0;
@@ -557,7 +649,7 @@
       grid-column: 1 / -1;
       padding: 10px;
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: minmax(260px, 0.8fr) minmax(340px, 1.2fr);
       gap: 10px;
     }
 
@@ -609,20 +701,25 @@
       }
     }
 
-    @media (max-width: 880px) {
-      #app {
-        padding: 8px;
-      }
-
-      .topline,
-      .layout,
-      .status-strip {
+    @media (max-width: 980px) {
+      .topline {
         grid-template-columns: 1fr;
       }
 
       .topcell.right {
         align-items: flex-start;
         text-align: left;
+      }
+    }
+
+    @media (max-width: 880px) {
+      #app {
+        padding: 8px;
+      }
+
+      .layout,
+      .status-strip {
+        grid-template-columns: 1fr;
       }
 
       .field-panel {
@@ -705,7 +802,7 @@
       </div>
       <div class="topcell center command-cell">
         <div class="command-row">
-          <button id="startWave" class="primary" type="button">Start Wave</button>
+          <button id="startWave" class="primary" type="button">Start Sector 7</button>
           <button id="upgradeBtn" type="button">Upgrade</button>
           <button id="targetBtn" type="button">Target</button>
           <button id="sellBtn" type="button">Sell</button>
@@ -717,8 +814,25 @@
           <button id="soundBtn" class="toggle on" type="button" role="switch" aria-checked="true">Sound On</button>
         </div>
       </div>
-      <div class="topcell right">
-        <div id="clock" class="brand">00:00:00</div>
+      <div class="topcell resource-cell" aria-label="Resource feed">
+        <div class="resource-head">
+          <span class="resource-title">Resource Feed</span>
+          <span id="clock" class="resource-clock">00:00:00</span>
+        </div>
+        <div class="resource-grid">
+          <div class="resource-chip credits">
+            <span>Credits</span>
+            <strong id="creditsReadout">$000</strong>
+          </div>
+          <div class="resource-chip health">
+            <span>Health</span>
+            <strong id="livesReadout">00/25</strong>
+          </div>
+          <div class="resource-chip points">
+            <span>Points</span>
+            <strong id="scoreReadout">000000</strong>
+          </div>
+        </div>
         <div id="linkStatus" class="micro">SYS LINK: STABLE</div>
       </div>
     </header>
@@ -755,12 +869,6 @@
 
       <section class="status-strip">
         <div class="module">
-          <h3>Resource Feed</h3>
-          <div class="row"><span>Credits</span><strong id="creditsReadout">000</strong></div>
-          <div class="row"><span>Core Integrity</span><strong id="livesReadout">00</strong></div>
-          <div class="row"><span>Salvage Score</span><strong id="scoreReadout">000000</strong></div>
-        </div>
-        <div class="module">
           <h3>System Status</h3>
           <div class="row"><span>Protocol</span><strong id="phaseReadout">PLANNING</strong></div>
           <div class="row"><span>Active Hostiles</span><strong id="activeReadout">00</strong></div>
@@ -768,7 +876,7 @@
         </div>
         <div class="module">
           <h3>Wave Summary</h3>
-          <div class="row"><span>Current Wave</span><strong id="waveReadout">00</strong></div>
+          <div class="row"><span>Current Zone</span><strong id="waveReadout">Sector 00</strong></div>
           <div class="bar"><span id="waveBar"></span></div>
           <div id="logList" class="log-list"></div>
         </div>
@@ -963,6 +1071,19 @@
         }
       };
 
+      const operationTemplates = [
+        { site: "Tokamak Facility", suffixes: ["B", "K", "R-4", "Delta"] },
+        { site: "Orbital Cargo Facility", suffixes: ["13", "22", "C", "Helix"] },
+        { site: "Mass Driver Array", suffixes: ["9", "V", "Aster", "D"] },
+        { site: "Cryogenic Vault", suffixes: ["Sigma", "E-6", "Lumen", "04"] },
+        { site: "Null Foundry", suffixes: ["17", "Gamma", "Kestrel", "F"] },
+        { site: "Deep Radar Annex", suffixes: ["3", "Iris", "Q", "88"] },
+        { site: "Plasma Intake Plant", suffixes: ["C", "11", "Morrow", "T"] },
+        { site: "Catenary Relay Station", suffixes: ["V", "31", "Juno", "Beta"] },
+        { site: "Subsurface Data Mine", suffixes: ["L-2", "19", "Nadir", "H"] },
+        { site: "Aperture Dockyard", suffixes: ["6", "Orion", "Z", "12"] }
+      ];
+
       const els = {
         field: document.getElementById("field"),
         towerList: document.getElementById("towerList"),
@@ -1014,6 +1135,7 @@
       let state = makeInitialState();
 
       function makeInitialState() {
+        const operation = createOperation(1);
         return {
           wave: 0,
           phase: "planning",
@@ -1034,6 +1156,8 @@
           autoAdvance: false,
           autoStartTimer: 0,
           sound: true,
+          operationIndex: operation.index,
+          operation,
           spawnQueue: [],
           spawnTimer: 0,
           wavePlan: null,
@@ -1041,7 +1165,7 @@
           waveResolved: 0,
           kills: 0,
           gameOver: false,
-          logs: ["Sector awake.", "Build protocol active.", "Select a tower design."]
+          logs: [`${operationLabel(operation)} indexed.`, "Build protocol active.", "Select a tower design."]
         };
       }
 
@@ -1174,8 +1298,60 @@
         return Math.floor(value).toLocaleString("en-US");
       }
 
+      function randomInt(min, max) {
+        return min + Math.floor(Math.random() * (max - min + 1));
+      }
+
+      function pick(list) {
+        return list[Math.floor(Math.random() * list.length)];
+      }
+
       function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
+      }
+
+      function createOperation(index) {
+        if (index === 1) {
+          return {
+            index,
+            facility: "Tokamak Facility B",
+            sectorCount: 7,
+            sector: 7
+          };
+        }
+        const template = pick(operationTemplates);
+        const sectorCount = randomInt(6, Math.min(14, 10 + Math.floor(index / 2)));
+        return {
+          index,
+          facility: `${template.site} ${pick(template.suffixes)}`,
+          sectorCount,
+          sector: sectorCount
+        };
+      }
+
+      function cloneOperation(operation) {
+        return {
+          index: operation.index,
+          facility: operation.facility,
+          sectorCount: operation.sectorCount,
+          sector: operation.sector
+        };
+      }
+
+      function operationLabel(operation) {
+        return `${operation.facility} Sector ${operation.sector}`;
+      }
+
+      function operationCompactLabel(operation) {
+        return `${operation.facility} / S${String(operation.sector).padStart(2, "0")}`;
+      }
+
+      function isBossOperation(operation) {
+        return operation.sector <= 1;
+      }
+
+      function activeOperation() {
+        return state.phase === "combat" && state.wavePlan ? state.wavePlan.operation : state.operation;
       }
 
       function dist(a, b) {
@@ -1905,7 +2081,7 @@
 
       function syncSideTactics() {
         const nextWave = state.gameOver ? state.wave : state.phase === "combat" ? state.wave : state.wave + 1;
-        const forecast = waveForecast(nextWave || 1);
+        const forecast = waveForecast(nextWave || 1, activeOperation());
         const tower = selectedTower();
         const queued = towerById[state.placingType] || null;
         const selected = tower ? towerById[tower.type] : queued;
@@ -1918,7 +2094,7 @@
           : hover.reason || "Build ready";
         els.sideTactics.innerHTML = `
           <div class="tactic-card">
-            <div class="tactic-heading"><span>Next Wave</span><span>${forecast.kind}</span></div>
+            <div class="tactic-heading"><span>${state.phase === "combat" ? "Active Zone" : "Next Zone"}</span><span>${forecast.kind}</span></div>
             <div class="threat-band">
               <canvas class="threat-preview" width="320" height="168" aria-label="${signature.name} schematic"></canvas>
               <div class="mini-grid">
@@ -1929,6 +2105,8 @@
               </div>
             </div>
             <div class="mini-grid">
+              <span class="mini-chip wide">Facility<strong>${forecast.facility}</strong></span>
+              <span class="mini-chip">Sector<strong>${String(forecast.sector).padStart(2, "0")}${forecast.bossWave ? " BOSS" : ""}</strong></span>
               <span class="mini-chip">Wave<strong>${String(nextWave).padStart(2, "0")}</strong></span>
               <span class="mini-chip">Length<strong>${forecast.duration}</strong></span>
               <span class="mini-chip">Threat<strong>${forecast.threat}</strong></span>
@@ -1957,26 +2135,34 @@
         renderThreatPreview(els.sideTactics.querySelector(".threat-preview"), forecast.signature);
       }
 
-      function waveForecast(wave) {
-        const bossWave = wave % 5 === 0;
+      function waveForecast(wave, operation = state.operation) {
+        const zone = cloneOperation(operation);
+        const bossWave = isBossOperation(zone);
         const count = bossWave ? Math.min(96, 28 + wave * 4) : Math.min(110, 36 + wave * 5);
         const interval = bossWave ? Math.max(0.74, 1.25 - wave * 0.01) : Math.max(0.62, 1.32 - wave * 0.012);
         const seconds = Math.round(count * interval + (bossWave ? 74 : 34) + Math.min(38, wave * 2.4));
         const threat = bossWave ? "BOSS" : wave < 4 ? "LOW" : wave < 9 ? "MODERATE" : wave < 15 ? "HIGH" : "SEVERE";
         return {
+          wave,
+          operation: zone,
+          operationLabel: operationLabel(zone),
+          operationCompactLabel: operationCompactLabel(zone),
+          facility: zone.facility,
+          sector: zone.sector,
+          bossWave,
           count,
           threat,
-          kind: bossWave ? "BOSS" : "REGULAR",
-          signature: primaryThreatForWave(wave),
+          kind: bossWave ? "BOSS ZONE" : "SECTOR",
+          signature: primaryThreatForWave(wave, bossWave),
           duration: formatDuration(seconds),
           note: bossWave
-            ? "Heavy chassis signatures will stretch the engagement. Keep armor disruption and burst damage online."
-            : "Regular wave pacing leaves time for mid-wave upgrades without burying the active route."
+            ? `${zone.facility} final sector. Heavy chassis signatures will stretch the engagement.`
+            : `Countdown route falls from Sector ${zone.sector} toward the Sector 1 boss zone.`
         };
       }
 
-      function primaryThreatForWave(wave) {
-        if (wave % 5 === 0) return wave >= 10 ? "juggernaut" : "beetle";
+      function primaryThreatForWave(wave, bossWave = false) {
+        if (bossWave) return wave >= 10 ? "juggernaut" : "beetle";
         const unlocked = Object.entries(enemyDefs)
           .filter(([, enemy]) => enemy.unlock <= wave)
           .sort((a, b) => a[1].unlock - b[1].unlock);
@@ -2193,12 +2379,13 @@
         nextTowerId = 1;
         nextEnemyId = 1;
         nextMineId = 1;
-        log("Sector rebooted.");
+        log("Operation rebooted.");
         showToast("Mother OS reboot complete");
       }
 
-      function generateWave(wave) {
-        const bossWave = wave % 5 === 0;
+      function generateWave(wave, operation) {
+        const forecast = waveForecast(wave, operation);
+        const bossWave = forecast.bossWave;
         const unlocked = Object.entries(enemyDefs)
           .filter(([, enemy]) => enemy.unlock <= wave)
           .map(([id]) => id);
@@ -2219,10 +2406,11 @@
           }
         }
         return {
+          ...forecast,
           bossWave,
           queue,
           total: queue.length,
-          threat: bossWave ? "BOSS" : wave < 4 ? "LOW" : wave < 9 ? "MODERATE" : wave < 15 ? "HIGH" : "SEVERE"
+          threat: forecast.threat
         };
       }
 
@@ -2258,13 +2446,13 @@
         state.wave += 1;
         state.phase = "combat";
         state.autoStartTimer = 0;
-        state.wavePlan = generateWave(state.wave);
+        state.wavePlan = generateWave(state.wave, cloneOperation(state.operation));
         state.spawnQueue = state.wavePlan.queue.slice();
         state.spawnTimer = 0;
         state.waveSpawned = 0;
         state.waveResolved = 0;
-        log(state.wavePlan.bossWave ? `Boss wave ${state.wave} inbound.` : `Wave ${state.wave} inbound.`);
-        showToast(state.wavePlan.bossWave ? "Boss signature detected" : `Wave ${state.wave} launched`);
+        log(`${state.wavePlan.operationLabel} inbound.`);
+        showToast(state.wavePlan.bossWave ? "Boss sector detected" : `Sector ${state.wavePlan.sector} launched`);
         playSound("wave");
       }
 
@@ -2685,18 +2873,37 @@
         state.particles = state.particles.filter((particle) => particle.life > 0);
       }
 
+      function advanceOperationAfterClear(clearedPlan) {
+        if (!clearedPlan) return;
+        if (clearedPlan.bossWave) {
+          const nextIndex = state.operationIndex + 1;
+          state.operationIndex = nextIndex;
+          state.operation = createOperation(nextIndex);
+          log(`Next operation: ${operationLabel(state.operation)}.`);
+          return;
+        }
+        state.operation = {
+          ...state.operation,
+          sector: Math.max(1, state.operation.sector - 1)
+        };
+        log(`Countdown advanced: ${operationLabel(state.operation)}.`);
+      }
+
       function checkWaveComplete() {
         if (state.phase !== "combat") return;
         if (state.spawnQueue.length === 0 && state.enemies.length === 0) {
-          const bonus = 28 + state.wave * 7 + (state.wavePlan && state.wavePlan.bossWave ? 100 : 0);
+          const clearedPlan = state.wavePlan;
+          const bonus = 28 + state.wave * 7 + (clearedPlan && clearedPlan.bossWave ? 100 : 0);
           state.credits += bonus;
           state.phase = "planning";
-          log(`Wave ${state.wave} cleared. Buffer +$${bonus}.`);
-          showToast(`Wave ${state.wave} cleared`);
-          if (state.wave % 5 === 0 && state.lives < 25) {
+          log(`${clearedPlan ? clearedPlan.operationLabel : `Wave ${state.wave}`} cleared. Buffer +$${bonus}.`);
+          showToast(clearedPlan && clearedPlan.bossWave ? "Boss sector cleared" : `Sector ${clearedPlan ? clearedPlan.sector : state.wave} cleared`);
+          if (clearedPlan && clearedPlan.bossWave && state.lives < 25) {
             state.lives += 1;
             log("Core integrity patched.");
           }
+          advanceOperationAfterClear(clearedPlan);
+          state.wavePlan = null;
           if (state.autoAdvance) {
             state.autoStartTimer = 2.7;
           }
@@ -3374,15 +3581,17 @@
       }
 
       function drawPhaseOverlay() {
+        const displayWave = state.phase === "combat" ? state.wave : state.wave + 1;
+        const forecast = waveForecast(displayWave || 1, activeOperation());
         ctx.save();
         ctx.fillStyle = "rgba(185,255,189,0.72)";
         ctx.font = "700 14px Courier New, monospace";
         ctx.textAlign = "left";
-        ctx.fillText(`SECTOR-76`, 42, 58);
+        ctx.fillText(forecast.operationLabel.toUpperCase(), 42, 58);
         ctx.fillText(`PATH LENGTH ${Math.round(path.total)}m`, BOARD.width - 214, 58);
         ctx.font = "12px Courier New, monospace";
         ctx.fillStyle = "rgba(185,255,189,0.42)";
-        ctx.fillText(`THREAT ${state.wavePlan ? state.wavePlan.threat : "LOW"}`, 42, 76);
+        ctx.fillText(`${forecast.kind} / THREAT ${forecast.threat}`, 42, 76);
         if (state.paused || state.gameOver) {
           ctx.fillStyle = "rgba(0,8,2,0.62)";
           ctx.fillRect(0, 0, BOARD.width, BOARD.height);
@@ -3398,15 +3607,18 @@
 
       function syncUI() {
         const now = new Date();
+        const displayWave = state.phase === "combat" ? state.wave : state.wave + 1;
+        const forecast = waveForecast(displayWave || 1, activeOperation());
         els.clock.textContent = now.toLocaleTimeString("en-US", { hour12: false });
+        document.title = `Mother OS: ${forecast.operationLabel}`;
         els.linkStatus.textContent = state.gameOver ? "SYS LINK: SEVERED" : state.paused ? "SYS LINK: HOLD" : "SYS LINK: STABLE";
         els.creditsReadout.textContent = `$${fmt(state.credits)}`;
         els.livesReadout.textContent = `${state.lives}/25`;
         els.scoreReadout.textContent = fmt(state.score).padStart(6, "0");
         els.phaseReadout.textContent = state.phase.toUpperCase();
         els.activeReadout.textContent = String(state.enemies.length).padStart(2, "0");
-        els.threatReadout.textContent = state.wavePlan ? state.wavePlan.threat : "LOW";
-        els.waveReadout.textContent = String(state.wave).padStart(2, "0");
+        els.threatReadout.textContent = forecast.threat;
+        els.waveReadout.textContent = operationCompactLabel(forecast.operation);
         els.capacityReadout.textContent = `${String(state.towers.length).padStart(2, "0")} / ${state.towerCapacity}`;
         els.capacityBar.style.width = `${clamp(state.towers.length / state.towerCapacity, 0, 1) * 100}%`;
         const waveTotal = state.wavePlan ? Math.max(1, state.wavePlan.total) : 1;
@@ -3419,13 +3631,13 @@
           els.startWave.textContent = "Reboot Sector";
           els.startWave.disabled = false;
         } else if (state.phase === "combat") {
-          els.startWave.textContent = "Wave Active";
+          els.startWave.textContent = "Sector Active";
           els.startWave.disabled = true;
         } else if (state.autoStartTimer > 0) {
           els.startWave.textContent = `Auto ${state.autoStartTimer.toFixed(1)}s`;
           els.startWave.disabled = true;
         } else {
-          els.startWave.textContent = `Start Wave ${state.wave + 1}`;
+          els.startWave.textContent = forecast.bossWave ? "Start Boss S1" : `Start Sector ${forecast.sector}`;
           els.startWave.disabled = false;
         }
         els.pauseBtn.textContent = state.paused ? "Resume" : "Pause";
