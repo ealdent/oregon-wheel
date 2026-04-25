@@ -1173,6 +1173,11 @@
       const path = buildPath(pathPoints);
       const schematicBlocks = buildSchematicBlocks();
       const grimeMarks = buildGrimeMarks();
+      const enemySpriteCache = new Map();
+      const phasedEnemyTypes = new Set(["worm", "wisp", "leech"]);
+      let sideTacticsRenderKey = "";
+      let inspectorRenderKey = "";
+      let logRenderKey = "";
 
       let state = makeInitialState();
 
@@ -2523,6 +2528,29 @@
         const laneStatus = state.phase === "combat"
           ? `${state.enemies.length} hostiles active`
           : hover.reason || "Build ready";
+        const renderKey = [
+          nextWave,
+          forecast.operationLabel,
+          forecast.signature,
+          forecast.kind,
+          forecast.count,
+          forecast.threat,
+          forecast.duration,
+          state.phase,
+          state.enemies.length,
+          state.selectedTowerId || "none",
+          state.placingType || "none",
+          tower ? `${tower.id}:${tower.level}:${tower.targetMode}` : "none",
+          state.towers.length,
+          Math.floor(state.credits),
+          state.autoAdvance,
+          state.speedIndex,
+          state.sound,
+          state.lives,
+          laneStatus
+        ].join("|");
+        if (renderKey === sideTacticsRenderKey) return;
+        sideTacticsRenderKey = renderKey;
         els.sideTactics.innerHTML = `
           <div class="tactic-card">
             <div class="tactic-heading"><span>${state.phase === "combat" ? "Active Zone" : "Next Zone"}</span><span>${forecast.kind}</span></div>
@@ -2810,6 +2838,10 @@
         nextTowerId = 1;
         nextEnemyId = 1;
         nextMineId = 1;
+        sideTacticsRenderKey = "";
+        inspectorRenderKey = "";
+        logRenderKey = "";
+        enemySpriteCache.clear();
         log("Operation rebooted.");
         showToast("Mother OS reboot complete");
       }
@@ -2916,6 +2948,7 @@
           remove: false,
           burrowed: false,
           special: Math.random() * 10,
+          spritePhase: Math.floor(Math.random() * 8),
           spawnedMimic: false,
           wobble: Math.random() * Math.PI * 2,
           color: def.color
@@ -3566,6 +3599,66 @@
         drawTowerSchematic(ctx, type, level, pulse, def.color);
       }
 
+      function enemySpriteHalfExtent(type, radius, boss) {
+        const reach = {
+          crawler: 2.25,
+          beetle: 2.15,
+          slime: 2.0,
+          worm: 2.7,
+          wisp: 2.15,
+          juggernaut: 1.95,
+          phantom: 1.75,
+          mite: 2.35,
+          leech: 2.75,
+          obelisk: 1.95
+        }[type] || 2.1;
+        return Math.ceil(radius * reach + (boss ? 34 : 18));
+      }
+
+      function enemySpriteCacheKey(enemy) {
+        const phase = phasedEnemyTypes.has(enemy.type) ? enemy.spritePhase || 0 : 0;
+        return [
+          enemy.type,
+          Math.round(enemy.radius * 10),
+          enemy.boss ? "boss" : "unit",
+          enemy.child ? "child" : "main",
+          enemy.burrowed ? "burrowed" : "surface",
+          phase,
+          enemy.color
+        ].join("|");
+      }
+
+      function getEnemySprite(enemy) {
+        const key = enemySpriteCacheKey(enemy);
+        const cached = enemySpriteCache.get(key);
+        if (cached) return cached;
+
+        const pixelScale = 3;
+        const half = enemySpriteHalfExtent(enemy.type, enemy.radius, enemy.boss);
+        const canvas = document.createElement("canvas");
+        canvas.width = half * 2 * pixelScale;
+        canvas.height = half * 2 * pixelScale;
+        const g = canvas.getContext("2d");
+        g.setTransform(pixelScale, 0, 0, pixelScale, half, half);
+        g.strokeStyle = enemy.boss ? "#ffcf5a" : enemy.color;
+        g.fillStyle = enemy.burrowed ? "rgba(97,255,126,0.06)" : "rgba(6,28,10,0.92)";
+        g.lineWidth = enemy.boss ? 3 : 2;
+        g.shadowColor = enemy.boss ? "#ffcf5a" : enemy.color;
+        g.shadowBlur = enemy.boss ? 12 : 5;
+        drawReferenceEnemy(g, enemy.type, enemy.radius, {
+          phase: (enemy.spritePhase || 0) * 0.78,
+          child: enemy.child,
+          boss: enemy.boss
+        });
+        const sprite = { canvas, size: half * 2, half };
+        enemySpriteCache.set(key, sprite);
+        if (enemySpriteCache.size > 220) {
+          enemySpriteCache.clear();
+          enemySpriteCache.set(key, sprite);
+        }
+        return sprite;
+      }
+
       function drawEnemies() {
         for (const enemy of state.enemies) {
           const pos = pointAtDistance(enemy.progress);
@@ -3586,13 +3679,8 @@
         ctx.ellipse(0, enemy.radius * 0.62, enemy.radius * 1.48, enemy.radius * 0.38, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
-        ctx.strokeStyle = enemy.boss ? "#ffcf5a" : enemy.color;
-        ctx.fillStyle = enemy.burrowed ? "rgba(97,255,126,0.06)" : "rgba(6,28,10,0.92)";
-        ctx.lineWidth = enemy.boss ? 3 : 2;
-        ctx.shadowColor = enemy.boss ? "#ffcf5a" : enemy.color;
-        ctx.shadowBlur = enemy.boss ? 12 : 5;
-        drawEnemyShape(enemy);
-        ctx.shadowBlur = 0;
+        const sprite = getEnemySprite(enemy);
+        ctx.drawImage(sprite.canvas, -sprite.half, -sprite.half, sprite.size, sprite.size);
         if (enemy.status.slow > 0) {
           ctx.strokeStyle = "rgba(184,247,255,0.8)";
           ctx.beginPath();
@@ -4090,13 +4178,32 @@
           button.disabled = state.credits < def.cost || state.towers.length >= state.towerCapacity;
         }
 
-        els.logList.innerHTML = state.logs.map((item) => `<span>&gt; ${item}</span>`).join("");
+        const logKey = state.logs.join("\n");
+        if (logKey !== logRenderKey) {
+          logRenderKey = logKey;
+          els.logList.innerHTML = state.logs.map((item) => `<span>&gt; ${item}</span>`).join("");
+        }
         syncSideTactics();
         syncInspector();
       }
 
       function syncInspector() {
         const tower = selectedTower();
+        const inspectorKey = tower
+          ? [
+            "tower",
+            tower.id,
+            tower.type,
+            tower.level,
+            tower.targetMode,
+            tower.spent,
+            tower.refundable,
+            Math.floor(state.credits),
+            state.phase
+          ].join("|")
+          : ["cursor", state.placingType || "none", Math.floor(state.credits), state.phase].join("|");
+        if (inspectorKey === inspectorRenderKey) return;
+        inspectorRenderKey = inspectorKey;
         if (!tower) {
           const def = towerById[state.placingType];
           els.inspectorTitle.textContent = def ? "Build Cursor" : "No Node Selected";

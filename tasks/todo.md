@@ -1,34 +1,33 @@
-# Mother OS Non-Boss Enemy Art Pass
+# Mother OS Enemy Render Performance Pass
 
 ## Spec
 
-- [x] Rework all non-boss enemy visuals to match the new enemy design reference.
-- [x] Preserve the first seven existing enemy identities while improving their silhouettes and line detail.
-- [x] Add the three referenced non-boss designs that are not currently in the game: Harvester Mite, Void Leech, and Obelisk Floater.
-- [x] Use the same high-fidelity schematic language in the right-side threat preview and live path rendering.
-- [x] Keep boss logic intact; this pass is about the non-boss visual catalog.
-- [x] Preserve single-file/no-dependency structure.
-- [x] Verify with static checks and browser screenshots.
+- [x] Explain whether the detailed enemy line art is causing sluggishness.
+- [x] Optimize the expensive enemy rendering path without reducing visual fidelity.
+- [x] Preserve status overlays, health bars, boss scaling, and the 10-enemy catalog.
+- [x] Keep the game single-file and dependency-free.
+- [x] Verify with static checks and browser performance smoke tests.
 
 ## Plan
 
-- [x] Record the enemy-art correction pattern in `tasks/lessons.md`.
-- [x] Inspect existing enemy definitions, threat preview drawing, and live enemy drawing.
-- [x] Expand enemy definitions to all ten reference enemies.
-- [x] Build shared schematic enemy drawing primitives and route preview/live render through them.
-- [x] Run parse/self-containment checks and browser visual verification.
+- [x] Record the performance correction pattern in `tasks/lessons.md`.
+- [x] Inspect the render loop and enemy drawing path.
+- [x] Cache detailed enemy silhouettes into offscreen canvases and draw cached sprites in the live frame loop.
+- [x] Keep dynamic overlays separate from cached art.
+- [x] Run parse/self-containment checks and browser performance verification.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Enemy catalog expanded
-- [x] Enemy rendering reworked
+- [x] Sprite caching implemented
 - [x] Verification completed
 
 ## Review
 
-- The enemy catalog now contains all ten reference non-boss designs: Crawler Drone, Shield Beetle, Split Slime, Burrower Worm, Static Wisp, Juggernaut Walker, Phantom Mimic, Harvester Mite, Void Leech, and Obelisk Floater.
-- Added Harvester Mite, Void Leech, and Obelisk Floater as unlockable non-boss enemies after the original seven.
-- Preview and live path rendering now route through one shared reference-style schematic drawing function so the side panel and active enemies stay visually consistent.
-- Browser verification generated a 10-enemy lineup screenshot at `/tmp/mother-os-enemy-sheet.png` and a live game screenshot at `/tmp/mother-os-enemies-game.png`.
+- The detailed enemy line art was a likely cause of sluggishness because every live enemy replayed the full canvas path construction every frame.
+- Live enemy silhouettes now render once into high-resolution cached canvases and are reused with `drawImage`.
+- Slow/jam overlays, health bars, burrow offsets, boss sizing, child sizing, and the 10-enemy catalog remain dynamic.
+- HUD-heavy panels now avoid repeated DOM rebuilds when their content has not changed.
+- Browser benchmark: cached enemy drawing was about 2.06x faster than raw path drawing in the micro-benchmark.
+- Verification screenshot: `/tmp/mother-os-perf-game.png`.
