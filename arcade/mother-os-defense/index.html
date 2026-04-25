@@ -892,6 +892,40 @@
       const MAX_TOWER_LEVEL = 12;
       const TARGET_MODES = ["FIRST", "STRONG", "NEAR"];
       const SPEEDS = [1, 2, 3];
+      const WAVE_BALANCE = {
+        regular: {
+          baseCount: 44,
+          countPerWave: 6,
+          countCap: 138,
+          intervalStart: 1.04,
+          intervalDrop: 0.01,
+          minInterval: 0.44,
+          durationBase: 36,
+          durationGrowth: 2,
+          durationGrowthCap: 24
+        },
+        boss: {
+          baseCount: 34,
+          countPerWave: 5,
+          countCap: 122,
+          intervalStart: 0.96,
+          intervalDrop: 0.012,
+          minInterval: 0.5,
+          durationBase: 64,
+          durationGrowth: 2,
+          durationGrowthCap: 30
+        },
+        healthGrowth: 1.145,
+        healthLinear: 0.048,
+        bossHealthBase: 6.8,
+        bossHealthPerWave: 0.42,
+        armorLinear: 0.032,
+        rewardLinear: 0.055,
+        bossRewardMult: 8,
+        clearBase: 24,
+        clearPerWave: 6,
+        bossClearBonus: 90
+      };
       const pathPoints = [
         { x: 520, y: 34 },
         { x: 520, y: 118 },
@@ -975,140 +1009,140 @@
           code: "01",
           name: "Crawler Drone",
           desc: "Fast, light armor. Swarm executor.",
-          hp: 46,
+          hp: 54,
           speed: 68,
           armor: 0,
           reward: 7,
           leak: 1,
           radius: 16,
           unlock: 1,
-          weight: 7,
+          weight: 7.8,
           color: "#9fffab"
         },
         beetle: {
           code: "02",
           name: "Shield Beetle",
           desc: "Armored front shell. Jam to crack.",
-          hp: 118,
+          hp: 146,
           speed: 39,
-          armor: 7,
+          armor: 8,
           reward: 14,
           leak: 2,
           radius: 19,
           unlock: 2,
-          weight: 4,
+          weight: 4.6,
           color: "#6dff7d"
         },
         slime: {
           code: "03",
           name: "Split Slime",
           desc: "Divides into smaller slimes on death.",
-          hp: 86,
+          hp: 106,
           speed: 47,
-          armor: 1,
+          armor: 1.5,
           reward: 11,
           leak: 1,
           radius: 19,
           unlock: 3,
-          weight: 4,
+          weight: 4.6,
           color: "#76ffb6"
         },
         worm: {
           code: "04",
           name: "Burrower Worm",
           desc: "Digs under fire. Mines still connect.",
-          hp: 154,
+          hp: 192,
           speed: 35,
-          armor: 4,
+          armor: 5,
           reward: 17,
           leak: 2,
           radius: 20,
           unlock: 4,
-          weight: 3,
+          weight: 3.5,
           color: "#c2ff8a"
         },
         wisp: {
           code: "05",
           name: "Static Wisp",
           desc: "Electrical anomaly. Unpredictable.",
-          hp: 96,
+          hp: 118,
           speed: 74,
-          armor: 0,
+          armor: 0.5,
           reward: 15,
           leak: 1,
           radius: 18,
           unlock: 5,
-          weight: 3,
+          weight: 3.5,
           color: "#7ce8ff"
         },
         juggernaut: {
           code: "06",
           name: "Juggernaut Walker",
           desc: "Slow assault unit. Heavy armor.",
-          hp: 380,
+          hp: 468,
           speed: 28,
-          armor: 13,
+          armor: 15,
           reward: 34,
           leak: 4,
           radius: 24,
           unlock: 6,
-          weight: 2,
+          weight: 2.35,
           color: "#ffcf5a"
         },
         phantom: {
           code: "07",
           name: "Phantom Mimic",
           desc: "Copies defeated units' appearance.",
-          hp: 165,
+          hp: 208,
           speed: 52,
-          armor: 2,
+          armor: 3,
           reward: 24,
           leak: 2,
           radius: 21,
           unlock: 7,
-          weight: 2,
+          weight: 2.25,
           color: "#d6c3ff"
         },
         mite: {
           code: "08",
           name: "Harvester Mite",
           desc: "Low crawler with hooked mandibles.",
-          hp: 132,
+          hp: 162,
           speed: 55,
-          armor: 3,
+          armor: 4,
           reward: 20,
           leak: 2,
           radius: 18,
           unlock: 8,
-          weight: 3,
+          weight: 3.45,
           color: "#86ff8f"
         },
         leech: {
           code: "09",
           name: "Void Leech",
           desc: "Armored tunnel leech with bite armor.",
-          hp: 228,
+          hp: 292,
           speed: 33,
-          armor: 6,
+          armor: 7.5,
           reward: 29,
           leak: 3,
           radius: 22,
           unlock: 9,
-          weight: 2.5,
+          weight: 2.85,
           color: "#78ff9b"
         },
         obelisk: {
           code: "10",
           name: "Obelisk Floater",
           desc: "Crystal relay drifting over fire lanes.",
-          hp: 190,
+          hp: 242,
           speed: 44,
-          armor: 4,
+          armor: 5,
           reward: 31,
           leak: 3,
           radius: 21,
           unlock: 10,
-          weight: 2.2,
+          weight: 2.55,
           color: "#b8ffcf"
         }
       };
@@ -2603,9 +2637,8 @@
       function waveForecast(wave, operation = state.operation) {
         const zone = cloneOperation(operation);
         const bossWave = isBossOperation(zone);
-        const count = bossWave ? Math.min(96, 28 + wave * 4) : Math.min(110, 36 + wave * 5);
-        const interval = bossWave ? Math.max(0.74, 1.25 - wave * 0.01) : Math.max(0.62, 1.32 - wave * 0.012);
-        const seconds = Math.round(count * interval + (bossWave ? 74 : 34) + Math.min(38, wave * 2.4));
+        const count = waveEnemyCount(wave, bossWave);
+        const seconds = waveDurationSeconds(wave, bossWave);
         const threat = bossWave ? "BOSS" : wave < 4 ? "LOW" : wave < 9 ? "MODERATE" : wave < 15 ? "HIGH" : "SEVERE";
         return {
           wave,
@@ -2624,6 +2657,45 @@
             ? `${zone.facility} final sector. Heavy chassis signatures will stretch the engagement.`
             : `Countdown route falls from Sector ${zone.sector} toward the Sector 1 boss zone.`
         };
+      }
+
+      function waveBalanceConfig(bossWave) {
+        return bossWave ? WAVE_BALANCE.boss : WAVE_BALANCE.regular;
+      }
+
+      function waveEnemyCount(wave, bossWave) {
+        const balance = waveBalanceConfig(bossWave);
+        return Math.min(balance.countCap, balance.baseCount + wave * balance.countPerWave);
+      }
+
+      function waveSpawnInterval(wave, bossWave) {
+        const balance = waveBalanceConfig(bossWave);
+        return Math.max(balance.minInterval, balance.intervalStart - wave * balance.intervalDrop);
+      }
+
+      function waveDurationSeconds(wave, bossWave) {
+        const balance = waveBalanceConfig(bossWave);
+        return Math.round(
+          waveEnemyCount(wave, bossWave) * waveSpawnInterval(wave, bossWave)
+          + balance.durationBase
+          + Math.min(balance.durationGrowthCap, wave * balance.durationGrowth)
+        );
+      }
+
+      function enemyHealthScale(wave) {
+        return Math.pow(WAVE_BALANCE.healthGrowth, wave - 1) * (1 + wave * WAVE_BALANCE.healthLinear);
+      }
+
+      function enemyArmorScale(wave) {
+        return 1 + wave * WAVE_BALANCE.armorLinear;
+      }
+
+      function enemyRewardScale(wave) {
+        return 1 + wave * WAVE_BALANCE.rewardLinear;
+      }
+
+      function waveClearBonus(wave, bossWave) {
+        return WAVE_BALANCE.clearBase + wave * WAVE_BALANCE.clearPerWave + (bossWave ? WAVE_BALANCE.bossClearBonus : 0);
       }
 
       function primaryThreatForWave(wave, bossWave = false) {
@@ -2858,8 +2930,8 @@
         const unlocked = Object.entries(enemyDefs)
           .filter(([, enemy]) => enemy.unlock <= wave)
           .map(([id]) => id);
-        const count = bossWave ? Math.min(96, 28 + wave * 4) : Math.min(110, 36 + wave * 5);
-        const interval = bossWave ? Math.max(0.74, 1.25 - wave * 0.01) : Math.max(0.62, 1.32 - wave * 0.012);
+        const count = waveEnemyCount(wave, bossWave);
+        const interval = waveSpawnInterval(wave, bossWave);
         const queue = [];
         for (let i = 0; i < count; i += 1) {
           const type = chooseEnemyType(unlocked, wave, i);
@@ -2929,12 +3001,13 @@
 
       function makeEnemy(type, wave, options = {}) {
         const def = enemyDefs[type];
-        const waveScale = Math.pow(1.135, wave - 1) * (1 + wave * 0.038);
-        const bossScale = options.boss ? 5.8 + wave * 0.34 : 1;
+        const waveScale = enemyHealthScale(wave);
+        const bossScale = options.boss ? WAVE_BALANCE.bossHealthBase + wave * WAVE_BALANCE.bossHealthPerWave : 1;
         const childScale = options.child ? 0.42 : 1;
         const hp = def.hp * waveScale * bossScale * childScale * (options.hpMult || 1);
         const speed = def.speed * (options.speedMult || 1) * (options.boss ? 0.78 : 1) * (options.child ? 1.22 : 1);
         const radius = def.radius * (options.boss ? 1.85 : options.child ? 0.72 : 1);
+        const rewardMult = options.boss ? WAVE_BALANCE.bossRewardMult : options.child ? 0.25 : 1;
         return {
           id: nextEnemyId++,
           type,
@@ -2942,8 +3015,8 @@
           hp,
           maxHp: hp,
           speed,
-          armor: def.armor * (1 + wave * 0.024) * (options.boss ? 1.4 : options.child ? 0.45 : 1),
-          reward: Math.max(1, Math.round(def.reward * (1 + wave * 0.08) * (options.boss ? 8.5 : options.child ? 0.25 : 1))),
+          armor: def.armor * enemyArmorScale(wave) * (options.boss ? 1.4 : options.child ? 0.45 : 1),
+          reward: Math.max(1, Math.round(def.reward * enemyRewardScale(wave) * rewardMult)),
           leak: Math.round((def.leak || 1) * (options.boss ? 4.5 : 1)),
           radius,
           progress: Math.max(0, options.progress || 0),
@@ -3365,7 +3438,7 @@
         if (state.phase !== "combat") return;
         if (state.spawnQueue.length === 0 && state.enemies.length === 0) {
           const clearedPlan = state.wavePlan;
-          const bonus = 28 + state.wave * 7 + (clearedPlan && clearedPlan.bossWave ? 100 : 0);
+          const bonus = waveClearBonus(state.wave, clearedPlan && clearedPlan.bossWave);
           state.credits += bonus;
           state.phase = "planning";
           log(`${clearedPlan ? clearedPlan.operationLabel : `Wave ${state.wave}`} cleared. Buffer +$${bonus}.`);

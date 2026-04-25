@@ -12,3 +12,4 @@
 - After each significant completed checkpoint, commit and push the verified changes instead of leaving them uncommitted for a later prompt.
 - When caching high-DPI canvas sprites, scale the offscreen center translation by the same pixel ratio; otherwise the cached art shifts away from simulation-space overlays like health bars.
 - Tower placement previews share the same performance budget as live combat; cache high-fidelity tower schematic art for both placed towers and ghost previews so pointer movement only redraws lightweight overlays.
+- For tower-defense balance passes, compare enemy effective health, spawn density, rewards, and upgrade efficiency together; raising enemy count without flattening reward growth can accidentally preserve the same dominant upgrade path.

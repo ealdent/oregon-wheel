@@ -1,31 +1,33 @@
-# Mother OS Tower Placement Performance Pass
+# Mother OS Difficulty Balance Pass
 
 ## Spec
 
-- [x] Reduce pointer-move lag while previewing tower placement.
-- [x] Reduce mid-match render cost from high-fidelity tower line art.
-- [x] Preserve tower art quality, range indicators, selection feedback, cooldown bars, and placement validity feedback.
-- [x] Keep the game single-file and dependency-free.
-- [x] Verify with static checks and browser smoke/performance checks.
+- [x] Compare possible tower DPS/cost against current enemy health and wave sizes.
+- [x] Increase enemy HP and/or enemy counts enough that one fully upgraded tower is not a dominant strategy.
+- [x] Preserve substantial wave length, readable pacing, and the current single-file/no-dependency setup.
+- [x] Keep rewards and boss-sector cadence coherent after the difficulty increase.
+- [x] Verify with static checks and balance simulation.
 - [x] Commit and push the completed checkpoint.
 
 ## Plan
 
-- [x] Inspect tower render and placement preview hot paths.
-- [x] Cache detailed tower schematic art into high-DPI offscreen sprites.
-- [x] Use cached sprites for placed towers and placement ghosts while keeping dynamic overlays live.
-- [x] Run JavaScript parse, self-contained dependency scan, whitespace check, and browser smoke/performance verification.
+- [x] Inspect tower stat, upgrade, enemy scaling, and wave generation formulas.
+- [x] Build a lightweight balance model from the in-game formulas.
+- [x] Adjust enemy HP/count/reward pacing to increase pressure against single-tower play.
+- [x] Run JavaScript parse, dependency scan, whitespace check, and balance model verification.
 - [x] Commit and push to `main`.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Tower sprite caching implemented
+- [x] Balance model completed
+- [x] Difficulty tuning implemented
 - [x] Verification completed
 
 ## Review
 
-- Added a cached high-DPI static world layer for the grid, grime, path, and gates.
-- Added high-DPI tower schematic sprite caching for placed towers and placement ghosts, with dynamic range, labels, cooldown rings, and invalid placement feedback still drawn live.
-- Browser smoke/performance pass during combat placement movement: 150 frames, 8.31 ms average, 9.1 ms p95, 0 frames over 24 ms; screenshot saved to `/tmp/mother-os-tower-cache-perf.png`.
+- Increased enemy base HP/armor and wave counts, then tightened spawn intervals so added enemies create density rather than bloated wave length.
+- Centralized balance formulas for enemy counts, spawn intervals, duration estimates, health scaling, armor scaling, rewards, and clear bonuses.
+- Balance model shows regular wave 10 pressure rising from about 488 HP/sec to about 900 HP/sec while rewards only rise about 1.04x; this should break the single fully upgraded tower path without starving mixed builds.
+- Browser smoke test loaded the game, confirmed Sector 7 shows Spawn Pack 50 and Length 1:30, started combat, and captured `/tmp/mother-os-balance-smoke.png`.
