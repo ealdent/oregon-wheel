@@ -198,15 +198,23 @@
     .layout {
       display: grid;
       grid-template-columns: minmax(250px, 310px) minmax(420px, 1fr) minmax(270px, 340px);
-      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
       gap: 10px;
-      align-items: stretch;
+      align-items: start;
     }
 
     .panel {
       min-height: 0;
       padding: 12px;
       overflow: hidden;
+    }
+
+    @media (min-width: 881px) {
+      .left-panel,
+      .right-panel {
+        height: var(--field-panel-height, auto);
+        max-height: var(--field-panel-height, none);
+      }
     }
 
     .panel-content {
@@ -220,11 +228,13 @@
     }
 
     .field-panel {
-      min-height: 560px;
-      padding: 10px;
+      align-self: start;
+      min-height: 0;
+      padding: 8px;
       display: grid;
-      grid-template-rows: minmax(0, 1fr) auto;
-      gap: 10px;
+      grid-template-rows: auto auto;
+      align-content: start;
+      gap: 8px;
     }
 
     h1,
@@ -383,6 +393,7 @@
       border: 1px solid var(--line-soft);
       background: #010601;
       overflow: hidden;
+      aspect-ratio: 1000 / 680;
     }
 
     .canvas-shell::before {
@@ -402,8 +413,9 @@
     #field {
       display: block;
       width: 100%;
-      height: 100%;
-      min-height: 520px;
+      height: auto;
+      min-height: 0;
+      aspect-ratio: 1000 / 680;
       background: #010601;
       touch-action: none;
       cursor: crosshair;
@@ -1089,6 +1101,10 @@
         view.scale = Math.min(width / BOARD.width, height / BOARD.height);
         view.offsetX = (width - BOARD.width * view.scale) / 2;
         view.offsetY = (height - BOARD.height * view.scale) / 2;
+        const fieldPanel = els.field.closest(".field-panel");
+        if (fieldPanel) {
+          document.documentElement.style.setProperty("--field-panel-height", `${Math.ceil(fieldPanel.getBoundingClientRect().height)}px`);
+        }
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
 
@@ -1339,29 +1355,34 @@
         g.fill();
         g.restore();
         if (type === "crawler") {
-          for (const y of [-16, -6, 6, 16]) {
-            leg(-1, 10, y, y < 0 ? -0.55 : 0.55);
-            leg(1, 10, y, y < 0 ? -0.55 : 0.55);
+          for (const y of [-12, 0, 12]) {
+            leg(-1, 12, y, y < 0 ? -0.45 : 0.6);
+            leg(1, 12, y, y < 0 ? -0.45 : 0.6);
           }
           g.beginPath();
-          g.ellipse(0, 0, 26, 17, 0, 0, Math.PI * 2);
+          g.ellipse(0, -1, 25, 18, 0, 0, Math.PI * 2);
           g.fill();
           g.stroke();
           g.beginPath();
-          g.arc(0, -2, 17, Math.PI * 1.05, Math.PI * 1.95);
-          g.moveTo(-14, -11);
-          g.lineTo(11, 12);
-          g.moveTo(14, -11);
-          g.lineTo(-11, 12);
+          g.arc(0, -6, 19, Math.PI * 1.04, Math.PI * 1.96);
+          g.moveTo(-17, -4);
+          g.quadraticCurveTo(0, 5, 17, -4);
+          g.moveTo(-12, 6);
+          g.quadraticCurveTo(0, 13, 12, 6);
           g.stroke();
-          g.strokeRect(-9, -8, 12, 16);
+          g.strokeRect(-8, -7, 16, 13);
+          g.strokeRect(-4, 7, 8, 6);
           g.beginPath();
-          g.arc(12, -5, 2.2, 0, Math.PI * 2);
-          g.arc(12, 5, 2.2, 0, Math.PI * 2);
-          g.moveTo(18, -7);
-          g.lineTo(31, -17);
-          g.moveTo(18, 7);
-          g.lineTo(31, 17);
+          g.arc(-7, -3, 2.1, 0, Math.PI * 2);
+          g.arc(7, -3, 2.1, 0, Math.PI * 2);
+          g.moveTo(-13, -16);
+          g.lineTo(-25, -27);
+          g.moveTo(13, -16);
+          g.lineTo(25, -27);
+          g.moveTo(-20, -25);
+          g.lineTo(-30, -22);
+          g.moveTo(20, -25);
+          g.lineTo(30, -22);
           g.stroke();
         } else if (type === "beetle") {
           for (const y of [-14, 0, 14]) {
@@ -1378,13 +1399,17 @@
             g.stroke();
           }
           g.beginPath();
-          g.moveTo(-24, -14);
-          g.lineTo(7, 14);
-          g.moveTo(-24, 14);
-          g.lineTo(7, -14);
-          g.moveTo(23, -10);
-          g.lineTo(36, 0);
-          g.lineTo(23, 10);
+          g.moveTo(-26, 0);
+          g.lineTo(22, 0);
+          g.moveTo(-18, -14);
+          g.quadraticCurveTo(-2, -5, 19, -12);
+          g.moveTo(-18, 14);
+          g.quadraticCurveTo(-2, 5, 19, 12);
+          g.moveTo(21, -10);
+          g.lineTo(36, -4);
+          g.lineTo(24, 0);
+          g.lineTo(36, 4);
+          g.lineTo(21, 10);
           g.stroke();
           bolt(7, -8);
           bolt(7, 8);
@@ -1450,30 +1475,30 @@
           }
         } else if (type === "juggernaut") {
           g.beginPath();
-          g.moveTo(-30, -18);
-          g.lineTo(30, -18);
-          g.lineTo(36, -10);
-          g.lineTo(36, 16);
-          g.lineTo(25, 24);
-          g.lineTo(-25, 24);
-          g.lineTo(-36, 16);
-          g.lineTo(-36, -10);
-          g.closePath();
+          g.ellipse(0, -4, 32, 21, 0, 0, Math.PI * 2);
           g.fill();
           g.stroke();
-          g.strokeRect(-15, -31, 30, 12);
-          g.strokeRect(-24, -7, 13, 21);
-          g.strokeRect(11, -7, 13, 21);
-          for (let y = -9; y <= 14; y += 6) {
+          g.beginPath();
+          g.arc(0, -10, 22, Math.PI * 1.08, Math.PI * 1.92);
+          g.moveTo(-22, 1);
+          g.quadraticCurveTo(0, 13, 22, 1);
+          g.stroke();
+          g.strokeRect(-17, -15, 34, 9);
+          g.strokeRect(-8, -4, 16, 10);
+          for (const side of [-1, 1]) {
             g.beginPath();
-            g.moveTo(-31, y);
-            g.lineTo(31, y);
+            g.moveTo(side * 18, 8);
+            g.lineTo(side * 27, 19);
+            g.lineTo(side * 23, 30);
+            g.moveTo(side * 8, 12);
+            g.lineTo(side * 13, 26);
+            g.lineTo(side * 7, 34);
             g.stroke();
+            g.strokeRect(side * 21 - (side < 0 ? 12 : 0), 29, 12, 6);
+            g.strokeRect(side * 5 - (side < 0 ? 10 : 0), 34, 10, 5);
           }
-          g.strokeRect(-27, 25, 16, 6);
-          g.strokeRect(11, 25, 16, 6);
-          bolt(0, -24, 2);
-          bolt(0, 1, 2.2);
+          for (const x of [-18, -9, 9, 18]) bolt(x, 3, 1.3);
+          bolt(0, -10, 2.1);
         } else {
           g.beginPath();
           g.moveTo(20, -2);
@@ -2890,18 +2915,6 @@
           ctx.stroke();
           bolt(side * r * 0.92, y + r * 0.16 * Math.sign(y || 1), 1.2);
         };
-        const beveledRect = (x, y, w, h, cut = 4) => {
-          ctx.beginPath();
-          ctx.moveTo(x + cut, y);
-          ctx.lineTo(x + w - cut, y);
-          ctx.lineTo(x + w, y + cut);
-          ctx.lineTo(x + w, y + h - cut);
-          ctx.lineTo(x + w - cut, y + h);
-          ctx.lineTo(x + cut, y + h);
-          ctx.lineTo(x, y + h - cut);
-          ctx.lineTo(x, y + cut);
-          ctx.closePath();
-        };
         const segmentedArc = (x, y, radius, start, end, pieces = 7) => {
           const span = end - start;
           for (let i = 0; i < pieces; i += 1) {
@@ -2919,47 +2932,38 @@
           ctx.restore();
         };
         if (enemy.type === "crawler") {
-          for (const y of [-r * 0.62, -r * 0.24, r * 0.24, r * 0.62]) {
-            jointedLeg(-1, y, 0.92);
-            jointedLeg(1, y, 0.92);
+          for (const y of [-r * 0.48, 0, r * 0.48]) {
+            jointedLeg(-1, y, 0.82);
+            jointedLeg(1, y, 0.82);
           }
           ctx.beginPath();
-          ctx.ellipse(0, 0, r * 1.08, r * 0.72, 0, 0, Math.PI * 2);
+          ctx.ellipse(0, -r * 0.05, r * 1.02, r * 0.78, 0, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
           ctx.beginPath();
-          ctx.arc(0, -r * 0.06, r * 0.72, Math.PI * 1.05, Math.PI * 1.95);
-          ctx.lineTo(-r * 0.68, r * 0.12);
-          ctx.moveTo(r * 0.68, r * 0.12);
-          ctx.lineTo(r * 0.42, -r * 0.48);
+          ctx.arc(0, -r * 0.26, r * 0.74, Math.PI * 1.05, Math.PI * 1.95);
+          ctx.moveTo(-r * 0.72, -r * 0.08);
+          ctx.quadraticCurveTo(0, r * 0.26, r * 0.72, -r * 0.08);
+          ctx.moveTo(-r * 0.5, r * 0.26);
+          ctx.quadraticCurveTo(0, r * 0.52, r * 0.5, r * 0.26);
           ctx.stroke();
-          for (let i = -2; i <= 2; i += 1) {
-            ctx.beginPath();
-            ctx.moveTo(i * r * 0.18, -r * 0.56);
-            ctx.lineTo(i * r * 0.12, r * 0.42);
-            ctx.stroke();
-          }
+          ctx.strokeRect(-r * 0.33, -r * 0.28, r * 0.66, r * 0.52);
+          ctx.strokeRect(-r * 0.16, r * 0.28, r * 0.32, r * 0.2);
           ctx.beginPath();
-          ctx.ellipse(r * 0.26, 0, r * 0.52, r * 0.4, 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.strokeRect(-r * 0.42, -r * 0.32, r * 0.45, r * 0.64);
-          ctx.strokeRect(-r * 0.22, -r * 0.2, r * 0.18, r * 0.16);
-          ctx.strokeRect(-r * 0.22, r * 0.05, r * 0.18, r * 0.16);
-          ctx.beginPath();
-          ctx.arc(r * 0.62, -r * 0.18, 2.1, 0, Math.PI * 2);
-          ctx.arc(r * 0.62, r * 0.18, 2.1, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(r * 0.86, -r * 0.28);
-          ctx.lineTo(r * 1.34, -r * 0.58);
-          ctx.lineTo(r * 1.48, -r * 0.5);
-          ctx.moveTo(r * 0.86, r * 0.28);
-          ctx.lineTo(r * 1.34, r * 0.58);
-          ctx.lineTo(r * 1.48, r * 0.5);
+          ctx.arc(-r * 0.3, -r * 0.12, Math.max(1.5, r * 0.09), 0, Math.PI * 2);
+          ctx.arc(r * 0.3, -r * 0.12, Math.max(1.5, r * 0.09), 0, Math.PI * 2);
+          ctx.moveTo(-r * 0.55, -r * 0.58);
+          ctx.lineTo(-r * 1.05, -r * 1.04);
+          ctx.moveTo(r * 0.55, -r * 0.58);
+          ctx.lineTo(r * 1.05, -r * 1.04);
+          ctx.moveTo(-r * 0.92, -r * 0.96);
+          ctx.lineTo(-r * 1.28, -r * 0.82);
+          ctx.moveTo(r * 0.92, -r * 0.96);
+          ctx.lineTo(r * 1.28, -r * 0.82);
           ctx.stroke();
           ghostStroke(() => {
             ctx.beginPath();
-            ctx.ellipse(0, 0, r * 1.22, r * 0.83, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, -r * 0.04, r * 1.12, r * 0.88, 0, 0, Math.PI * 2);
             ctx.stroke();
           });
         } else if (enemy.type === "beetle") {
@@ -2983,12 +2987,12 @@
             ctx.stroke();
           }
           ctx.beginPath();
-          ctx.moveTo(-r * 0.95, -r * 0.58);
-          ctx.lineTo(r * 0.25, r * 0.58);
-          ctx.moveTo(-r * 0.95, r * 0.58);
-          ctx.lineTo(r * 0.25, -r * 0.58);
-          ctx.stroke();
-          ctx.beginPath();
+          ctx.moveTo(-r * 1.0, 0);
+          ctx.lineTo(r * 0.92, 0);
+          ctx.moveTo(-r * 0.72, -r * 0.58);
+          ctx.quadraticCurveTo(-r * 0.04, -r * 0.2, r * 0.82, -r * 0.44);
+          ctx.moveTo(-r * 0.72, r * 0.58);
+          ctx.quadraticCurveTo(-r * 0.04, r * 0.2, r * 0.82, r * 0.44);
           ctx.moveTo(r * 1.1, -r * 0.45);
           ctx.lineTo(r * 1.65, -r * 0.12);
           ctx.lineTo(r * 1.16, 0);
@@ -3104,49 +3108,34 @@
             ctx.stroke();
           });
         } else if (enemy.type === "juggernaut") {
-          beveledRect(-r * 1.12, -r * 0.72, r * 2.24, r * 1.44, r * 0.2);
+          ctx.beginPath();
+          ctx.ellipse(0, -r * 0.18, r * 1.22, r * 0.84, 0, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
-          ctx.strokeRect(-r * 0.58, -r * 1.08, r * 1.16, r * 0.48);
-          ctx.strokeRect(-r * 0.86, -r * 0.42, r * 0.52, r * 0.84);
-          ctx.strokeRect(r * 0.34, -r * 0.42, r * 0.52, r * 0.84);
-          for (let i = -2; i <= 2; i += 1) {
-            ctx.beginPath();
-            ctx.moveTo(-r * 1.08, i * r * 0.24);
-            ctx.lineTo(r * 1.08, i * r * 0.24);
-            ctx.stroke();
-          }
-          for (let i = -1; i <= 1; i += 2) {
-            ctx.beginPath();
-            ctx.moveTo(-r * 0.7, i * r * 0.65);
-            ctx.lineTo(-r * 1.1, i * r * 1.0);
-            ctx.lineTo(-r * 0.62, i * r * 1.14);
-            ctx.moveTo(r * 0.7, i * r * 0.65);
-            ctx.lineTo(r * 1.1, i * r * 1.0);
-            ctx.lineTo(r * 0.62, i * r * 1.14);
-            ctx.stroke();
-          }
-          ctx.strokeRect(-r * 1.02, r * 0.76, r * 0.62, r * 0.24);
-          ctx.strokeRect(r * 0.4, r * 0.76, r * 0.62, r * 0.24);
           ctx.beginPath();
-          ctx.moveTo(-r * 0.38, -r * 0.86);
-          ctx.lineTo(r * 0.38, -r * 0.86);
-          ctx.moveTo(-r * 0.55, -r * 0.12);
-          ctx.lineTo(r * 0.55, -r * 0.12);
-          ctx.moveTo(-r * 0.18, r * 0.2);
-          ctx.lineTo(r * 0.18, r * 0.2);
+          ctx.arc(0, -r * 0.42, r * 0.82, Math.PI * 1.08, Math.PI * 1.92);
+          ctx.moveTo(-r * 0.82, r * 0.06);
+          ctx.quadraticCurveTo(0, r * 0.48, r * 0.82, r * 0.06);
           ctx.stroke();
-          for (let i = -2; i <= 2; i += 1) {
-            bolt(i * r * 0.34, r * 0.48, 1.3);
+          ctx.strokeRect(-r * 0.62, -r * 0.64, r * 1.24, r * 0.34);
+          ctx.strokeRect(-r * 0.3, -r * 0.1, r * 0.6, r * 0.38);
+          for (const side of [-1, 1]) {
+            ctx.beginPath();
+            ctx.moveTo(side * r * 0.68, r * 0.22);
+            ctx.lineTo(side * r * 1.04, r * 0.68);
+            ctx.lineTo(side * r * 0.9, r * 1.08);
+            ctx.moveTo(side * r * 0.3, r * 0.34);
+            ctx.lineTo(side * r * 0.52, r * 0.92);
+            ctx.lineTo(side * r * 0.26, r * 1.2);
+            ctx.stroke();
+            ctx.strokeRect(side * r * 0.78 - (side < 0 ? r * 0.44 : 0), r * 1.04, r * 0.44, r * 0.2);
+            ctx.strokeRect(side * r * 0.2 - (side < 0 ? r * 0.36 : 0), r * 1.2, r * 0.36, r * 0.18);
           }
-          bolt(0, -r * 0.84, 2);
-          bolt(0, 0, 2.2);
+          for (const x of [-0.7, -0.35, 0.35, 0.7]) bolt(x * r, r * 0.1, 1.3);
+          bolt(0, -r * 0.46, 2);
           ghostStroke(() => {
             ctx.beginPath();
-            ctx.moveTo(-r * 1.2, -r * 0.84);
-            ctx.lineTo(r * 1.2, -r * 0.84);
-            ctx.moveTo(-r * 1.2, r * 0.84);
-            ctx.lineTo(r * 1.2, r * 0.84);
+            ctx.ellipse(0, -r * 0.18, r * 1.34, r * 0.95, 0, 0, Math.PI * 2);
             ctx.stroke();
           });
         } else {
