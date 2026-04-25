@@ -262,13 +262,13 @@
 
     .tower-card {
       width: 100%;
-      padding: 9px;
+      padding: 10px;
       display: grid;
-      grid-template-columns: 64px 1fr auto;
-      gap: 10px;
+      grid-template-columns: 96px 1fr auto;
+      gap: 12px;
       align-items: center;
       text-align: left;
-      min-height: 74px;
+      min-height: 106px;
     }
 
     .tower-card.active {
@@ -278,8 +278,8 @@
     }
 
     .tower-preview {
-      width: 58px;
-      height: 52px;
+      width: 90px;
+      height: 82px;
       border: 1px solid var(--line-soft);
       background:
         repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0, 0, 0, 0.13) 3px, rgba(0, 0, 0, 0.13) 5px),
@@ -330,6 +330,26 @@
       color: var(--muted);
       font-size: 0.74rem;
       line-height: 1.35;
+    }
+
+    .threat-band {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .threat-preview {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 320 / 168;
+      min-width: 0;
+      border: 1px solid rgba(124, 232, 255, 0.22);
+      background:
+        repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(0, 0, 0, 0.16) 3px, rgba(0, 0, 0, 0.16) 5px),
+        rgba(10, 34, 15, 0.52);
+      box-shadow: inset 0 0 20px rgba(124, 232, 255, 0.045);
     }
 
     .mini-grid {
@@ -614,7 +634,7 @@
 
     @media (max-width: 540px) {
       .tower-card {
-        grid-template-columns: 64px 1fr;
+        grid-template-columns: 94px 1fr;
       }
 
       .tower-cost {
@@ -1185,7 +1205,7 @@
           button.dataset.tower = tower.id;
           button.setAttribute("aria-label", `${tower.name}, ${tower.desc}, cost ${tower.cost}`);
           button.innerHTML = `
-            <canvas class="tower-preview" width="116" height="104" aria-hidden="true"></canvas>
+            <canvas class="tower-preview" width="188" height="168" aria-hidden="true"></canvas>
             <span>
               <span class="tower-name">${tower.name}</span>
               <span class="tower-desc">${tower.desc}</span>
@@ -1225,21 +1245,290 @@
         }
         p.restore();
         p.save();
-        p.translate(canvas.width / 2, canvas.height / 2 + 13);
-        p.scale(1.25, 1.25);
+        p.translate(canvas.width / 2, canvas.height / 2 + 24);
+        p.scale(1.72, 1.72);
         drawTowerSchematic(p, tower.id, 2, 0.7, tower.color);
         p.restore();
       }
 
-      function drawTowerSchematic(g, type, level, pulse, color) {
+      function renderThreatPreview(canvas, type) {
+        if (!canvas) return;
+        const p = canvas.getContext("2d");
+        const def = enemyDefs[type] || enemyDefs.crawler;
+        p.clearRect(0, 0, canvas.width, canvas.height);
+        p.save();
+        p.fillStyle = "rgba(0,10,4,0.92)";
+        p.fillRect(0, 0, canvas.width, canvas.height);
+        p.strokeStyle = "rgba(97,255,126,0.14)";
+        p.lineWidth = 1;
+        for (let y = 12; y < canvas.height; y += 14) {
+          p.beginPath();
+          p.moveTo(8, y);
+          p.lineTo(canvas.width - 8, y);
+          p.stroke();
+        }
+        for (let x = 16; x < canvas.width; x += 24) {
+          p.beginPath();
+          p.moveTo(x, 10);
+          p.lineTo(x, canvas.height - 10);
+          p.stroke();
+        }
+        p.strokeStyle = "rgba(124,232,255,0.18)";
+        for (const [x, y, sx, sy] of [[16, 16, 1, 1], [canvas.width - 16, 16, -1, 1], [16, canvas.height - 16, 1, -1], [canvas.width - 16, canvas.height - 16, -1, -1]]) {
+          p.beginPath();
+          p.moveTo(x, y);
+          p.lineTo(x + sx * 20, y);
+          p.moveTo(x, y);
+          p.lineTo(x, y + sy * 16);
+          p.stroke();
+        }
+        p.restore();
+        p.save();
+        p.translate(canvas.width * 0.43, canvas.height * 0.56);
+        const scale = type === "juggernaut" ? 1.68 : type === "worm" ? 1.48 : type === "phantom" ? 1.62 : 1.78;
+        p.scale(scale, scale);
+        drawThreatSchematic(p, type, def);
+        p.restore();
+        p.save();
+        p.font = "700 13px Courier New, monospace";
+        p.fillStyle = def.color;
+        p.textAlign = "right";
+        p.fillText(def.name.toUpperCase(), canvas.width - 12, 25);
+        p.font = "10px Courier New, monospace";
+        p.fillStyle = "rgba(185,255,189,0.6)";
+        p.fillText(`SIG ${def.code} / ${def.unlock.toString().padStart(2, "0")}`, canvas.width - 12, 43);
+        p.restore();
+      }
+
+      function drawThreatSchematic(g, type, def) {
+        const r = 22;
+        const ink = def.color || "#9fffab";
+        const bolt = (x, y, size = 1.35) => {
+          g.beginPath();
+          g.arc(x, y, size, 0, Math.PI * 2);
+          g.stroke();
+        };
+        const leg = (side, x, y, lift = 1) => {
+          g.beginPath();
+          g.moveTo(side * x, y);
+          g.lineTo(side * (x + 12), y + 7 * lift);
+          g.lineTo(side * (x + 20), y + 19 * lift);
+          g.stroke();
+          bolt(side * (x + 12), y + 7 * lift, 1);
+        };
+        const segmented = (radius, start = 0, end = Math.PI * 2, pieces = 8) => {
+          const span = end - start;
+          for (let i = 0; i < pieces; i += 1) {
+            g.beginPath();
+            g.arc(0, 0, radius, start + span * (i / pieces), start + span * ((i + 0.58) / pieces));
+            g.stroke();
+          }
+        };
         g.save();
         g.lineCap = "round";
         g.lineJoin = "round";
-        g.lineWidth = 1.7;
-        g.strokeStyle = color || "#85ff91";
+        g.lineWidth = 1.45;
+        g.strokeStyle = ink;
+        g.fillStyle = "rgba(6,28,10,0.92)";
+        g.shadowColor = ink;
+        g.shadowBlur = 8;
+        g.save();
+        g.globalAlpha = 0.18;
+        g.beginPath();
+        g.ellipse(0, r * 0.7, r * 1.55, r * 0.32, 0, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+        if (type === "crawler") {
+          for (const y of [-16, -6, 6, 16]) {
+            leg(-1, 10, y, y < 0 ? -0.55 : 0.55);
+            leg(1, 10, y, y < 0 ? -0.55 : 0.55);
+          }
+          g.beginPath();
+          g.ellipse(0, 0, 26, 17, 0, 0, Math.PI * 2);
+          g.fill();
+          g.stroke();
+          g.beginPath();
+          g.arc(0, -2, 17, Math.PI * 1.05, Math.PI * 1.95);
+          g.moveTo(-14, -11);
+          g.lineTo(11, 12);
+          g.moveTo(14, -11);
+          g.lineTo(-11, 12);
+          g.stroke();
+          g.strokeRect(-9, -8, 12, 16);
+          g.beginPath();
+          g.arc(12, -5, 2.2, 0, Math.PI * 2);
+          g.arc(12, 5, 2.2, 0, Math.PI * 2);
+          g.moveTo(18, -7);
+          g.lineTo(31, -17);
+          g.moveTo(18, 7);
+          g.lineTo(31, 17);
+          g.stroke();
+        } else if (type === "beetle") {
+          for (const y of [-14, 0, 14]) {
+            leg(-1, 13, y, Math.sign(y || 1) * 0.55);
+            leg(1, 13, y, Math.sign(y || 1) * 0.55);
+          }
+          g.beginPath();
+          g.ellipse(-2, 0, 31, 21, 0, 0, Math.PI * 2);
+          g.fill();
+          g.stroke();
+          for (let i = -2; i <= 2; i += 1) {
+            g.beginPath();
+            g.arc(-8, 0, 8 + i * 3, -Math.PI * 0.5, Math.PI * 0.5);
+            g.stroke();
+          }
+          g.beginPath();
+          g.moveTo(-24, -14);
+          g.lineTo(7, 14);
+          g.moveTo(-24, 14);
+          g.lineTo(7, -14);
+          g.moveTo(23, -10);
+          g.lineTo(36, 0);
+          g.lineTo(23, 10);
+          g.stroke();
+          bolt(7, -8);
+          bolt(7, 8);
+        } else if (type === "slime") {
+          g.beginPath();
+          g.moveTo(-26, 5);
+          g.bezierCurveTo(-24, -18, -8, -25, 3, -17);
+          g.bezierCurveTo(13, -30, 29, -12, 25, 5);
+          g.bezierCurveTo(25, 25, 5, 26, -9, 20);
+          g.bezierCurveTo(-24, 20, -31, 12, -26, 5);
+          g.fill();
+          g.stroke();
+          g.beginPath();
+          g.arc(4, -4, 4, 0, Math.PI * 2);
+          g.arc(-10, 4, 2.8, 0, Math.PI * 2);
+          g.arc(14, 9, 2.1, 0, Math.PI * 2);
+          g.moveTo(-18, 15);
+          g.lineTo(-21, 29);
+          g.moveTo(1, 19);
+          g.lineTo(-1, 31);
+          g.moveTo(18, 10);
+          g.lineTo(29, 19);
+          g.stroke();
+        } else if (type === "worm") {
+          for (let i = 0; i < 6; i += 1) {
+            const x = -29 + i * 10;
+            g.beginPath();
+            g.ellipse(x, Math.sin(i) * 2, 14, 10, 0, 0, Math.PI * 2);
+            g.fill();
+            g.stroke();
+            g.beginPath();
+            g.moveTo(x - 4, -9);
+            g.lineTo(x + 4, 9);
+            g.stroke();
+          }
+          g.beginPath();
+          g.arc(32, 0, 13, 0, Math.PI * 2);
+          g.stroke();
+          g.beginPath();
+          g.moveTo(42, -7);
+          g.lineTo(55, -15);
+          g.lineTo(49, -5);
+          g.moveTo(42, 7);
+          g.lineTo(55, 15);
+          g.lineTo(49, 5);
+          g.moveTo(45, 0);
+          g.lineTo(58, 0);
+          g.stroke();
+        } else if (type === "wisp") {
+          g.beginPath();
+          g.arc(0, 0, 8, 0, Math.PI * 2);
+          g.fill();
+          g.stroke();
+          segmented(17, 0, Math.PI * 2, 8);
+          segmented(27, Math.PI * 0.1, Math.PI * 1.95, 10);
+          for (let i = 0; i < 9; i += 1) {
+            const a = i * Math.PI * 2 / 9;
+            g.beginPath();
+            g.moveTo(Math.cos(a) * 8, Math.sin(a) * 8);
+            g.lineTo(Math.cos(a + 0.22) * 22, Math.sin(a + 0.22) * 22);
+            g.lineTo(Math.cos(a + 0.46) * 36, Math.sin(a + 0.46) * 36);
+            g.stroke();
+          }
+        } else if (type === "juggernaut") {
+          g.beginPath();
+          g.moveTo(-30, -18);
+          g.lineTo(30, -18);
+          g.lineTo(36, -10);
+          g.lineTo(36, 16);
+          g.lineTo(25, 24);
+          g.lineTo(-25, 24);
+          g.lineTo(-36, 16);
+          g.lineTo(-36, -10);
+          g.closePath();
+          g.fill();
+          g.stroke();
+          g.strokeRect(-15, -31, 30, 12);
+          g.strokeRect(-24, -7, 13, 21);
+          g.strokeRect(11, -7, 13, 21);
+          for (let y = -9; y <= 14; y += 6) {
+            g.beginPath();
+            g.moveTo(-31, y);
+            g.lineTo(31, y);
+            g.stroke();
+          }
+          g.strokeRect(-27, 25, 16, 6);
+          g.strokeRect(11, 25, 16, 6);
+          bolt(0, -24, 2);
+          bolt(0, 1, 2.2);
+        } else {
+          g.beginPath();
+          g.moveTo(20, -2);
+          g.bezierCurveTo(12, -30, -12, -30, -20, -2);
+          g.lineTo(-14, 28);
+          g.lineTo(-4, 18);
+          g.lineTo(0, 34);
+          g.lineTo(4, 18);
+          g.lineTo(14, 28);
+          g.closePath();
+          g.fill();
+          g.stroke();
+          g.beginPath();
+          g.moveTo(-10, -4);
+          g.lineTo(10, -4);
+          g.moveTo(0, -18);
+          g.lineTo(0, 14);
+          g.moveTo(-7, 8);
+          g.lineTo(-17, 22);
+          g.moveTo(7, 8);
+          g.lineTo(17, 22);
+          g.stroke();
+          g.save();
+          g.globalAlpha = 0.46;
+          for (let y = -10; y <= 18; y += 7) {
+            g.beginPath();
+            g.moveTo(-18, y);
+            g.lineTo(18, y + Math.sin(y) * 2);
+            g.stroke();
+          }
+          g.restore();
+        }
+        g.shadowBlur = 0;
+        g.strokeStyle = "rgba(185,255,189,0.35)";
+        g.lineWidth = 0.9;
+        g.beginPath();
+        g.moveTo(-38, -24);
+        g.lineTo(-25, -24);
+        g.moveTo(38, 24);
+        g.lineTo(25, 24);
+        g.stroke();
+        g.restore();
+      }
+
+      function drawTowerSchematic(g, type, level, pulse, color) {
+        const ink = color || "#85ff91";
+        g.save();
+        g.lineCap = "round";
+        g.lineJoin = "round";
+        g.lineWidth = 1.55;
+        g.strokeStyle = ink;
         g.fillStyle = "rgba(5,30,9,0.92)";
-        g.shadowColor = color || "#85ff91";
+        g.shadowColor = ink;
         g.shadowBlur = 9;
+        drawSchematicFrame(g, ink);
         drawTowerFoundation(g, level);
         if (type === "pulse") {
           drawPulseTower(g, level);
@@ -1253,7 +1542,7 @@
           drawJammerTower(g, level);
         }
         g.shadowBlur = 0;
-        g.strokeStyle = "rgba(185,255,189,0.38)";
+        g.strokeStyle = "rgba(185,255,189,0.36)";
         for (let i = -1; i <= 1; i += 1) {
           g.beginPath();
           g.moveTo(i * 13 - 4, 20);
@@ -1263,159 +1552,311 @@
         g.restore();
       }
 
-      function drawTowerFoundation(g, level) {
+      function drawSchematicFrame(g, color) {
+        g.save();
+        g.shadowBlur = 0;
+        g.globalAlpha = 0.32;
+        g.strokeStyle = color;
+        g.lineWidth = 0.75;
+        for (const [x, y, sx, sy] of [[-36, -46, 1, 1], [36, -46, -1, 1], [-36, 28, 1, -1], [36, 28, -1, -1]]) {
+          g.beginPath();
+          g.moveTo(x, y);
+          g.lineTo(x + sx * 12, y);
+          g.moveTo(x, y);
+          g.lineTo(x, y + sy * 10);
+          g.stroke();
+        }
         g.beginPath();
-        g.ellipse(0, 17, 31, 10, 0, 0, Math.PI * 2);
+        g.moveTo(-31, -4);
+        g.lineTo(-38, -4);
+        g.moveTo(31, -4);
+        g.lineTo(38, -4);
+        g.moveTo(0, -50);
+        g.lineTo(0, -43);
+        g.moveTo(0, 29);
+        g.lineTo(0, 22);
+        g.stroke();
+        g.globalAlpha = 0.18;
+        g.translate(2.2, -1.4);
+        g.beginPath();
+        g.ellipse(0, 16, 32, 10, 0, 0, Math.PI * 2);
+        g.moveTo(-18, 3);
+        g.lineTo(18, 3);
+        g.stroke();
+        g.restore();
+      }
+
+      function towerBolt(g, x, y, size = 1.5) {
+        g.beginPath();
+        g.arc(x, y, size, 0, Math.PI * 2);
+        g.stroke();
+      }
+
+      function brokenArc(g, x, y, radius, start, end, segments = 7) {
+        const span = end - start;
+        for (let i = 0; i < segments; i += 1) {
+          const a0 = start + span * (i / segments) + span * 0.018;
+          const a1 = start + span * ((i + 0.58) / segments);
+          g.beginPath();
+          g.arc(x, y, radius, a0, a1);
+          g.stroke();
+        }
+      }
+
+      function drawTowerFoundation(g, level) {
+        g.save();
+        g.fillStyle = "rgba(5,30,9,0.96)";
+        g.beginPath();
+        g.ellipse(0, 18, 34, 11, 0, 0, Math.PI * 2);
         g.fill();
         g.stroke();
         g.beginPath();
-        g.ellipse(0, 10, 24, 7, 0, 0, Math.PI * 2);
+        g.ellipse(0, 12, 27, 8, 0, 0, Math.PI * 2);
         g.stroke();
-        g.strokeRect(-19, 0, 38, 12);
-        for (let i = 0; i < 6; i += 1) {
-          const a = i * Math.PI / 3;
+        g.beginPath();
+        g.ellipse(0, 5, 20, 5.5, 0, 0, Math.PI * 2);
+        g.stroke();
+        g.strokeRect(-24, 0, 48, 14);
+        g.beginPath();
+        g.moveTo(-24, 5);
+        g.lineTo(-34, 17);
+        g.moveTo(24, 5);
+        g.lineTo(34, 17);
+        g.moveTo(-12, 14);
+        g.lineTo(-19, 23);
+        g.moveTo(12, 14);
+        g.lineTo(19, 23);
+        g.stroke();
+        for (let i = 0; i < 8; i += 1) {
+          const a = i * Math.PI / 4;
           g.beginPath();
-          g.arc(Math.cos(a) * 21, 15 + Math.sin(a) * 5, 1.8, 0, Math.PI * 2);
+          g.moveTo(Math.cos(a) * 22, 15 + Math.sin(a) * 5);
+          g.lineTo(Math.cos(a) * 30, 18 + Math.sin(a) * 8);
+          g.stroke();
+          towerBolt(g, Math.cos(a) * 24, 16 + Math.sin(a) * 5, 1.35);
+        }
+        g.strokeStyle = "rgba(185,255,189,0.35)";
+        for (let x = -16; x <= 16; x += 8) {
+          g.beginPath();
+          g.moveTo(x, 1);
+          g.lineTo(x - 4, 13);
           g.stroke();
         }
         if (level > 3) {
           g.beginPath();
-          g.ellipse(0, 22, 35, 5, 0, 0, Math.PI * 2);
+          g.ellipse(0, 24, 38, 5, 0, 0, Math.PI * 2);
           g.stroke();
         }
+        g.restore();
       }
 
       function drawPulseTower(g, level) {
-        g.strokeRect(-16, -2, 32, 14);
-        g.strokeRect(-9, -13, 18, 12);
+        g.strokeRect(-17, -3, 34, 15);
+        g.strokeRect(-11, -18, 22, 18);
+        g.strokeRect(-5, -28, 10, 10);
         g.beginPath();
-        g.moveTo(-6, -13);
-        g.lineTo(-2.4, -34 - level * 0.5);
-        g.lineTo(2.4, -34 - level * 0.5);
-        g.lineTo(6, -13);
+        g.moveTo(-7, -18);
+        g.lineTo(-3, -42 - level * 0.5);
+        g.lineTo(3, -42 - level * 0.5);
+        g.lineTo(7, -18);
         g.closePath();
         g.stroke();
         g.beginPath();
-        g.moveTo(0, -38 - level * 0.5);
-        g.lineTo(0, -45 - level * 0.4);
+        g.moveTo(0, -44 - level * 0.5);
+        g.lineTo(0, -53 - level * 0.35);
+        g.moveTo(-4, -47);
+        g.lineTo(4, -47);
         g.stroke();
-        for (let y = -27; y <= -16; y += 5) {
+        for (let y = -36; y <= -19; y += 4.5) {
           g.beginPath();
-          g.moveTo(-9, y);
-          g.lineTo(9, y);
+          g.moveTo(-12, y);
+          g.lineTo(12, y);
           g.stroke();
         }
         g.beginPath();
-        g.arc(0, -4, 7, 0, Math.PI * 2);
+        g.arc(0, -8, 8, 0, Math.PI * 2);
+        g.moveTo(-2.8, -18);
+        g.lineTo(-2.8, -41);
+        g.moveTo(2.8, -18);
+        g.lineTo(2.8, -41);
         g.stroke();
         g.beginPath();
-        g.moveTo(-22, 6);
-        g.lineTo(-31, 12);
-        g.moveTo(22, 6);
-        g.lineTo(31, 12);
+        g.moveTo(-20, 4);
+        g.lineTo(-32, 13);
+        g.lineTo(-25, 18);
+        g.moveTo(20, 4);
+        g.lineTo(32, 13);
+        g.lineTo(25, 18);
         g.stroke();
+        towerBolt(g, -9, -10, 1.2);
+        towerBolt(g, 9, -10, 1.2);
       }
 
       function drawArcTower(g, level, pulse) {
-        g.strokeRect(-12, -4, 24, 10);
+        g.strokeRect(-17, -4, 34, 11);
+        g.strokeRect(-27, 5, 10, 13);
+        g.strokeRect(17, 5, 10, 13);
         g.beginPath();
-        g.moveTo(-5, 6);
-        g.lineTo(-5, -29);
-        g.moveTo(5, 6);
-        g.lineTo(5, -29);
+        g.moveTo(-9, 7);
+        g.lineTo(-9, -32);
+        g.moveTo(9, 7);
+        g.lineTo(9, -32);
         g.stroke();
-        for (let i = 0; i < 5; i += 1) {
+        for (let i = 0; i < 6; i += 1) {
           g.beginPath();
-          g.ellipse(0, 1 - i * 7.5, 20 - i * 1.6, 4.6, 0, 0, Math.PI * 2);
+          g.ellipse(0, 1 - i * 6.8, 23 - i * 1.6, 4.6, 0, 0, Math.PI * 2);
+          g.stroke();
+          g.beginPath();
+          g.moveTo(-12, 1 - i * 6.8);
+          g.lineTo(-18, 1 - i * 6.8 - 2);
+          g.moveTo(12, 1 - i * 6.8);
+          g.lineTo(18, 1 - i * 6.8 - 2);
           g.stroke();
         }
         g.beginPath();
-        g.moveTo(0, -35);
-        g.lineTo(Math.sin(pulse * 5) * 9, -24);
-        g.lineTo(Math.cos(pulse * 4) * -7, -14);
-        g.lineTo(Math.sin(pulse * 3) * 6, -4);
+        g.moveTo(0, -37);
+        g.lineTo(Math.sin(pulse * 5) * 11, -27);
+        g.lineTo(Math.cos(pulse * 4) * -9, -17);
+        g.lineTo(Math.sin(pulse * 3) * 7, -5);
         g.stroke();
         g.beginPath();
-        g.arc(0, -33, 4, 0, Math.PI * 2);
+        g.arc(0, -36, 5, 0, Math.PI * 2);
+        g.moveTo(-26, 11);
+        g.lineTo(-18, 11);
+        g.moveTo(18, 11);
+        g.lineTo(26, 11);
         g.stroke();
+        g.save();
+        g.strokeStyle = "rgba(185,255,189,0.45)";
+        brokenArc(g, 0, -19, 31, Math.PI * 1.12, Math.PI * 1.88, 8);
+        g.restore();
       }
 
       function drawCryoTower(g, level) {
-        g.strokeRect(-17, 3, 34, 12);
+        g.strokeRect(-20, 3, 40, 13);
+        g.strokeRect(-12, 12, 24, 7);
+        g.save();
+        g.globalAlpha = 0.18;
         g.beginPath();
-        g.moveTo(0, -40);
-        g.lineTo(17, -10);
-        g.lineTo(9, 13);
-        g.lineTo(-9, 13);
-        g.lineTo(-17, -10);
+        g.moveTo(0, -45);
+        g.lineTo(18, -11);
+        g.lineTo(9, 14);
+        g.lineTo(-9, 14);
+        g.lineTo(-18, -11);
+        g.closePath();
+        g.fill();
+        g.restore();
+        g.beginPath();
+        g.moveTo(0, -45);
+        g.lineTo(18, -11);
+        g.lineTo(9, 14);
+        g.lineTo(-9, 14);
+        g.lineTo(-18, -11);
         g.closePath();
         g.stroke();
         g.beginPath();
-        g.moveTo(0, -40);
-        g.lineTo(0, 13);
-        g.moveTo(-17, -10);
-        g.lineTo(17, -10);
-        g.moveTo(-9, 13);
-        g.lineTo(0, -40);
-        g.moveTo(9, 13);
-        g.lineTo(0, -40);
+        g.moveTo(0, -45);
+        g.lineTo(0, 14);
+        g.moveTo(-18, -11);
+        g.lineTo(18, -11);
+        g.moveTo(-9, 14);
+        g.lineTo(0, -45);
+        g.moveTo(9, 14);
+        g.lineTo(0, -45);
+        g.moveTo(-14, -23);
+        g.lineTo(0, -32);
+        g.lineTo(14, -23);
+        g.moveTo(-12, 0);
+        g.lineTo(0, -10);
+        g.lineTo(12, 0);
         g.stroke();
-        g.globalAlpha *= 0.72;
+        g.save();
+        g.globalAlpha = 0.58;
         g.beginPath();
-        g.moveTo(-11, -20);
-        g.lineTo(0, -30);
-        g.lineTo(11, -20);
+        g.moveTo(-23, -18);
+        g.lineTo(-29, -24);
+        g.moveTo(23, -18);
+        g.lineTo(29, -24);
+        g.moveTo(-21, -2);
+        g.lineTo(-29, 3);
+        g.moveTo(21, -2);
+        g.lineTo(29, 3);
         g.stroke();
-        g.globalAlpha /= 0.72;
+        g.restore();
       }
 
       function drawMineTower(g, level) {
+        g.strokeRect(-26, 5, 52, 11);
         g.beginPath();
-        g.arc(0, -4, 22, 0, Math.PI * 2);
+        g.ellipse(0, -3, 25, 21, 0, 0, Math.PI * 2);
         g.fill();
         g.stroke();
         g.beginPath();
-        g.arc(0, -4, 9, 0, Math.PI * 2);
+        g.ellipse(0, -3, 15, 11, 0, 0, Math.PI * 2);
         g.stroke();
-        g.strokeRect(-8, -12, 16, 16);
-        for (let i = 0; i < 10; i += 1) {
-          const a = i * Math.PI / 5;
+        g.strokeRect(-10, -13, 20, 18);
+        g.beginPath();
+        g.moveTo(-6, -3);
+        g.lineTo(6, -3);
+        g.moveTo(0, -9);
+        g.lineTo(0, 3);
+        g.stroke();
+        for (let i = 0; i < 12; i += 1) {
+          const a = i * Math.PI / 6;
           g.beginPath();
-          g.moveTo(Math.cos(a) * 14, -4 + Math.sin(a) * 14);
-          g.lineTo(Math.cos(a) * 25, -4 + Math.sin(a) * 25);
+          g.moveTo(Math.cos(a) * 16, -3 + Math.sin(a) * 13);
+          g.lineTo(Math.cos(a) * 28, -3 + Math.sin(a) * 22);
+          g.stroke();
+        }
+        g.strokeStyle = "rgba(255,207,90,0.7)";
+        for (let x = -13; x <= 13; x += 13) {
+          g.beginPath();
+          g.moveTo(x - 3, 12);
+          g.lineTo(x, 7);
+          g.lineTo(x + 3, 12);
           g.stroke();
         }
         for (let i = -1; i <= 1; i += 1) {
           g.beginPath();
-          g.arc(i * 15, 25, 4, 0, Math.PI * 2);
+          g.arc(i * 15, 25, 4.2, 0, Math.PI * 2);
+          g.stroke();
+          g.beginPath();
+          g.moveTo(i * 15, 18);
+          g.lineTo(i * 15, 31);
+          g.moveTo(i * 15 - 6, 25);
+          g.lineTo(i * 15 + 6, 25);
           g.stroke();
         }
       }
 
       function drawJammerTower(g, level) {
+        g.strokeRect(-17, -1, 34, 13);
+        g.beginPath();
+        g.moveTo(-22, 15);
+        g.lineTo(0, -13);
+        g.lineTo(22, 15);
+        g.stroke();
+        for (let y = 8; y >= -31; y -= 8) {
+          g.strokeRect(-4.5, y - 3, 9, 5);
+        }
         g.beginPath();
         g.moveTo(0, 12);
-        g.lineTo(0, -39);
+        g.lineTo(0, -43);
+        g.moveTo(-9, -35);
+        g.lineTo(0, -43);
+        g.lineTo(9, -35);
         g.stroke();
+        brokenArc(g, 0, -8, 16, Math.PI * 1.08, Math.PI * 1.92, 5);
+        brokenArc(g, 0, -8, 26, Math.PI * 1.12, Math.PI * 1.88, 6);
+        brokenArc(g, 0, -8, 36, Math.PI * 1.18, Math.PI * 1.82, 7);
         g.beginPath();
-        g.arc(0, -6, 15, Math.PI * 1.1, Math.PI * 1.9);
-        g.stroke();
-        g.beginPath();
-        g.arc(0, -6, 25, Math.PI * 1.14, Math.PI * 1.86);
-        g.stroke();
-        g.beginPath();
-        g.arc(0, -6, 34, Math.PI * 1.2, Math.PI * 1.8);
-        g.stroke();
-        g.beginPath();
-        g.moveTo(-20, 15);
-        g.lineTo(0, -10);
-        g.lineTo(20, 15);
-        g.stroke();
-        g.beginPath();
-        g.moveTo(-12, -3);
-        g.lineTo(12, -3);
-        g.moveTo(-8, -14);
-        g.lineTo(8, -14);
+        g.moveTo(-14, -4);
+        g.lineTo(-7, -8);
+        g.lineTo(0, -4);
+        g.lineTo(7, -8);
+        g.lineTo(14, -4);
+        g.moveTo(-11, -17);
+        g.lineTo(11, -17);
         g.stroke();
       }
 
@@ -1427,12 +1868,22 @@
         const buildStatus = state.selectedTowerId
           ? `${selected.name} MK-${tower.level} selected`
           : `${selected.name} queued`;
+        const signature = enemyDefs[forecast.signature] || enemyDefs.crawler;
         const laneStatus = state.phase === "combat"
           ? `${state.enemies.length} hostiles active`
           : hover.reason || "Build ready";
         els.sideTactics.innerHTML = `
           <div class="tactic-card">
             <div class="tactic-heading"><span>Next Wave</span><span>${forecast.kind}</span></div>
+            <div class="threat-band">
+              <canvas class="threat-preview" width="320" height="168" aria-label="${signature.name} schematic"></canvas>
+              <div class="mini-grid">
+                <span class="mini-chip">Signature<strong>${signature.name}</strong></span>
+                <span class="mini-chip">Armor<strong>${signature.armor}</strong></span>
+                <span class="mini-chip">Speed<strong>${signature.speed}</strong></span>
+                <span class="mini-chip">Leak<strong>${signature.leak}</strong></span>
+              </div>
+            </div>
             <div class="mini-grid">
               <span class="mini-chip">Wave<strong>${String(nextWave).padStart(2, "0")}</strong></span>
               <span class="mini-chip">Length<strong>${forecast.duration}</strong></span>
@@ -1459,6 +1910,7 @@
             </div>
           </div>
         `;
+        renderThreatPreview(els.sideTactics.querySelector(".threat-preview"), forecast.signature);
       }
 
       function waveForecast(wave) {
@@ -1471,11 +1923,20 @@
           count,
           threat,
           kind: bossWave ? "BOSS" : "REGULAR",
+          signature: primaryThreatForWave(wave),
           duration: formatDuration(seconds),
           note: bossWave
             ? "Heavy chassis signatures will stretch the engagement. Keep armor disruption and burst damage online."
             : "Regular wave pacing leaves time for mid-wave upgrades without burying the active route."
         };
+      }
+
+      function primaryThreatForWave(wave) {
+        if (wave % 5 === 0) return wave >= 10 ? "juggernaut" : "beetle";
+        const unlocked = Object.entries(enemyDefs)
+          .filter(([, enemy]) => enemy.unlock <= wave)
+          .sort((a, b) => a[1].unlock - b[1].unlock);
+        return unlocked.length ? unlocked[unlocked.length - 1][0] : "crawler";
       }
 
       function formatDuration(seconds) {
@@ -2380,8 +2841,14 @@
         const jitter = enemy.type === "wisp" ? Math.sin(enemy.special * 18) * 3 : 0;
         ctx.save();
         ctx.translate(pos.x + jitter, pos.y - (enemy.burrowed ? 5 : 0));
-        ctx.rotate(pos.angle);
         ctx.globalAlpha = alpha;
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = enemy.boss ? "rgba(255,207,90,0.13)" : "rgba(97,255,126,0.08)";
+        ctx.beginPath();
+        ctx.ellipse(0, enemy.radius * 0.62, enemy.radius * 1.48, enemy.radius * 0.38, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
         ctx.strokeStyle = enemy.boss ? "#ffcf5a" : enemy.color;
         ctx.fillStyle = enemy.burrowed ? "rgba(97,255,126,0.06)" : "rgba(6,28,10,0.92)";
         ctx.lineWidth = enemy.boss ? 3 : 2;
@@ -2423,6 +2890,34 @@
           ctx.stroke();
           bolt(side * r * 0.92, y + r * 0.16 * Math.sign(y || 1), 1.2);
         };
+        const beveledRect = (x, y, w, h, cut = 4) => {
+          ctx.beginPath();
+          ctx.moveTo(x + cut, y);
+          ctx.lineTo(x + w - cut, y);
+          ctx.lineTo(x + w, y + cut);
+          ctx.lineTo(x + w, y + h - cut);
+          ctx.lineTo(x + w - cut, y + h);
+          ctx.lineTo(x + cut, y + h);
+          ctx.lineTo(x, y + h - cut);
+          ctx.lineTo(x, y + cut);
+          ctx.closePath();
+        };
+        const segmentedArc = (x, y, radius, start, end, pieces = 7) => {
+          const span = end - start;
+          for (let i = 0; i < pieces; i += 1) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, start + span * (i / pieces), start + span * ((i + 0.55) / pieces));
+            ctx.stroke();
+          }
+        };
+        const ghostStroke = (draw) => {
+          ctx.save();
+          ctx.globalAlpha = 0.34;
+          ctx.strokeStyle = "rgba(185,255,189,0.45)";
+          ctx.lineWidth = Math.max(1, r * 0.045);
+          draw();
+          ctx.restore();
+        };
         if (enemy.type === "crawler") {
           for (const y of [-r * 0.62, -r * 0.24, r * 0.24, r * 0.62]) {
             jointedLeg(-1, y, 0.92);
@@ -2433,9 +2928,23 @@
           ctx.fill();
           ctx.stroke();
           ctx.beginPath();
+          ctx.arc(0, -r * 0.06, r * 0.72, Math.PI * 1.05, Math.PI * 1.95);
+          ctx.lineTo(-r * 0.68, r * 0.12);
+          ctx.moveTo(r * 0.68, r * 0.12);
+          ctx.lineTo(r * 0.42, -r * 0.48);
+          ctx.stroke();
+          for (let i = -2; i <= 2; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(i * r * 0.18, -r * 0.56);
+            ctx.lineTo(i * r * 0.12, r * 0.42);
+            ctx.stroke();
+          }
+          ctx.beginPath();
           ctx.ellipse(r * 0.26, 0, r * 0.52, r * 0.4, 0, 0, Math.PI * 2);
           ctx.stroke();
           ctx.strokeRect(-r * 0.42, -r * 0.32, r * 0.45, r * 0.64);
+          ctx.strokeRect(-r * 0.22, -r * 0.2, r * 0.18, r * 0.16);
+          ctx.strokeRect(-r * 0.22, r * 0.05, r * 0.18, r * 0.16);
           ctx.beginPath();
           ctx.arc(r * 0.62, -r * 0.18, 2.1, 0, Math.PI * 2);
           ctx.arc(r * 0.62, r * 0.18, 2.1, 0, Math.PI * 2);
@@ -2443,9 +2952,16 @@
           ctx.beginPath();
           ctx.moveTo(r * 0.86, -r * 0.28);
           ctx.lineTo(r * 1.34, -r * 0.58);
+          ctx.lineTo(r * 1.48, -r * 0.5);
           ctx.moveTo(r * 0.86, r * 0.28);
           ctx.lineTo(r * 1.34, r * 0.58);
+          ctx.lineTo(r * 1.48, r * 0.5);
           ctx.stroke();
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 1.22, r * 0.83, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          });
         } else if (enemy.type === "beetle") {
           for (const y of [-r * 0.58, 0, r * 0.58]) {
             jointedLeg(-1, y, 1);
@@ -2454,6 +2970,12 @@
           ctx.beginPath();
           ctx.ellipse(-r * 0.08, 0, r * 1.25, r * 0.85, 0, 0, Math.PI * 2);
           ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.95, -r * 0.1);
+          ctx.bezierCurveTo(-r * 0.72, -r * 0.8, r * 0.46, -r * 0.76, r * 0.94, -r * 0.2);
+          ctx.moveTo(-r * 0.95, r * 0.1);
+          ctx.bezierCurveTo(-r * 0.72, r * 0.8, r * 0.46, r * 0.76, r * 0.94, r * 0.2);
           ctx.stroke();
           for (let i = -2; i <= 2; i += 1) {
             ctx.beginPath();
@@ -2475,6 +2997,16 @@
           ctx.stroke();
           bolt(r * 0.48, -r * 0.28);
           bolt(r * 0.48, r * 0.28);
+          bolt(-r * 0.32, -r * 0.42, 1.2);
+          bolt(-r * 0.32, r * 0.42, 1.2);
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.moveTo(-r * 1.06, -r * 0.55);
+            ctx.lineTo(r * 0.85, -r * 0.55);
+            ctx.moveTo(-r * 1.06, r * 0.55);
+            ctx.lineTo(r * 0.85, r * 0.55);
+            ctx.stroke();
+          });
         } else if (enemy.type === "slime") {
           ctx.beginPath();
           ctx.moveTo(-r * 1.05, 4);
@@ -2484,16 +3016,28 @@
           ctx.bezierCurveTo(-r * 0.94, r * 0.72, -r * 1.22, r * 0.3, -r * 1.05, 4);
           ctx.fill();
           ctx.stroke();
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.72, r * 0.18);
+            ctx.bezierCurveTo(-r * 0.44, -r * 0.62, r * 0.36, -r * 0.64, r * 0.62, r * 0.06);
+            ctx.bezierCurveTo(r * 0.38, r * 0.56, -r * 0.28, r * 0.62, -r * 0.72, r * 0.18);
+            ctx.stroke();
+          });
           ctx.beginPath();
           ctx.arc(r * 0.18, -r * 0.18, r * 0.16, 0, Math.PI * 2);
           ctx.arc(-r * 0.38, r * 0.12, r * 0.1, 0, Math.PI * 2);
           ctx.arc(r * 0.52, r * 0.34, r * 0.08, 0, Math.PI * 2);
+          ctx.arc(-r * 0.02, r * 0.34, r * 0.06, 0, Math.PI * 2);
           ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(-r * 0.72, r * 0.55);
           ctx.lineTo(-r * 0.6, r * 1.05);
+          ctx.lineTo(-r * 0.74, r * 1.17);
           ctx.moveTo(r * 0.08, r * 0.76);
           ctx.lineTo(r * 0.02, r * 1.18);
+          ctx.lineTo(r * 0.16, r * 1.28);
+          ctx.moveTo(r * 0.72, r * 0.34);
+          ctx.lineTo(r * 1.12, r * 0.62);
           ctx.stroke();
         } else if (enemy.type === "worm") {
           for (let i = 0; i < 6; i += 1) {
@@ -2505,26 +3049,39 @@
             ctx.moveTo(-i * r * 0.36 - r * 0.2, -r * 0.36);
             ctx.lineTo(-i * r * 0.36 + r * 0.16, r * 0.36);
             ctx.stroke();
+            if (i < 5) {
+              bolt(-i * r * 0.36 - r * 0.18, -r * 0.1, 1.1);
+            }
           }
           ctx.beginPath();
           ctx.arc(r * 0.62, 0, r * 0.54, 0, Math.PI * 2);
           ctx.stroke();
           ctx.beginPath();
+          ctx.arc(r * 0.78, 0, r * 0.26, -Math.PI * 0.45, Math.PI * 0.45);
+          ctx.stroke();
+          ctx.beginPath();
           ctx.moveTo(r * 0.96, -r * 0.28);
           ctx.lineTo(r * 1.45, -r * 0.6);
+          ctx.lineTo(r * 1.24, -r * 0.22);
           ctx.moveTo(r * 0.98, r * 0.28);
           ctx.lineTo(r * 1.45, r * 0.6);
+          ctx.lineTo(r * 1.24, r * 0.22);
           ctx.moveTo(r * 1.1, 0);
           ctx.lineTo(r * 1.55, 0);
           ctx.stroke();
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.moveTo(-r * 2.25, r * 0.58);
+            ctx.bezierCurveTo(-r * 1.3, r * 1.0, -r * 0.12, r * 0.96, r * 0.96, r * 0.5);
+            ctx.stroke();
+          });
         } else if (enemy.type === "wisp") {
           ctx.beginPath();
           ctx.arc(0, 0, r * 0.36, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
-          ctx.stroke();
+          segmentedArc(0, 0, r * 0.72, 0, Math.PI * 2, 8);
+          segmentedArc(0, 0, r * 1.08, Math.PI * 0.15, Math.PI * 1.9, 10);
           for (let i = 0; i < 9; i += 1) {
             const a = i * Math.PI * 2 / 9 + enemy.special;
             ctx.beginPath();
@@ -2532,10 +3089,22 @@
             ctx.lineTo(Math.cos(a + 0.2) * r * 0.92, Math.sin(a + 0.2) * r * 0.92);
             ctx.lineTo(Math.cos(a + 0.44) * r * 1.55, Math.sin(a + 0.44) * r * 1.55);
             ctx.stroke();
+            if (i % 3 === 0) {
+              bolt(Math.cos(a + 0.44) * r * 1.22, Math.sin(a + 0.44) * r * 1.22, 1.4);
+            }
           }
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.moveTo(-r * 1.2, -r * 0.68);
+            ctx.lineTo(-r * 0.7, -r * 0.68);
+            ctx.lineTo(-r * 0.7, -r * 1.03);
+            ctx.moveTo(r * 1.2, r * 0.68);
+            ctx.lineTo(r * 0.68, r * 0.68);
+            ctx.lineTo(r * 0.68, r * 1.02);
+            ctx.stroke();
+          });
         } else if (enemy.type === "juggernaut") {
-          ctx.beginPath();
-          ctx.rect(-r * 1.08, -r * 0.7, r * 2.16, r * 1.4);
+          beveledRect(-r * 1.12, -r * 0.72, r * 2.24, r * 1.44, r * 0.2);
           ctx.fill();
           ctx.stroke();
           ctx.strokeRect(-r * 0.58, -r * 1.08, r * 1.16, r * 0.48);
@@ -2557,9 +3126,37 @@
             ctx.lineTo(r * 0.62, i * r * 1.14);
             ctx.stroke();
           }
+          ctx.strokeRect(-r * 1.02, r * 0.76, r * 0.62, r * 0.24);
+          ctx.strokeRect(r * 0.4, r * 0.76, r * 0.62, r * 0.24);
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.38, -r * 0.86);
+          ctx.lineTo(r * 0.38, -r * 0.86);
+          ctx.moveTo(-r * 0.55, -r * 0.12);
+          ctx.lineTo(r * 0.55, -r * 0.12);
+          ctx.moveTo(-r * 0.18, r * 0.2);
+          ctx.lineTo(r * 0.18, r * 0.2);
+          ctx.stroke();
+          for (let i = -2; i <= 2; i += 1) {
+            bolt(i * r * 0.34, r * 0.48, 1.3);
+          }
           bolt(0, -r * 0.84, 2);
           bolt(0, 0, 2.2);
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.moveTo(-r * 1.2, -r * 0.84);
+            ctx.lineTo(r * 1.2, -r * 0.84);
+            ctx.moveTo(-r * 1.2, r * 0.84);
+            ctx.lineTo(r * 1.2, r * 0.84);
+            ctx.stroke();
+          });
         } else {
+          ghostStroke(() => {
+            ctx.beginPath();
+            ctx.moveTo(r * 0.9, -r * 0.08);
+            ctx.bezierCurveTo(r * 0.55, -r * 1.3, -r * 0.56, -r * 1.3, -r * 0.9, -r * 0.08);
+            ctx.lineTo(-r * 0.62, r * 1.2);
+            ctx.stroke();
+          });
           ctx.beginPath();
           ctx.moveTo(r * 0.82, -r * 0.06);
           ctx.bezierCurveTo(r * 0.5, -r * 1.24, -r * 0.48, -r * 1.24, -r * 0.82, -r * 0.06);
@@ -2581,6 +3178,15 @@
           ctx.moveTo(0, -r * 0.74);
           ctx.lineTo(0, r * 0.56);
           ctx.stroke();
+          ctx.save();
+          ctx.globalAlpha = 0.45;
+          for (let y = -0.42; y <= 0.72; y += 0.28) {
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.7, r * y);
+            ctx.lineTo(r * 0.7, r * y + Math.sin(enemy.special * 8 + y) * 2);
+            ctx.stroke();
+          }
+          ctx.restore();
         }
         ctx.strokeStyle = "rgba(185,255,189,0.28)";
         ctx.lineWidth = Math.max(1, r * 0.055);
