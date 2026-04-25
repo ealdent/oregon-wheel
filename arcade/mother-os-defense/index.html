@@ -1878,6 +1878,82 @@
           }
           g.restore();
         };
+        const grain = (points, alpha = preview ? 0.46 : 0.32) => {
+          g.save();
+          g.globalAlpha = alpha;
+          g.strokeStyle = "rgba(230,255,216,0.64)";
+          g.lineWidth = Math.max(0.55, lineBase * 0.36);
+          for (const [x, y, w, rot = 0] of points) {
+            g.save();
+            g.translate(x, y);
+            g.rotate(rot);
+            g.beginPath();
+            g.moveTo(-w * 0.5, 0);
+            g.lineTo(w * 0.5, 0);
+            g.stroke();
+            g.restore();
+          }
+          g.restore();
+        };
+        const rivets = (points, size = r * 0.038) => {
+          g.save();
+          g.globalAlpha = preview ? 0.82 : 0.7;
+          g.lineWidth = Math.max(0.65, lineBase * 0.42);
+          for (const [x, y] of points) dot(x, y, size);
+          g.restore();
+        };
+        const cable = (points) => {
+          g.save();
+          g.globalAlpha = preview ? 0.86 : 0.72;
+          g.lineWidth = Math.max(0.8, lineBase * 0.5);
+          g.beginPath();
+          points.forEach(([x, y], index) => {
+            if (index === 0) g.moveTo(x, y);
+            else g.lineTo(x, y);
+          });
+          g.stroke();
+          g.restore();
+        };
+        const hatchEllipse = (cx, cy, rx, ry, count = 5, slant = 0.4) => {
+          g.save();
+          g.globalAlpha = preview ? 0.5 : 0.34;
+          g.lineWidth = Math.max(0.55, lineBase * 0.36);
+          for (let i = -count; i <= count; i += 1) {
+            const y = cy + (i / count) * ry * 0.78;
+            const span = rx * Math.sqrt(Math.max(0, 1 - Math.pow((y - cy) / ry, 2))) * 0.72;
+            g.beginPath();
+            g.moveTo(cx - span, y + span * slant * 0.22);
+            g.lineTo(cx + span, y - span * slant * 0.22);
+            g.stroke();
+          }
+          g.restore();
+        };
+        const antenna = (side, x, y, length, bend = -0.35) => {
+          g.save();
+          g.globalAlpha = preview ? 0.9 : 0.74;
+          g.lineWidth = Math.max(0.75, lineBase * 0.48);
+          g.beginPath();
+          g.moveTo(side * x, y);
+          g.quadraticCurveTo(side * (x + length * 0.36), y - length * 0.32, side * (x + length), y + length * bend);
+          g.stroke();
+          dot(side * (x + length), y + length * bend, r * 0.032);
+          g.restore();
+        };
+        const distress = (kind) => {
+          const marks = {
+            crawler: [[-0.82, -0.58, 0.32, -0.12], [-0.26, 0.58, 0.2, 0.08], [0.52, -0.5, 0.28, 0.16], [0.9, 0.28, 0.22, -0.2]],
+            beetle: [[-0.5, -0.78, 0.36, -0.1], [0.08, -0.68, 0.42, 0.12], [0.7, 0.42, 0.34, -0.18], [-0.78, 0.5, 0.28, 0.14]],
+            slime: [[-0.72, -0.18, 0.34, -0.3], [-0.24, 0.64, 0.28, 0.1], [0.42, -0.6, 0.3, 0.22], [0.86, 0.2, 0.24, -0.18]],
+            worm: [[-1.18, 0.48, 0.4, 0.14], [-0.48, -0.34, 0.34, 0.2], [0.3, 0.44, 0.32, -0.12], [1.2, -0.38, 0.28, 0.18]],
+            wisp: [[-0.92, -0.66, 0.28, -0.12], [-0.52, 0.76, 0.24, 0.2], [0.66, -0.82, 0.22, 0.1], [0.98, 0.48, 0.26, -0.24]],
+            juggernaut: [[-0.88, -0.56, 0.42, 0.1], [-0.42, 0.62, 0.32, -0.16], [0.36, -0.66, 0.36, 0.16], [0.92, 0.3, 0.3, -0.22]],
+            phantom: [[-0.42, -0.98, 0.28, 0.16], [-0.28, 0.38, 0.24, -0.12], [0.32, -0.18, 0.28, 0.2], [0.5, 0.78, 0.22, -0.16]],
+            mite: [[-0.88, -0.44, 0.34, -0.1], [-0.3, 0.52, 0.32, 0.16], [0.42, -0.48, 0.3, 0.12], [0.86, 0.22, 0.24, -0.2]],
+            leech: [[-1.24, 0.42, 0.42, -0.08], [-0.58, -0.36, 0.36, 0.14], [0.18, 0.38, 0.34, -0.18], [1.14, -0.3, 0.28, 0.18]],
+            obelisk: [[-0.32, -1.18, 0.28, 0.16], [0.22, -0.74, 0.32, -0.2], [-0.18, 0.3, 0.26, 0.12], [0.36, 0.66, 0.24, -0.18]]
+          }[kind] || [];
+          grain(marks.map(([x, y, w, rot]) => [x * r, y * r, w * r, rot]), preview ? 0.38 : 0.26);
+        };
         const bladeLeg = (side, x, y, a = 1, forward = 1) => {
           g.beginPath();
           g.moveTo(side * x, y);
@@ -1907,7 +1983,7 @@
         g.save();
         g.lineCap = "round";
         g.lineJoin = "round";
-        g.lineWidth = Math.max(1.1, lineBase);
+        g.lineWidth = Math.max(1.28, lineBase * 1.08);
 
         if (type === "crawler") {
           for (const y of [-0.58, -0.08, 0.46]) {
@@ -1944,6 +2020,12 @@
           }
           segmentedArc(0, -r * 0.06, r * 0.9, Math.PI * 1.05, Math.PI * 1.95, 6);
           scratch([[-r * 0.78, -r * 0.42, -r * 0.56, -r * 0.55], [r * 0.2, -r * 0.55, r * 0.5, -r * 0.47], [-r * 0.16, r * 0.22, r * 0.18, r * 0.28]]);
+          antenna(-1, r * 0.48, -r * 0.5, r * 0.55, -0.42);
+          antenna(1, r * 0.48, -r * 0.5, r * 0.55, -0.42);
+          hatchEllipse(0, -r * 0.08, r * 0.78, r * 0.54, 5, 0.55);
+          cable([[-r * 0.72, r * 0.14], [-r * 0.36, r * 0.36], [0, r * 0.25], [r * 0.36, r * 0.36], [r * 0.72, r * 0.14]]);
+          rivets([[-r * 0.7, r * 0.08], [-r * 0.44, r * 0.25], [0, r * 0.28], [r * 0.44, r * 0.25], [r * 0.7, r * 0.08]], r * 0.035);
+          distress("crawler");
         } else if (type === "beetle") {
           for (const y of [-0.58, -0.1, 0.42]) {
             bladeLeg(-1, r * 0.72, r * y, y < 0 ? -0.72 : 0.82);
@@ -1967,6 +2049,24 @@
           dot(-r * 0.92, -r * 0.12);
           dot(-r * 0.66, -r * 0.08);
           scratch([[-r * 0.26, -r * 0.68, r * 0.08, -r * 0.52], [r * 0.42, -r * 0.42, r * 0.82, -r * 0.22], [-r * 0.42, r * 0.46, -r * 0.02, r * 0.58]]);
+          for (const [x, y, bend] of [[-0.72, 0.46, -1], [-0.28, 0.58, -0.5], [0.26, 0.58, 0.5], [0.72, 0.46, 1]]) {
+            g.beginPath();
+            g.moveTo(r * x, r * y);
+            g.lineTo(r * (x + bend * 0.12), r * 0.92);
+            g.lineTo(r * (x + bend * 0.28), r * 1.14);
+            g.lineTo(r * (x + bend * 0.08), r * 1.04);
+            g.stroke();
+          }
+          g.beginPath();
+          g.moveTo(-r * 1.05, -r * 0.42);
+          g.quadraticCurveTo(-r * 0.44, -r * 1.0, r * 0.74, -r * 0.74);
+          g.moveTo(-r * 1.12, r * 0.42);
+          g.quadraticCurveTo(-r * 0.36, r * 0.88, r * 0.82, r * 0.6);
+          g.stroke();
+          hatchEllipse(r * 0.16, -r * 0.02, r * 0.86, r * 0.62, 6, -0.35);
+          cable([[-r * 1.02, r * 0.18], [-r * 0.54, r * 0.5], [r * 0.08, r * 0.42], [r * 0.72, r * 0.18]]);
+          rivets([[-r * 0.48, -r * 0.42], [0, -r * 0.54], [r * 0.5, -r * 0.36], [-r * 0.5, r * 0.36], [0, r * 0.5], [r * 0.54, r * 0.3]], r * 0.035);
+          distress("beetle");
         } else if (type === "slime") {
           g.beginPath();
           g.moveTo(-r * 1.28, r * 0.32);
@@ -2004,6 +2104,21 @@
           g.bezierCurveTo(-r * 0.34, r * 0.44, r * 0.26, r * 0.44, r * 0.66, r * 0.18);
           g.stroke();
           scratch([[-r * 0.78, -r * 0.02, -r * 0.48, -r * 0.18], [r * 0.1, -r * 0.62, r * 0.38, -r * 0.48]]);
+          for (const [x, y, tx, ty] of [[-0.9, 0.5, -1.35, 1.06], [-0.24, 0.76, -0.28, 1.34], [0.48, 0.58, 0.82, 1.08]]) {
+            g.beginPath();
+            g.moveTo(r * x, r * y);
+            g.bezierCurveTo(r * (x + tx) * 0.5, r * (y + ty) * 0.5, r * tx, r * (ty - 0.12), r * tx, r * ty);
+            g.stroke();
+            dot(r * tx, r * ty, r * 0.038);
+          }
+          g.beginPath();
+          g.moveTo(-r * 0.7, -r * 0.28);
+          g.bezierCurveTo(-r * 0.36, -r * 0.98, r * 0.5, -r * 0.88, r * 0.8, -r * 0.18);
+          g.stroke();
+          hatchEllipse(-r * 0.04, r * 0.04, r * 0.78, r * 0.58, 5, 0.2);
+          cable([[-r * 0.9, r * 0.38], [-r * 0.42, r * 0.62], [r * 0.16, r * 0.55], [r * 0.7, r * 0.28]]);
+          rivets([[-r * 0.76, r * 0.28], [-r * 0.32, -r * 0.18], [r * 0.08, -r * 0.42], [r * 0.54, r * 0.02], [r * 0.28, r * 0.48]], r * 0.032);
+          distress("slime");
         } else if (type === "worm") {
           const points = [];
           for (let i = 0; i < 7; i += 1) {
@@ -2033,6 +2148,12 @@
           g.lineTo(r * 2.25, points[0].y + r * 0.5);
           g.stroke();
           scratch([[r * -1.22, r * 0.55, r * -0.82, r * 0.67], [r * -0.18, r * -0.32, r * 0.14, r * -0.22], [r * 0.52, r * 0.34, r * 0.86, r * 0.42]]);
+          for (let i = 0; i < points.length - 1; i += 1) {
+            cable([[points[i].x - r * 0.12, points[i].y - r * 0.24], [points[i + 1].x + r * 0.16, points[i + 1].y - r * 0.18]]);
+          }
+          rivets(points.map((p) => [p.x + r * 0.08, p.y - r * 0.1]), r * 0.032);
+          grain(points.map((p, index) => [p.x - r * 0.18, p.y + r * 0.22, r * (0.22 + index * 0.02), 0.32]), preview ? 0.35 : 0.24);
+          distress("worm");
         } else if (type === "wisp") {
           g.beginPath();
           g.arc(0, 0, r * 0.28, 0, Math.PI * 2);
@@ -2052,6 +2173,10 @@
           }
           segmentedArc(0, 0, r * 0.58, 0, Math.PI * 2, 6);
           segmentedArc(0, 0, r * 0.9, Math.PI * 0.08, Math.PI * 1.9, 9);
+          segmentedArc(0, 0, r * 1.22, Math.PI * 0.2, Math.PI * 1.72, 10);
+          rivets([[0, -r * 0.42], [r * 0.42, 0], [0, r * 0.42], [-r * 0.42, 0]], r * 0.032);
+          grain([[-r * 1.28, -r * 0.62, r * 0.42, -0.26], [-r * 0.86, r * 0.95, r * 0.34, 0.3], [r * 0.76, -r * 1.0, r * 0.38, 0.18], [r * 1.22, r * 0.58, r * 0.32, -0.35]], preview ? 0.48 : 0.34);
+          distress("wisp");
         } else if (type === "juggernaut") {
           for (const side of [-1, 1]) {
             g.beginPath();
@@ -2074,6 +2199,28 @@
           g.strokeRect(-r * 0.58, -r * 0.52, r * 1.16, r * 0.36);
           for (const x of [-0.7, -0.36, 0.36, 0.7]) dot(x * r, r * 0.08, r * 0.055);
           scratch([[-r * 0.86, -r * 0.16, -r * 0.44, -r * 0.26], [r * 0.28, -r * 0.62, r * 0.72, -r * 0.46]]);
+          for (const side of [-1, 1]) {
+            g.beginPath();
+            g.moveTo(side * r * 0.98, -r * 0.18);
+            g.lineTo(side * r * 1.34, r * 0.16);
+            g.lineTo(side * r * 1.22, r * 0.52);
+            g.lineTo(side * r * 1.02, r * 0.24);
+            g.moveTo(side * r * 0.7, r * 0.28);
+            g.lineTo(side * r * 0.9, r * 0.82);
+            g.lineTo(side * r * 0.62, r * 1.12);
+            g.stroke();
+            g.strokeRect(side * r * 1.1 - (side < 0 ? r * 0.28 : 0), r * 0.5, r * 0.28, r * 0.18);
+          }
+          g.beginPath();
+          g.moveTo(-r * 0.74, -r * 0.58);
+          g.lineTo(-r * 0.42, -r * 0.84);
+          g.lineTo(r * 0.42, -r * 0.84);
+          g.lineTo(r * 0.74, -r * 0.58);
+          g.stroke();
+          hatchEllipse(0, -r * 0.14, r * 0.92, r * 0.52, 6, -0.25);
+          cable([[-r * 0.86, r * 0.22], [-r * 0.34, r * 0.46], [r * 0.3, r * 0.46], [r * 0.86, r * 0.2]]);
+          rivets([[-r * 0.86, -r * 0.1], [-r * 0.58, -r * 0.34], [-r * 0.24, r * 0.18], [r * 0.24, r * 0.18], [r * 0.58, -r * 0.34], [r * 0.86, -r * 0.1]], r * 0.04);
+          distress("juggernaut");
         } else if (type === "phantom") {
           g.beginPath();
           g.moveTo(0, -r * 1.22);
@@ -2111,6 +2258,10 @@
             g.stroke();
           }
           scratch([[-r * 0.22, -r * 0.28, -r * 0.06, r * 0.58], [r * 0.2, -r * 0.2, r * 0.08, r * 0.88]]);
+          hatchEllipse(0, -r * 0.14, r * 0.38, r * 0.92, 7, 0.05);
+          cable([[-r * 0.36, -r * 0.02], [-r * 0.12, r * 0.4], [0, r * 0.92], [r * 0.12, r * 0.4], [r * 0.36, -r * 0.02]]);
+          rivets([[-r * 0.28, -r * 0.62], [r * 0.28, -r * 0.62], [-r * 0.2, r * 0.16], [r * 0.2, r * 0.16], [0, r * 0.74]], r * 0.03);
+          distress("phantom");
         } else if (type === "mite") {
           for (const y of [-0.5, -0.05, 0.4]) {
             bladeLeg(-1, r * 0.58, r * y, y < 0 ? -0.7 : 0.78);
@@ -2139,6 +2290,11 @@
           g.stroke();
           dot(-r * 0.92, -r * 0.1, r * 0.05);
           scratch([[-r * 0.24, -r * 0.42, r * 0.14, -r * 0.36], [r * 0.3, r * 0.28, r * 0.66, r * 0.16]]);
+          antenna(-1, r * 0.96, -r * 0.18, r * 0.52, -0.18);
+          hatchEllipse(r * 0.12, 0, r * 0.72, r * 0.42, 4, 0.32);
+          cable([[-r * 0.62, r * 0.2], [-r * 0.16, r * 0.34], [r * 0.38, r * 0.24], [r * 0.86, r * 0.02]]);
+          rivets([[-r * 0.52, -r * 0.18], [-r * 0.12, -r * 0.3], [r * 0.28, -r * 0.22], [r * 0.66, -r * 0.02], [r * 0.28, r * 0.26], [-r * 0.18, r * 0.28]], r * 0.033);
+          distress("mite");
         } else if (type === "leech") {
           const points = [];
           for (let i = 0; i < 7; i += 1) {
@@ -2167,6 +2323,12 @@
             g.stroke();
           }
           scratch([[-r * 1.08, r * 0.38, -r * 0.72, r * 0.52], [-r * 0.18, -r * 0.38, r * 0.1, -r * 0.3], [r * 0.55, r * 0.34, r * 0.9, r * 0.38]]);
+          for (let i = 0; i < points.length - 1; i += 1) {
+            cable([[points[i].x - r * 0.06, points[i].y + r * 0.24], [points[i + 1].x + r * 0.12, points[i + 1].y + r * 0.18]]);
+          }
+          grain(points.map((p, index) => [p.x, p.y - r * 0.34, r * (0.24 + index * 0.018), -0.28]), preview ? 0.4 : 0.28);
+          rivets(points.map((p) => [p.x + r * 0.12, p.y + r * 0.05]), r * 0.032);
+          distress("leech");
         } else if (type === "obelisk") {
           g.beginPath();
           g.moveTo(0, -r * 1.64);
@@ -2207,6 +2369,10 @@
             g.stroke();
           }
           scratch([[-r * 0.16, -r * 1.1, r * 0.12, -r * 0.86], [-r * 0.12, r * 0.22, r * 0.12, r * 0.42]]);
+          hatchEllipse(0, -r * 0.18, r * 0.3, r * 1.08, 8, -0.08);
+          cable([[0, -r * 1.34], [r * 0.2, -r * 0.74], [0, -r * 0.12], [-r * 0.18, r * 0.46], [0, r * 0.94]]);
+          rivets([[0, -r * 1.22], [-r * 0.2, -r * 0.46], [r * 0.22, -r * 0.46], [-r * 0.14, r * 0.36], [r * 0.14, r * 0.36]], r * 0.03);
+          distress("obelisk");
         } else {
           drawReferenceEnemy(g, "phantom", r, options);
         }
@@ -3773,7 +3939,7 @@
         const cached = enemySpriteCache.get(key);
         if (cached) return cached;
 
-        const pixelScale = 3;
+        const pixelScale = 4;
         const half = enemySpriteHalfExtent(enemy.type, enemy.radius, enemy.boss);
         const canvas = document.createElement("canvas");
         canvas.width = half * 2 * pixelScale;
@@ -3782,9 +3948,9 @@
         g.setTransform(pixelScale, 0, 0, pixelScale, half * pixelScale, half * pixelScale);
         g.strokeStyle = enemy.boss ? "#ffcf5a" : enemy.color;
         g.fillStyle = enemy.burrowed ? "rgba(97,255,126,0.06)" : "rgba(6,28,10,0.92)";
-        g.lineWidth = enemy.boss ? 3 : 2;
+        g.lineWidth = enemy.boss ? 3.35 : 2.35;
         g.shadowColor = enemy.boss ? "#ffcf5a" : enemy.color;
-        g.shadowBlur = enemy.boss ? 12 : 5;
+        g.shadowBlur = enemy.boss ? 14 : 7;
         drawReferenceEnemy(g, enemy.type, enemy.radius, {
           phase: (enemy.spritePhase || 0) * 0.78,
           child: enemy.child,

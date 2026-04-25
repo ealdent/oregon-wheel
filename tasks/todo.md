@@ -1,33 +1,32 @@
-# Mother OS Difficulty Balance Pass
+# Mother OS Enemy Fidelity Pass
 
 ## Spec
 
-- [x] Compare possible tower DPS/cost against current enemy health and wave sizes.
-- [x] Increase enemy HP and/or enemy counts enough that one fully upgraded tower is not a dominant strategy.
-- [x] Preserve substantial wave length, readable pacing, and the current single-file/no-dependency setup.
-- [x] Keep rewards and boss-sector cadence coherent after the difficulty increase.
-- [x] Verify with static checks and balance simulation.
+- [x] Rework enemy line art toward the attached design image's stronger schematic fidelity.
+- [x] Improve silhouettes, internal plating, legs/tendrils, grunge scratches, and phosphor line layering.
+- [x] Preserve the cached enemy sprite pipeline and runtime performance.
+- [x] Verify both the large tactical-control preview and in-map enemy sprites.
+- [x] Keep the game single-file and dependency-free.
 - [x] Commit and push the completed checkpoint.
 
 ## Plan
 
-- [x] Inspect tower stat, upgrade, enemy scaling, and wave generation formulas.
-- [x] Build a lightweight balance model from the in-game formulas.
-- [x] Adjust enemy HP/count/reward pacing to increase pressure against single-tower play.
-- [x] Run JavaScript parse, dependency scan, whitespace check, and balance model verification.
+- [x] Inspect current enemy drawing helpers and cache path.
+- [x] Add shared line-art helpers for double strokes, hatch marks, seams, and antenna/leg structure.
+- [x] Enhance all non-boss enemy silhouettes with reference-specific detail.
+- [x] Run JavaScript parse, dependency scan, whitespace check, and browser screenshot verification.
 - [x] Commit and push to `main`.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Balance model completed
-- [x] Difficulty tuning implemented
+- [x] Enemy art enhanced
 - [x] Verification completed
 
 ## Review
 
-- Increased enemy base HP/armor and wave counts, then tightened spawn intervals so added enemies create density rather than bloated wave length.
-- Centralized balance formulas for enemy counts, spawn intervals, duration estimates, health scaling, armor scaling, rewards, and clear bonuses.
-- Balance model shows regular wave 10 pressure rising from about 488 HP/sec to about 900 HP/sec while rewards only rise about 1.04x; this should break the single fully upgraded tower path without starving mixed builds.
-- Browser smoke test loaded the game, confirmed Sector 7 shows Spawn Pack 50 and Length 1:30, started combat, and captured `/tmp/mother-os-balance-smoke.png`.
+- Added shared enemy line-art helpers for hatch shading, rivets, cables, antennae, grunge scratches, and per-model distress marks.
+- Enhanced all ten non-boss enemies through the shared cached `drawReferenceEnemy` path, including stronger beetle, slime, and juggernaut silhouettes after reviewing the gallery.
+- Increased cached enemy sprite pixel density and stroke/glow strength so the added detail remains readable in the live map.
+- Browser verification screenshots: `/tmp/mother-os-enemy-fidelity-game-2.png` for gameplay scale and `/tmp/mother-os-enemy-gallery-2.png` for the full enemy catalog.
