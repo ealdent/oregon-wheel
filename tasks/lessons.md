@@ -10,3 +10,4 @@
 - When reworking enemies from a lineup reference, mirror the full catalog and distinctive silhouette role of each unit, not just the enemies already present in the current implementation.
 - High-detail canvas line art should be cached into reusable sprites before it appears in quantity; preserving quality means avoiding repeated path construction, not simplifying silhouettes.
 - After each significant completed checkpoint, commit and push the verified changes instead of leaving them uncommitted for a later prompt.
+- When caching high-DPI canvas sprites, scale the offscreen center translation by the same pixel ratio; otherwise the cached art shifts away from simulation-space overlays like health bars.

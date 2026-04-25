@@ -3639,7 +3639,7 @@
         canvas.width = half * 2 * pixelScale;
         canvas.height = half * 2 * pixelScale;
         const g = canvas.getContext("2d");
-        g.setTransform(pixelScale, 0, 0, pixelScale, half, half);
+        g.setTransform(pixelScale, 0, 0, pixelScale, half * pixelScale, half * pixelScale);
         g.strokeStyle = enemy.boss ? "#ffcf5a" : enemy.color;
         g.fillStyle = enemy.burrowed ? "rgba(97,255,126,0.06)" : "rgba(6,28,10,0.92)";
         g.lineWidth = enemy.boss ? 3 : 2;
