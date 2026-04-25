@@ -1169,11 +1169,17 @@
       let lastFrame = performance.now();
       let uiTimer = 0;
       let resizeObserver = null;
+      let staticWorldLayer = null;
 
       const path = buildPath(pathPoints);
       const schematicBlocks = buildSchematicBlocks();
       const grimeMarks = buildGrimeMarks();
+      const STATIC_WORLD_PIXEL_SCALE = 2;
+      const towerSpriteCache = new Map();
       const enemySpriteCache = new Map();
+      const TOWER_SPRITE_PIXEL_SCALE = 2;
+      const TOWER_PULSE_BANDS = 16;
+      const TOWER_SPRITE_CACHE_LIMIT = 128;
       const phasedEnemyTypes = new Set(["worm", "wisp", "leech"]);
       let sideTacticsRenderKey = "";
       let inspectorRenderKey = "";
@@ -3398,8 +3404,7 @@
       }
 
       function drawWorld() {
-        drawBackground();
-        drawPath();
+        drawStaticWorld();
         drawMines();
         drawTowers();
         drawEnemies();
@@ -3409,130 +3414,148 @@
         drawPhaseOverlay();
       }
 
-      function drawBackground() {
-        ctx.fillStyle = "#010801";
-        ctx.fillRect(0, 0, BOARD.width, BOARD.height);
-        ctx.save();
-        ctx.lineWidth = 1;
+      function drawStaticWorld() {
+        const layer = getStaticWorldLayer();
+        ctx.drawImage(layer, 0, 0, BOARD.width, BOARD.height);
+      }
+
+      function getStaticWorldLayer() {
+        if (staticWorldLayer) return staticWorldLayer;
+        const canvas = document.createElement("canvas");
+        canvas.width = BOARD.width * STATIC_WORLD_PIXEL_SCALE;
+        canvas.height = BOARD.height * STATIC_WORLD_PIXEL_SCALE;
+        const g = canvas.getContext("2d");
+        g.setTransform(STATIC_WORLD_PIXEL_SCALE, 0, 0, STATIC_WORLD_PIXEL_SCALE, 0, 0);
+        drawBackground(g);
+        drawPath(g);
+        staticWorldLayer = canvas;
+        return staticWorldLayer;
+      }
+
+      function drawBackground(g = ctx) {
+        g.fillStyle = "#010801";
+        g.fillRect(0, 0, BOARD.width, BOARD.height);
+        g.save();
+        g.lineWidth = 1;
         for (let x = 0; x <= BOARD.width; x += 24) {
-          ctx.strokeStyle = x % 96 === 0 ? "rgba(89,255,115,0.13)" : "rgba(89,255,115,0.055)";
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, BOARD.height);
-          ctx.stroke();
+          g.strokeStyle = x % 96 === 0 ? "rgba(89,255,115,0.13)" : "rgba(89,255,115,0.055)";
+          g.beginPath();
+          g.moveTo(x, 0);
+          g.lineTo(x, BOARD.height);
+          g.stroke();
         }
         for (let y = 0; y <= BOARD.height; y += 24) {
-          ctx.strokeStyle = y % 96 === 0 ? "rgba(89,255,115,0.13)" : "rgba(89,255,115,0.055)";
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(BOARD.width, y);
-          ctx.stroke();
+          g.strokeStyle = y % 96 === 0 ? "rgba(89,255,115,0.13)" : "rgba(89,255,115,0.055)";
+          g.beginPath();
+          g.moveTo(0, y);
+          g.lineTo(BOARD.width, y);
+          g.stroke();
         }
         for (const block of schematicBlocks) {
-          ctx.strokeStyle = `rgba(89,255,115,${block.alpha})`;
-          ctx.strokeRect(block.x, block.y, block.w, block.h);
+          g.strokeStyle = `rgba(89,255,115,${block.alpha})`;
+          g.strokeRect(block.x, block.y, block.w, block.h);
           if (block.w > 34) {
-            ctx.beginPath();
-            ctx.moveTo(block.x + 6, block.y + block.h / 2);
-            ctx.lineTo(block.x + block.w - 6, block.y + block.h / 2);
-            ctx.stroke();
+            g.beginPath();
+            g.moveTo(block.x + 6, block.y + block.h / 2);
+            g.lineTo(block.x + block.w - 6, block.y + block.h / 2);
+            g.stroke();
           }
         }
-        drawGrimeLayer();
-        ctx.strokeStyle = "rgba(124,232,255,0.18)";
-        ctx.strokeRect(24, 24, BOARD.width - 48, BOARD.height - 48);
-        ctx.restore();
+        drawGrimeLayer(g);
+        g.strokeStyle = "rgba(124,232,255,0.18)";
+        g.strokeRect(24, 24, BOARD.width - 48, BOARD.height - 48);
+        g.restore();
       }
 
-      function drawGrimeLayer() {
-        ctx.save();
-        ctx.lineWidth = 1;
+      function drawGrimeLayer(g = ctx) {
+        g.save();
+        g.lineWidth = 1;
         for (const mark of grimeMarks) {
-          ctx.save();
-          ctx.translate(mark.x, mark.y);
-          ctx.rotate(mark.rot);
-          ctx.strokeStyle = `rgba(185,255,189,${mark.a})`;
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          ctx.lineTo(mark.w, mark.h);
-          ctx.stroke();
+          g.save();
+          g.translate(mark.x, mark.y);
+          g.rotate(mark.rot);
+          g.strokeStyle = `rgba(185,255,189,${mark.a})`;
+          g.beginPath();
+          g.moveTo(0, 0);
+          g.lineTo(mark.w, mark.h);
+          g.stroke();
           if (mark.w > 46) {
-            ctx.strokeStyle = `rgba(0,0,0,${mark.a * 2.2})`;
-            ctx.beginPath();
-            ctx.moveTo(mark.w * 0.18, 2);
-            ctx.lineTo(mark.w * 0.82, 2 + mark.h * 0.45);
-            ctx.stroke();
+            g.strokeStyle = `rgba(0,0,0,${mark.a * 2.2})`;
+            g.beginPath();
+            g.moveTo(mark.w * 0.18, 2);
+            g.lineTo(mark.w * 0.82, 2 + mark.h * 0.45);
+            g.stroke();
           }
-          ctx.restore();
+          g.restore();
         }
-        ctx.fillStyle = "rgba(97,255,126,0.028)";
+        g.fillStyle = "rgba(97,255,126,0.028)";
         for (let y = 3; y < BOARD.height; y += 9) {
-          ctx.fillRect(0, y, BOARD.width, 1);
+          g.fillRect(0, y, BOARD.width, 1);
         }
-        ctx.restore();
+        g.restore();
       }
 
-      function drawPath() {
-        ctx.save();
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        drawPathStroke(BOARD.pathWidth + 24, "rgba(87,255,109,0.06)");
-        drawPathStroke(BOARD.pathWidth + 8, "rgba(87,255,109,0.18)");
-        drawPathStroke(BOARD.pathWidth, "rgba(22,92,32,0.56)");
-        drawPathStroke(BOARD.pathWidth - 18, "rgba(10,46,17,0.92)");
-        ctx.setLineDash([16, 18]);
-        drawPathStroke(2, "rgba(185,255,189,0.42)");
-        ctx.setLineDash([]);
+      function drawPath(g = ctx) {
+        g.save();
+        g.lineCap = "round";
+        g.lineJoin = "round";
+        drawPathStroke(g, BOARD.pathWidth + 24, "rgba(87,255,109,0.06)");
+        drawPathStroke(g, BOARD.pathWidth + 8, "rgba(87,255,109,0.18)");
+        drawPathStroke(g, BOARD.pathWidth, "rgba(22,92,32,0.56)");
+        drawPathStroke(g, BOARD.pathWidth - 18, "rgba(10,46,17,0.92)");
+        g.setLineDash([16, 18]);
+        drawPathStroke(g, 2, "rgba(185,255,189,0.42)");
+        g.setLineDash([]);
         for (const point of pathPoints) {
-          ctx.strokeStyle = "rgba(124,232,255,0.28)";
-          ctx.strokeRect(point.x - 9, point.y - 9, 18, 18);
+          g.strokeStyle = "rgba(124,232,255,0.28)";
+          g.strokeRect(point.x - 9, point.y - 9, 18, 18);
         }
-        drawGate(pathPoints[0], true);
-        drawGate(pathPoints[pathPoints.length - 1], false);
-        ctx.restore();
+        drawGate(g, pathPoints[0], true);
+        drawGate(g, pathPoints[pathPoints.length - 1], false);
+        g.restore();
       }
 
-      function drawPathStroke(width, strokeStyle) {
-        ctx.lineWidth = width;
-        ctx.strokeStyle = strokeStyle;
-        ctx.beginPath();
-        ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+      function drawPathStroke(g, width, strokeStyle) {
+        g.lineWidth = width;
+        g.strokeStyle = strokeStyle;
+        g.beginPath();
+        g.moveTo(pathPoints[0].x, pathPoints[0].y);
         for (let i = 1; i < pathPoints.length; i += 1) {
-          ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+          g.lineTo(pathPoints[i].x, pathPoints[i].y);
         }
-        ctx.stroke();
+        g.stroke();
       }
 
-      function drawGate(point, entry) {
-        ctx.save();
+      function drawGate(g, point, entry) {
+        g.save();
         const offset = entry ? { x: 88, y: 34 } : { x: -86, y: -42 };
-        ctx.translate(point.x + offset.x, point.y + offset.y);
-        ctx.globalAlpha = 0.48;
-        ctx.strokeStyle = entry ? "rgba(124,232,255,0.72)" : "rgba(255,95,97,0.62)";
-        ctx.fillStyle = entry ? "rgba(124,232,255,0.045)" : "rgba(255,95,97,0.04)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.rect(-34, -15, 68, 30);
-        ctx.fill();
-        ctx.stroke();
-        ctx.font = "700 10px Courier New, monospace";
-        ctx.textAlign = "center";
-        ctx.fillStyle = entry ? "rgba(196,247,255,0.7)" : "rgba(255,176,176,0.62)";
-        ctx.fillText(entry ? "ENTRY" : "CORE", 0, 4);
+        g.translate(point.x + offset.x, point.y + offset.y);
+        g.globalAlpha = 0.48;
+        g.strokeStyle = entry ? "rgba(124,232,255,0.72)" : "rgba(255,95,97,0.62)";
+        g.fillStyle = entry ? "rgba(124,232,255,0.045)" : "rgba(255,95,97,0.04)";
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.rect(-34, -15, 68, 30);
+        g.fill();
+        g.stroke();
+        g.font = "700 10px Courier New, monospace";
+        g.textAlign = "center";
+        g.fillStyle = entry ? "rgba(196,247,255,0.7)" : "rgba(255,176,176,0.62)";
+        g.fillText(entry ? "ENTRY" : "CORE", 0, 4);
         for (let i = -1; i <= 1; i += 1) {
-          ctx.beginPath();
+          g.beginPath();
           if (entry) {
-            ctx.moveTo(-48, i * 7 - 4);
-            ctx.lineTo(-39, i * 7);
-            ctx.lineTo(-48, i * 7 + 4);
+            g.moveTo(-48, i * 7 - 4);
+            g.lineTo(-39, i * 7);
+            g.lineTo(-48, i * 7 + 4);
           } else {
-            ctx.moveTo(48, i * 7 - 4);
-            ctx.lineTo(39, i * 7);
-            ctx.lineTo(48, i * 7 + 4);
+            g.moveTo(48, i * 7 - 4);
+            g.lineTo(39, i * 7);
+            g.lineTo(48, i * 7 + 4);
           }
-          ctx.stroke();
+          g.stroke();
         }
-        ctx.restore();
+        g.restore();
       }
 
       function drawMines() {
@@ -3573,13 +3596,7 @@
         const stats = getTowerStats(tower);
         ctx.save();
         ctx.translate(tower.x, tower.y);
-        ctx.strokeStyle = def.color;
-        ctx.fillStyle = "rgba(10,46,17,0.9)";
-        ctx.lineWidth = 2;
-        ctx.shadowColor = def.color;
-        ctx.shadowBlur = 10;
         drawTowerShape(tower.type, tower.level, tower.pulse);
-        ctx.shadowBlur = 0;
         ctx.fillStyle = def.color;
         ctx.font = "700 11px Courier New, monospace";
         ctx.textAlign = "center";
@@ -3596,7 +3613,57 @@
 
       function drawTowerShape(type, level, pulse) {
         const def = towerById[type] || { color: "#85ff91" };
-        drawTowerSchematic(ctx, type, level, pulse, def.color);
+        drawTowerSprite(type, level, pulse, def.color);
+      }
+
+      function drawTowerSprite(type, level, pulse, color) {
+        const sprite = getTowerSprite(type, level, pulse, color);
+        ctx.drawImage(sprite.canvas, -sprite.half, -sprite.half, sprite.size, sprite.size);
+      }
+
+      function towerPulseBand(type, pulse) {
+        if (type !== "arc") return 0;
+        const period = Math.PI * 2;
+        const normalized = ((pulse % period) + period) % period;
+        return Math.round(normalized / period * (TOWER_PULSE_BANDS - 1));
+      }
+
+      function towerPulseFromBand(type, band) {
+        if (type !== "arc") return 0;
+        return band / TOWER_PULSE_BANDS * Math.PI * 2;
+      }
+
+      function getTowerSprite(type, level, pulse, color) {
+        const band = towerPulseBand(type, pulse || 0);
+        const key = [type, level, band, color].join("|");
+        const cached = towerSpriteCache.get(key);
+        if (cached) {
+          towerSpriteCache.delete(key);
+          towerSpriteCache.set(key, cached);
+          return cached;
+        }
+
+        const half = 76;
+        const canvas = document.createElement("canvas");
+        canvas.width = half * 2 * TOWER_SPRITE_PIXEL_SCALE;
+        canvas.height = half * 2 * TOWER_SPRITE_PIXEL_SCALE;
+        const g = canvas.getContext("2d");
+        g.setTransform(
+          TOWER_SPRITE_PIXEL_SCALE,
+          0,
+          0,
+          TOWER_SPRITE_PIXEL_SCALE,
+          half * TOWER_SPRITE_PIXEL_SCALE,
+          half * TOWER_SPRITE_PIXEL_SCALE
+        );
+        drawTowerSchematic(g, type, level, towerPulseFromBand(type, band), color);
+        const sprite = { canvas, size: half * 2, half };
+        towerSpriteCache.set(key, sprite);
+        if (towerSpriteCache.size > TOWER_SPRITE_CACHE_LIMIT) {
+          const oldestKey = towerSpriteCache.keys().next().value;
+          towerSpriteCache.delete(oldestKey);
+        }
+        return sprite;
       }
 
       function enemySpriteHalfExtent(type, radius, boss) {
@@ -4076,10 +4143,7 @@
         ctx.save();
         ctx.globalAlpha = placement.valid ? 0.72 : 0.42;
         ctx.translate(hover.x, hover.y);
-        ctx.strokeStyle = placement.valid ? def.color : "#ff5f61";
-        ctx.fillStyle = "rgba(10,46,17,0.72)";
-        ctx.lineWidth = 2;
-        drawTowerShape(def.id, 1, performance.now() / 600);
+        drawTowerSprite(def.id, 1, performance.now() / 600, placement.valid ? def.color : "#ff5f61");
         ctx.restore();
         if (!placement.valid) {
           ctx.save();

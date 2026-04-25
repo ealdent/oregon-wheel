@@ -1,27 +1,31 @@
-# Mother OS Enemy Healthbar Alignment Fix
+# Mother OS Tower Placement Performance Pass
 
 ## Spec
 
-- [x] Fix health bars appearing offset from cached enemy art.
-- [x] Preserve enemy sprite caching and line-art quality.
-- [x] Verify active enemies align visually with their health bars.
+- [x] Reduce pointer-move lag while previewing tower placement.
+- [x] Reduce mid-match render cost from high-fidelity tower line art.
+- [x] Preserve tower art quality, range indicators, selection feedback, cooldown bars, and placement validity feedback.
+- [x] Keep the game single-file and dependency-free.
+- [x] Verify with static checks and browser smoke/performance checks.
 - [x] Commit and push the completed checkpoint.
 
 ## Plan
 
-- [x] Identify the cache transform issue.
-- [x] Center high-DPI cached enemy sprites correctly in their offscreen canvases.
-- [x] Run static checks and browser screenshot verification.
+- [x] Inspect tower render and placement preview hot paths.
+- [x] Cache detailed tower schematic art into high-DPI offscreen sprites.
+- [x] Use cached sprites for placed towers and placement ghosts while keeping dynamic overlays live.
+- [x] Run JavaScript parse, self-contained dependency scan, whitespace check, and browser smoke/performance verification.
 - [x] Commit and push to `main`.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Alignment fixed
+- [x] Tower sprite caching implemented
 - [x] Verification completed
 
 ## Review
 
-- Fixed the cached enemy sprite transform so the offscreen canvas center translation is scaled with the sprite pixel ratio.
-- Verified with JavaScript parse check, dependency scan, whitespace check, and a browser screenshot pass at `/tmp/mother-os-healthbar-align.png`.
+- Added a cached high-DPI static world layer for the grid, grime, path, and gates.
+- Added high-DPI tower schematic sprite caching for placed towers and placement ghosts, with dynamic range, labels, cooldown rings, and invalid placement feedback still drawn live.
+- Browser smoke/performance pass during combat placement movement: 150 frames, 8.31 ms average, 9.1 ms p95, 0 frames over 24 ms; screenshot saved to `/tmp/mother-os-tower-cache-perf.png`.
