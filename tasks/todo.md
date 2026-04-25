@@ -1,35 +1,37 @@
-# Mother OS Boss Asset Pass
+# Mother OS Static Modular Refactor
 
 ## Spec
 
-- [x] Add four high-fidelity boss assets inspired by the new reference: Hive Mother, Conduit, Void Colossus, and Harvester.
-- [x] Use these new bosses instead of scaled regular enemies on Sector 1 boss waves.
-- [x] Preserve the countdown structure where Sector 1 is the boss before moving to the next facility.
-- [x] Cache boss line art separately from regular enemies so high detail does not hurt runtime performance.
-- [x] Show boss schematics in the tactical-control preview and render them clearly in-map.
-- [x] Keep the game single-file and dependency-free.
-- [ ] Commit and push the completed checkpoint.
+- [ ] Split the single `index.html` into static CSS and ordered classic JavaScript files.
+- [ ] Avoid build tools, ES modules, package dependencies, or server requirements.
+- [ ] Keep the game loadable from a static website and from direct file access where browser policy allows classic scripts.
+- [ ] Preserve existing gameplay, boss/enemy/tower rendering, input, audio, UI, and wave behavior.
+- [ ] Keep script ordering explicit and understandable for future changes.
+- [ ] Verify parsing, dependency scan, file load, gameplay boot, and boss sector rendering.
+- [x] Commit and push the completed checkpoint.
 
 ## Plan
 
-- [x] Inspect current boss wave, preview, and enemy sprite cache paths.
-- [x] Add boss definitions and deterministic boss selection for Sector 1.
-- [x] Implement high-fidelity boss drawing helpers and cached boss sprites.
-- [x] Wire boss previews and live boss rendering.
-- [x] Run JavaScript parse, dependency scan, whitespace check, and browser screenshot verification.
-- [ ] Commit and push to `main`.
+- [x] Confirm current working tree and relevant game architecture.
+- [x] Extract CSS to `arcade/mother-os-defense/styles.css`.
+- [x] Split JavaScript into static domain files under `arcade/mother-os-defense/js/`.
+- [x] Replace inline `<style>` and `<script>` blocks with static includes.
+- [x] Run syntax, dependency, file-load, and browser smoke checks.
+- [x] Commit and push to `main`.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Boss definitions wired
-- [x] Boss art implemented
+- [x] CSS extracted
+- [x] JavaScript split
 - [x] Verification completed
 
 ## Review
 
-- Added four dedicated cached boss schematics: The Hive Mother, The Conduit, The Void Colossus, and The Harvester.
-- Replaced scaled regular-enemy bosses with operation-rotated Sector 1 boss signatures and live boss spawn data.
-- Verified inline JavaScript parsing, whitespace, dependency-free game page scan, forced Sector 1 live boss rendering, and all four boss preview rotations.
-- Browser verification screenshots: `/tmp/mother-os-boss-sector-check.png` and `/tmp/mother-os-boss-rotation-check.png`.
+- Extracted the Mother OS CSS into `arcade/mother-os-defense/styles.css`.
+- Split the previous inline JavaScript into ordered classic scripts under `arcade/mother-os-defense/js/` with no modules, imports, build steps, or server requirements.
+- Verified each JavaScript file parses, the game directory has no external dependency URLs or module imports, whitespace is clean, and the extracted CSS/JS reconstructs the previous inline implementation.
+- Browser verification loaded `arcade/mother-os-defense/index.html` directly through `file://`, rendered the game, populated tower cards, and started combat.
+- Boss-sector browser verification used a temporary static copy to force Sector 1 and confirmed the Hive Mother preview and live cached boss sprite still render.
+- Browser verification screenshots: `/tmp/mother-os-static-refactor-file-load.png` and `/tmp/mother-os-static-refactor-boss-sector.png`.
