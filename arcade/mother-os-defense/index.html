@@ -111,7 +111,7 @@
 
     .topline {
       display: grid;
-      grid-template-columns: minmax(190px, 1fr) minmax(260px, 520px) minmax(190px, 1fr);
+      grid-template-columns: minmax(210px, 0.82fr) minmax(440px, 760px) minmax(180px, 0.7fr);
       gap: 12px;
       align-items: stretch;
       margin-bottom: 10px;
@@ -159,6 +159,10 @@
       text-transform: uppercase;
     }
 
+    .topcell.command-cell {
+      gap: 6px;
+    }
+
     .topcell.right {
       align-items: flex-end;
       text-align: right;
@@ -187,12 +191,16 @@
       text-transform: uppercase;
     }
 
-    .schematic-title {
-      width: min(100%, 420px);
-      border: 1px solid var(--line);
-      padding: 6px 12px;
-      background: rgba(18, 82, 25, 0.28);
-      box-shadow: inset 0 0 20px rgba(75, 255, 104, 0.08);
+    .mother-title {
+      color: #d8ffdc;
+      font-size: clamp(1.14rem, 1.35vw, 1.45rem);
+      letter-spacing: 0;
+      text-shadow:
+        0 0 4px rgba(216, 255, 220, 0.9),
+        0 0 12px rgba(97, 255, 126, 0.72),
+        0 0 28px rgba(97, 255, 126, 0.48),
+        0 0 48px rgba(97, 255, 126, 0.28);
+      filter: drop-shadow(0 0 6px rgba(97, 255, 126, 0.55));
     }
 
     .layout {
@@ -446,9 +454,22 @@
     }
 
     .command-row {
+      position: relative;
+      z-index: 1;
+      width: 100%;
       display: grid;
-      grid-template-columns: 1.35fr repeat(4, minmax(92px, 0.55fr));
-      gap: 8px;
+      grid-template-columns: minmax(128px, 1.3fr) repeat(3, minmax(78px, 0.8fr));
+      gap: 6px;
+    }
+
+    .utility-row {
+      grid-template-columns: repeat(4, minmax(74px, 1fr));
+    }
+
+    .command-row button {
+      min-height: 32px;
+      padding-inline: 7px;
+      font-size: 0.76rem;
     }
 
     .primary {
@@ -631,7 +652,8 @@
         order: 4;
       }
 
-      .command-row {
+      .command-row,
+      .utility-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
@@ -678,12 +700,22 @@
     <header class="topline">
       <div class="topcell">
         <a class="back-link" href="../index.html">&lt;&lt; arcade index</a>
-        <div class="brand">MOTHER OS v1.7.3</div>
+        <div class="brand mother-title">MOTHER OS v1.7.3</div>
         <div class="micro">Build database / TD-core</div>
       </div>
-      <div class="topcell center">
-        <div class="schematic-title">// Tactical Schematic //</div>
-        <div class="micro">Sector-76 / Industrial Complex</div>
+      <div class="topcell center command-cell">
+        <div class="command-row">
+          <button id="startWave" class="primary" type="button">Start Wave</button>
+          <button id="upgradeBtn" type="button">Upgrade</button>
+          <button id="targetBtn" type="button">Target</button>
+          <button id="sellBtn" type="button">Sell</button>
+        </div>
+        <div class="command-row utility-row">
+          <button id="pauseBtn" type="button">Pause</button>
+          <button id="speedBtn" type="button">Speed x1</button>
+          <button id="autoBtn" class="toggle" type="button" role="switch" aria-checked="false">Auto Off</button>
+          <button id="soundBtn" class="toggle on" type="button" role="switch" aria-checked="true">Sound On</button>
+        </div>
       </div>
       <div class="topcell right">
         <div id="clock" class="brand">00:00:00</div>
@@ -708,13 +740,6 @@
           <canvas id="field" width="1000" height="680" aria-label="Mother OS tower defense tactical map"></canvas>
           <div id="toast" class="toast"></div>
         </div>
-        <div class="command-row">
-          <button id="startWave" class="primary" type="button">Start Wave</button>
-          <button id="pauseBtn" type="button">Pause</button>
-          <button id="speedBtn" type="button">Speed x1</button>
-          <button id="autoBtn" class="toggle" type="button" role="switch" aria-checked="false">Auto Off</button>
-          <button id="soundBtn" class="toggle on" type="button" role="switch" aria-checked="true">Sound On</button>
-        </div>
       </section>
 
       <aside class="panel right-panel">
@@ -724,11 +749,6 @@
           <div class="module">
             <h3 id="inspectorTitle">Selected Node</h3>
             <div id="inspectorBody" class="stat-grid"></div>
-            <div class="inspector-actions">
-              <button id="upgradeBtn" type="button">Upgrade</button>
-              <button id="targetBtn" type="button">Target</button>
-              <button id="sellBtn" type="button">Sell</button>
-            </div>
           </div>
         </div>
       </aside>
@@ -1008,7 +1028,7 @@
           effects: [],
           particles: [],
           selectedTowerId: null,
-          placingType: "pulse",
+          placingType: null,
           paused: false,
           speedIndex: 0,
           autoAdvance: false,
@@ -1229,10 +1249,8 @@
             <span class="tower-cost">$${tower.cost}</span>
           `;
           button.addEventListener("click", () => {
-            state.placingType = tower.id;
-            state.selectedTowerId = null;
+            queueBuild(tower.id);
             playSound("click");
-            showToast(`${tower.name} queued`);
           });
           els.towerList.appendChild(button);
           renderTowerPreview(button.querySelector(".tower-preview"), tower);
@@ -1889,10 +1907,11 @@
         const nextWave = state.gameOver ? state.wave : state.phase === "combat" ? state.wave : state.wave + 1;
         const forecast = waveForecast(nextWave || 1);
         const tower = selectedTower();
-        const selected = tower ? towerById[tower.type] : towerById[state.placingType];
+        const queued = towerById[state.placingType] || null;
+        const selected = tower ? towerById[tower.type] : queued;
         const buildStatus = state.selectedTowerId
           ? `${selected.name} MK-${tower.level} selected`
-          : `${selected.name} queued`;
+          : selected ? `${selected.name} queued` : "No tower design queued";
         const signature = enemyDefs[forecast.signature] || enemyDefs.crawler;
         const laneStatus = state.phase === "combat"
           ? `${state.enemies.length} hostiles active`
@@ -1918,7 +1937,7 @@
             <p class="tactic-copy">${forecast.note}</p>
           </div>
           <div class="tactic-card">
-            <div class="tactic-heading"><span>Build Doctrine</span><span>${selected.role}</span></div>
+            <div class="tactic-heading"><span>Build Doctrine</span><span>${selected ? selected.role : "IDLE"}</span></div>
             <p class="tactic-copy">${buildStatus}. ${laneStatus}. Upgrades remain available during combat and planning windows.</p>
             <div class="mini-grid">
               <span class="mini-chip">Capacity<strong>${state.towers.length}/${state.towerCapacity}</strong></span>
@@ -2007,7 +2026,19 @@
       }
 
       function sellValue(tower) {
+        if (isFullRefundEligible(tower)) {
+          return towerById[tower.type].cost;
+        }
         return Math.floor(tower.spent * 0.7);
+      }
+
+      function isFullRefundEligible(tower) {
+        if (!tower) return false;
+        const def = towerById[tower.type];
+        return state.phase === "planning"
+          && tower.refundable
+          && tower.level === 1
+          && tower.spent === def.cost;
       }
 
       function validatePlacement(x, y) {
@@ -2031,6 +2062,10 @@
 
       function placeTower(x, y) {
         const def = towerById[state.placingType];
+        if (!def) {
+          showToast("Select a tower design");
+          return;
+        }
         const placement = validatePlacement(x, y);
         if (!placement.valid) {
           showToast(placement.reason);
@@ -2050,11 +2085,13 @@
           cooldown: 0,
           targetMode: "FIRST",
           spent: def.cost,
+          refundable: state.phase === "planning",
           pulse: Math.random() * Math.PI * 2
         };
         state.towers.push(tower);
         state.credits -= def.cost;
         state.selectedTowerId = tower.id;
+        state.placingType = null;
         playSound("place");
         log(`${def.name} online.`);
       }
@@ -2076,6 +2113,35 @@
         return state.towers.find((tower) => tower.id === state.selectedTowerId) || null;
       }
 
+      function clearSelection(showMessage = false) {
+        const hadSelection = !!state.selectedTowerId || !!state.placingType;
+        state.selectedTowerId = null;
+        state.placingType = null;
+        hover.reason = "Select a tower design";
+        if (showMessage && hadSelection) {
+          showToast("Selection cleared");
+        }
+      }
+
+      function queueBuild(type) {
+        const def = towerById[type];
+        if (!def) return;
+        if (!state.selectedTowerId && state.placingType === type) {
+          clearSelection(true);
+          return;
+        }
+        state.placingType = type;
+        state.selectedTowerId = null;
+        hover.reason = "Build ready";
+        showToast(`${def.name} queued`);
+      }
+
+      function selectTower(tower) {
+        state.selectedTowerId = tower.id;
+        state.placingType = null;
+        playSound("click");
+      }
+
       function upgradeSelected() {
         const tower = selectedTower();
         if (!tower) {
@@ -2095,6 +2161,7 @@
         state.credits -= cost;
         tower.spent += cost;
         tower.level += 1;
+        tower.refundable = false;
         tower.cooldown = Math.min(tower.cooldown, 0.12);
         playSound("upgrade");
         log(`${towerById[tower.type].name} upgraded to MK-${tower.level}.`);
@@ -2103,13 +2170,14 @@
       function sellSelected() {
         const tower = selectedTower();
         if (!tower) return;
+        const fullRefund = isFullRefundEligible(tower);
         const refund = sellValue(tower);
         state.credits += refund;
         state.towers = state.towers.filter((item) => item.id !== tower.id);
         state.mines = state.mines.filter((mine) => mine.owner !== tower.id);
         state.selectedTowerId = null;
         playSound("click");
-        log(`Tower recycled for $${refund}.`);
+        log(fullRefund ? `Tower refunded for $${refund}.` : `Tower recycled for $${refund}.`);
       }
 
       function cycleTargetMode() {
@@ -2183,6 +2251,10 @@
           return;
         }
         if (state.phase === "combat") return;
+        if (state.placingType) state.placingType = null;
+        for (const tower of state.towers) {
+          tower.refundable = false;
+        }
         state.wave += 1;
         state.phase = "combat";
         state.autoStartTimer = 0;
@@ -3380,13 +3452,18 @@
         const tower = selectedTower();
         if (!tower) {
           const def = towerById[state.placingType];
-          els.inspectorTitle.textContent = "Build Cursor";
-          els.inspectorBody.innerHTML = `
-            <div class="statbox"><span class="stat-label">Design</span><span class="value">${def.name}</span></div>
-            <div class="statbox"><span class="stat-label">Cost</span><span class="value">$${def.cost}</span></div>
-            <div class="statbox"><span class="stat-label">Range</span><span class="value">${Math.round(def.range)}</span></div>
-            <div class="statbox"><span class="stat-label">Role</span><span class="value">${def.role}</span></div>
-          `;
+          els.inspectorTitle.textContent = def ? "Build Cursor" : "No Node Selected";
+          els.inspectorBody.innerHTML = def
+            ? `
+              <div class="statbox"><span class="stat-label">Design</span><span class="value">${def.name}</span></div>
+              <div class="statbox"><span class="stat-label">Cost</span><span class="value">$${def.cost}</span></div>
+              <div class="statbox"><span class="stat-label">Range</span><span class="value">${Math.round(def.range)}</span></div>
+              <div class="statbox"><span class="stat-label">Role</span><span class="value">${def.role}</span></div>
+            `
+            : `
+              <div class="statbox"><span class="stat-label">Status</span><span class="value">Idle</span></div>
+              <div class="statbox"><span class="stat-label">Build</span><span class="value">Select Design</span></div>
+            `;
           els.upgradeBtn.disabled = true;
           els.targetBtn.disabled = true;
           els.sellBtn.disabled = true;
@@ -3412,7 +3489,7 @@
         els.sellBtn.disabled = false;
         els.upgradeBtn.textContent = maxed ? "Max Sync" : `Upgrade $${cost}`;
         els.targetBtn.textContent = tower.targetMode;
-        els.sellBtn.textContent = `Sell $${sellValue(tower)}`;
+        els.sellBtn.textContent = isFullRefundEligible(tower) ? `Refund $${sellValue(tower)}` : `Sell $${sellValue(tower)}`;
       }
 
       function onPointerMove(event) {
@@ -3423,16 +3500,38 @@
 
       function onPointerDown(event) {
         const point = screenToWorld(event);
-        if (point.x < 0 || point.x > BOARD.width || point.y < 0 || point.y > BOARD.height) return;
+        if (point.x < 0 || point.x > BOARD.width || point.y < 0 || point.y > BOARD.height) {
+          clearSelection(true);
+          return;
+        }
         const tower = findTowerAt(point.x, point.y);
         if (tower) {
-          state.selectedTowerId = tower.id;
-          state.placingType = tower.type;
+          if (state.selectedTowerId === tower.id) {
+            clearSelection(true);
+            playSound("click");
+          } else {
+            selectTower(tower);
+          }
+          return;
+        }
+        if (state.selectedTowerId) {
+          clearSelection(true);
           playSound("click");
           return;
         }
-        state.selectedTowerId = null;
-        placeTower(point.x, point.y);
+        if (state.placingType) {
+          placeTower(point.x, point.y);
+        }
+      }
+
+      function onDocumentPointerDown(event) {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest("#field, button, a, .tower-card")) return;
+        if (state.selectedTowerId || state.placingType) {
+          clearSelection(true);
+          playSound("click");
+        }
       }
 
       function bindEvents() {
@@ -3444,6 +3543,7 @@
         }
         els.field.addEventListener("pointermove", onPointerMove);
         els.field.addEventListener("pointerdown", onPointerDown);
+        document.addEventListener("pointerdown", onDocumentPointerDown);
         els.startWave.addEventListener("click", () => {
           startWave();
         });
@@ -3475,13 +3575,16 @@
           if (event.key === " ") {
             event.preventDefault();
             if (state.phase === "planning" || state.gameOver) startWave();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            clearSelection(true);
+            playSound("click");
           } else if (event.key.toLowerCase() === "p") {
             state.paused = !state.paused;
           } else if (event.key >= "1" && event.key <= "5") {
             const tower = towerDefs[Number(event.key) - 1];
             if (tower) {
-              state.placingType = tower.id;
-              state.selectedTowerId = null;
+              queueBuild(tower.id);
             }
           }
         });

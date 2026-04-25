@@ -4,3 +4,4 @@
 - If a user says the assets still do not match the reference, scale the artwork up where it is meant to be inspected and add reference-specific silhouette traits, not just extra generic linework.
 - When a user calls generated game art "messed up," reduce clever linework and rebuild from clean, recognizable silhouettes first; add detail only after the base shape reads correctly at live gameplay scale.
 - For canvas games, do not let the canvas element stretch away from the world aspect ratio; that creates letterboxing inside the render surface even when the board itself is correctly scaled.
+- For tower defense controls, never leave a build tool permanently armed after placement; explicit selection, easy deselection, and refundable misclick recovery are core mobile UX safeguards.
