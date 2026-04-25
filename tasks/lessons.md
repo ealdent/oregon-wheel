@@ -14,3 +14,4 @@
 - Tower placement previews share the same performance budget as live combat; cache high-fidelity tower schematic art for both placed towers and ghost previews so pointer movement only redraws lightweight overlays.
 - For tower-defense balance passes, compare enemy effective health, spawn density, rewards, and upgrade efficiency together; raising enemy count without flattening reward growth can accidentally preserve the same dominant upgrade path.
 - When a user says enemy art is still "bleh" compared to a reference, another pass should change the drawing vocabulary, not just add more lines: stronger outer silhouettes, layered phosphor strokes, unique anatomy, interior panel logic, and deliberate grunge must all improve together.
+- Boss assets should not be implemented as scaled regular enemies when the reference provides distinct boss silhouettes; give bosses their own definitions, selection cadence, preview path, cache key, and high-detail drawing function.

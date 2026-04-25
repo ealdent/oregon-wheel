@@ -1,32 +1,35 @@
-# Mother OS Enemy Fidelity Pass
+# Mother OS Boss Asset Pass
 
 ## Spec
 
-- [x] Rework enemy line art toward the attached design image's stronger schematic fidelity.
-- [x] Improve silhouettes, internal plating, legs/tendrils, grunge scratches, and phosphor line layering.
-- [x] Preserve the cached enemy sprite pipeline and runtime performance.
-- [x] Verify both the large tactical-control preview and in-map enemy sprites.
+- [x] Add four high-fidelity boss assets inspired by the new reference: Hive Mother, Conduit, Void Colossus, and Harvester.
+- [x] Use these new bosses instead of scaled regular enemies on Sector 1 boss waves.
+- [x] Preserve the countdown structure where Sector 1 is the boss before moving to the next facility.
+- [x] Cache boss line art separately from regular enemies so high detail does not hurt runtime performance.
+- [x] Show boss schematics in the tactical-control preview and render them clearly in-map.
 - [x] Keep the game single-file and dependency-free.
-- [x] Commit and push the completed checkpoint.
+- [ ] Commit and push the completed checkpoint.
 
 ## Plan
 
-- [x] Inspect current enemy drawing helpers and cache path.
-- [x] Add shared line-art helpers for double strokes, hatch marks, seams, and antenna/leg structure.
-- [x] Enhance all non-boss enemy silhouettes with reference-specific detail.
+- [x] Inspect current boss wave, preview, and enemy sprite cache paths.
+- [x] Add boss definitions and deterministic boss selection for Sector 1.
+- [x] Implement high-fidelity boss drawing helpers and cached boss sprites.
+- [x] Wire boss previews and live boss rendering.
 - [x] Run JavaScript parse, dependency scan, whitespace check, and browser screenshot verification.
-- [x] Commit and push to `main`.
+- [ ] Commit and push to `main`.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] Enemy art enhanced
+- [x] Boss definitions wired
+- [x] Boss art implemented
 - [x] Verification completed
 
 ## Review
 
-- Added shared enemy line-art helpers for hatch shading, rivets, cables, antennae, grunge scratches, and per-model distress marks.
-- Enhanced all ten non-boss enemies through the shared cached `drawReferenceEnemy` path, including stronger beetle, slime, and juggernaut silhouettes after reviewing the gallery.
-- Increased cached enemy sprite pixel density and stroke/glow strength so the added detail remains readable in the live map.
-- Browser verification screenshots: `/tmp/mother-os-enemy-fidelity-game-2.png` for gameplay scale and `/tmp/mother-os-enemy-gallery-2.png` for the full enemy catalog.
+- Added four dedicated cached boss schematics: The Hive Mother, The Conduit, The Void Colossus, and The Harvester.
+- Replaced scaled regular-enemy bosses with operation-rotated Sector 1 boss signatures and live boss spawn data.
+- Verified inline JavaScript parsing, whitespace, dependency-free game page scan, forced Sector 1 live boss rendering, and all four boss preview rotations.
+- Browser verification screenshots: `/tmp/mother-os-boss-sector-check.png` and `/tmp/mother-os-boss-rotation-check.png`.
