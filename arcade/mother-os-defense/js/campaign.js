@@ -1,8 +1,8 @@
 "use strict";
 
 const CAMPAIGN_MAP = {
-  nodeWidth: 132,
-  nodeHeight: 76,
+  nodeWidth: 154,
+  nodeHeight: 98,
   gridX: 245,
   gridY: 162,
   originX: BOARD.width / 2,

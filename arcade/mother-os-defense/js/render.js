@@ -6,6 +6,13 @@ function render() {
   ctx.clearRect(0, 0, view.cssWidth, view.cssHeight);
   ctx.fillStyle = "#000400";
   ctx.fillRect(0, 0, view.cssWidth, view.cssHeight);
+  if (state.mode === "campaign") {
+    ctx.save();
+    ctx.scale(view.cssWidth / BOARD.width, view.cssHeight / BOARD.height);
+    drawWorld();
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.translate(view.offsetX, view.offsetY);
   ctx.scale(view.scale, view.scale);
@@ -146,41 +153,176 @@ function drawCampaignMap() {
 }
 
 function drawCampaignBackground() {
+  const campaign = state.campaign;
+  const pan = campaign.pan || { x: 0, y: 0 };
   ctx.fillStyle = "#010801";
   ctx.fillRect(0, 0, BOARD.width, BOARD.height);
   ctx.save();
   ctx.lineWidth = 1;
-  for (let x = -48; x <= BOARD.width + 48; x += 24) {
-    ctx.strokeStyle = x % 96 === 0 ? "rgba(97,255,126,0.12)" : "rgba(97,255,126,0.045)";
+  const gridStep = 24;
+  const gridStartX = -gridStep + ((pan.x % gridStep) + gridStep) % gridStep;
+  const gridStartY = -gridStep + ((pan.y % gridStep) + gridStep) % gridStep;
+  for (let x = gridStartX; x <= BOARD.width + gridStep; x += gridStep) {
+    const worldX = Math.round((x - pan.x) / gridStep);
+    ctx.strokeStyle = worldX % 4 === 0 ? "rgba(97,255,126,0.14)" : "rgba(97,255,126,0.05)";
     ctx.beginPath();
     ctx.moveTo(x, 0);
     ctx.lineTo(x, BOARD.height);
     ctx.stroke();
   }
-  for (let y = -48; y <= BOARD.height + 48; y += 24) {
-    ctx.strokeStyle = y % 96 === 0 ? "rgba(97,255,126,0.12)" : "rgba(97,255,126,0.045)";
+  for (let y = gridStartY; y <= BOARD.height + gridStep; y += gridStep) {
+    const worldY = Math.round((y - pan.y) / gridStep);
+    ctx.strokeStyle = worldY % 4 === 0 ? "rgba(97,255,126,0.14)" : "rgba(97,255,126,0.05)";
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(BOARD.width, y);
     ctx.stroke();
   }
-  const pan = state.campaign.pan || { x: 0, y: 0 };
-  ctx.strokeStyle = "rgba(97,255,126,0.08)";
+  drawCampaignTerrain(campaign);
+  drawGrimeLayer(ctx);
+  ctx.strokeStyle = "rgba(124,232,255,0.16)";
+  ctx.strokeRect(8, 8, BOARD.width - 16, BOARD.height - 16);
+  ctx.restore();
+}
+
+function campaignWorldToScreen(campaign, x, y) {
+  const pan = campaign.pan || { x: 0, y: 0 };
+  return { x: x + pan.x, y: y + pan.y };
+}
+
+function drawCampaignTerrain(campaign) {
+  const rng = makeCampaignRng(`${campaign.seed}:terrain`);
+  drawCampaignRivers(campaign, rng);
+  for (let i = 0; i < 12; i += 1) {
+    const x = campaignRandomInt(rng, -760, 1760);
+    const y = campaignRandomInt(rng, -420, 1100);
+    const width = campaignRandomInt(rng, 150, 330);
+    const height = campaignRandomInt(rng, 34, 88);
+    drawMountainRange(campaign, x, y, width, height, campaignRandomInt(rng, 5, 9), rng);
+  }
+  for (let i = 0; i < 20; i += 1) {
+    const x = campaignRandomInt(rng, -680, 1680);
+    const y = campaignRandomInt(rng, -360, 1040);
+    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 7, 18), rng);
+  }
+  for (let i = 0; i < 14; i += 1) {
+    const x = campaignRandomInt(rng, -700, 1700);
+    const y = campaignRandomInt(rng, -360, 1040);
+    drawContourCluster(campaign, x, y, campaignRandomInt(rng, 42, 120), rng);
+  }
+}
+
+function drawCampaignRivers(campaign, rng) {
+  for (let river = 0; river < 3; river += 1) {
+    const startX = campaignRandomInt(rng, -760, 120);
+    const startY = campaignRandomInt(rng, -260, 840);
+    const points = [];
+    for (let i = 0; i < 8; i += 1) {
+      points.push(campaignWorldToScreen(
+        campaign,
+        startX + i * campaignRandomInt(rng, 190, 270),
+        startY + Math.sin(i * 1.4 + river) * campaignRandomInt(rng, 48, 112) + campaignRandomInt(rng, -36, 36)
+      ));
+    }
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(124,232,255,0.08)";
+    ctx.lineWidth = 10;
+    drawTerrainPolyline(points);
+    ctx.strokeStyle = "rgba(124,232,255,0.22)";
+    ctx.lineWidth = 2.2;
+    drawTerrainPolyline(points);
+    ctx.strokeStyle = "rgba(185,255,189,0.08)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([10, 13]);
+    drawTerrainPolyline(points);
+    ctx.restore();
+  }
+}
+
+function drawTerrainPolyline(points) {
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else {
+      const previous = points[index - 1];
+      ctx.quadraticCurveTo((previous.x + point.x) / 2, previous.y, point.x, point.y);
+    }
+  });
+  ctx.stroke();
+}
+
+function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) {
+  const start = campaignWorldToScreen(campaign, worldX - width / 2, worldY);
+  if (start.x > BOARD.width + width || start.x < -width || start.y > BOARD.height + height || start.y < -height) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(97,255,126,0.13)";
   ctx.lineWidth = 1.2;
-  for (let ridge = 0; ridge < 8; ridge += 1) {
-    const baseY = 112 + ridge * 72 + ((pan.y * 0.12 + ridge * 31) % 42);
+  ctx.beginPath();
+  for (let i = 0; i <= peaks; i += 1) {
+    const x = worldX - width / 2 + (width / peaks) * i;
+    const peak = i % 2 === 0 ? rng() * height * 0.35 : height * (0.56 + rng() * 0.44);
+    const point = campaignWorldToScreen(campaign, x, worldY - peak);
+    if (i === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 0.72;
+  for (let contour = 0; contour < 3; contour += 1) {
     ctx.beginPath();
-    for (let i = -1; i <= 14; i += 1) {
-      const x = i * 86 + (pan.x * 0.08 % 86);
-      const y = baseY - Math.sin((i + ridge) * 1.7) * 26 - Math.cos(i * 0.8 + ridge) * 18;
-      if (i === -1) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    const offset = 12 + contour * 12;
+    for (let i = 0; i <= peaks; i += 1) {
+      const x = worldX - width / 2 + (width / peaks) * i;
+      const y = worldY + offset - Math.sin(i * 1.6 + contour) * height * 0.18;
+      const point = campaignWorldToScreen(campaign, x, y);
+      if (i === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
     }
     ctx.stroke();
   }
-  drawGrimeLayer(ctx);
-  ctx.strokeStyle = "rgba(124,232,255,0.18)";
-  ctx.strokeRect(18, 18, BOARD.width - 36, BOARD.height - 36);
+  ctx.restore();
+}
+
+function drawForestCluster(campaign, worldX, worldY, count, rng) {
+  const center = campaignWorldToScreen(campaign, worldX, worldY);
+  if (center.x > BOARD.width + 80 || center.x < -80 || center.y > BOARD.height + 80 || center.y < -80) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(133,255,145,0.11)";
+  ctx.fillStyle = "rgba(97,255,126,0.035)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < count; i += 1) {
+    const x = center.x + (rng() - 0.5) * 120;
+    const y = center.y + (rng() - 0.5) * 66;
+    const size = 5 + rng() * 8;
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x - size * 0.72, y + size * 0.38);
+    ctx.lineTo(x + size * 0.72, y + size * 0.38);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y + size * 0.36);
+    ctx.lineTo(x, y + size * 0.9);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawContourCluster(campaign, worldX, worldY, radius, rng) {
+  const center = campaignWorldToScreen(campaign, worldX, worldY);
+  if (center.x > BOARD.width + radius || center.x < -radius || center.y > BOARD.height + radius || center.y < -radius) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(185,255,189,0.07)";
+  ctx.lineWidth = 1;
+  for (let ring = 1; ring <= 4; ring += 1) {
+    const rx = radius * ring / 4;
+    const ry = rx * (0.38 + rng() * 0.22);
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, rx, ry, rng() * Math.PI, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -281,19 +423,163 @@ function drawCampaignNode(campaign, node) {
   ctx.shadowBlur = 0;
   ctx.strokeStyle = "rgba(185,255,189,0.2)";
   ctx.strokeRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16);
+  drawCampaignFacilitySchematic(node, type, color, available || node.secured);
   ctx.fillStyle = color;
   ctx.font = "700 12px Courier New, monospace";
   ctx.textAlign = "center";
-  ctx.fillText(String(node.index).padStart(2, "0"), 0, -22);
-  ctx.font = "700 9px Courier New, monospace";
+  ctx.fillText(String(node.index).padStart(2, "0"), 0, -36);
+  ctx.font = "700 8px Courier New, monospace";
   const name = node.facility.toUpperCase();
-  ctx.fillText(name.length > 18 ? `${name.slice(0, 17)}.` : name, 0, -4);
+  ctx.fillText(name.length > 20 ? `${name.slice(0, 19)}.` : name, 0, 22);
   ctx.fillStyle = "rgba(185,255,189,0.72)";
-  ctx.font = "8px Courier New, monospace";
-  ctx.fillText(type.label.toUpperCase(), 0, 12);
+  ctx.font = "7px Courier New, monospace";
+  ctx.fillText(type.label.toUpperCase(), 0, 34);
   ctx.fillStyle = node.secured ? "#85ff91" : available ? "#ffcf5a" : "rgba(185,255,189,0.58)";
-  ctx.fillText(node.secured ? "SECURED" : `SECTOR ${String(node.currentSector).padStart(2, "0")}`, 0, 27);
+  ctx.fillText(node.secured ? "SECURED" : `SECTOR ${String(node.currentSector).padStart(2, "0")}`, 0, 44);
   ctx.restore();
+}
+
+function drawCampaignFacilitySchematic(node, type, color, bright) {
+  const variant = campaignHash(`${node.seed}:facility-icon`) % 4;
+  ctx.save();
+  ctx.translate(0, -10);
+  ctx.strokeStyle = bright ? color : "rgba(185,255,189,0.46)";
+  ctx.fillStyle = bright ? "rgba(97,255,126,0.075)" : "rgba(97,255,126,0.035)";
+  ctx.lineWidth = 1.35;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = bright ? 7 : 2;
+  if (node.type === "tokamak") {
+    drawTokamakFacilityIcon(variant);
+  } else if (node.type === "cargo") {
+    drawCargoFacilityIcon(variant);
+  } else if (node.type === "foundry") {
+    drawFoundryFacilityIcon(variant);
+  } else if (node.type === "cryo") {
+    drawCryoFacilityIcon(variant);
+  } else {
+    drawRadarFacilityIcon(variant);
+  }
+  ctx.restore();
+}
+
+function drawTokamakFacilityIcon(variant) {
+  ctx.beginPath();
+  ctx.ellipse(0, 9, 28, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeRect(-24, 4, 48, 10);
+  ctx.beginPath();
+  ctx.arc(0, 3, 18, Math.PI, 0);
+  ctx.lineTo(18, 10);
+  ctx.moveTo(-18, 10);
+  ctx.lineTo(-18, 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -21);
+  ctx.lineTo(0, 4);
+  ctx.moveTo(-8, -8);
+  ctx.lineTo(8, -8);
+  ctx.moveTo(-5, -15);
+  ctx.lineTo(5, -15);
+  ctx.stroke();
+  for (let i = 0; i < 3 + variant; i += 1) {
+    ctx.beginPath();
+    ctx.ellipse(0, -1 + i * 2, 18 + i * 2, 4 + i * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawCargoFacilityIcon(variant) {
+  for (let i = 0; i < 3; i += 1) {
+    ctx.strokeRect(-30 + i * 20, 0, 18, 13);
+    ctx.beginPath();
+    ctx.moveTo(-27 + i * 20, 5);
+    ctx.lineTo(-15 + i * 20, 5);
+    ctx.stroke();
+  }
+  ctx.strokeRect(-34, 13, 68, 7);
+  ctx.beginPath();
+  ctx.moveTo(-26, 0);
+  ctx.lineTo(-26, -24);
+  ctx.lineTo(22 + variant * 3, -24);
+  ctx.lineTo(22 + variant * 3, -17);
+  ctx.moveTo(-30, -16);
+  ctx.lineTo(8, -24);
+  ctx.moveTo(-20, -24);
+  ctx.lineTo(-3, -6);
+  ctx.stroke();
+  ctx.strokeRect(18 + variant * 3, -17, 8, 8);
+}
+
+function drawFoundryFacilityIcon(variant) {
+  ctx.strokeRect(-31, -2, 62, 20);
+  ctx.beginPath();
+  ctx.moveTo(-31, -2);
+  ctx.lineTo(-18, -15);
+  ctx.lineTo(-5, -2);
+  ctx.lineTo(8, -16);
+  ctx.lineTo(31, -2);
+  ctx.stroke();
+  for (let i = 0; i < 3; i += 1) {
+    const x = -23 + i * 22;
+    ctx.strokeRect(x, -28 - (i === variant % 3 ? 5 : 0), 8, 26 + (i === variant % 3 ? 5 : 0));
+    ctx.beginPath();
+    ctx.moveTo(x - 2, -29 - (i === variant % 3 ? 5 : 0));
+    ctx.lineTo(x + 10, -29 - (i === variant % 3 ? 5 : 0));
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(0, 8, 7, 0, Math.PI * 2);
+  ctx.moveTo(-22, 18);
+  ctx.lineTo(22, 18);
+  ctx.stroke();
+}
+
+function drawCryoFacilityIcon(variant) {
+  for (const x of [-14, 14]) {
+    ctx.beginPath();
+    ctx.ellipse(x, -14, 8, 4, 0, 0, Math.PI * 2);
+    ctx.moveTo(x - 8, -14);
+    ctx.lineTo(x - 8, 10);
+    ctx.moveTo(x + 8, -14);
+    ctx.lineTo(x + 8, 10);
+    ctx.ellipse(x, 10, 8, 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeRect(-31, 10, 62, 10);
+  ctx.beginPath();
+  ctx.moveTo(-14, -3);
+  ctx.lineTo(14, -3);
+  ctx.moveTo(0, -25);
+  ctx.lineTo(0, 18);
+  ctx.moveTo(-6 - variant, -17);
+  ctx.lineTo(6 + variant, -9);
+  ctx.moveTo(6 + variant, -17);
+  ctx.lineTo(-6 - variant, -9);
+  ctx.stroke();
+}
+
+function drawRadarFacilityIcon(variant) {
+  ctx.strokeRect(-29, 8, 58, 12);
+  ctx.beginPath();
+  ctx.moveTo(0, 8);
+  ctx.lineTo(0, -22);
+  ctx.arc(0, -15, 18, Math.PI * 1.08, Math.PI * 1.92);
+  ctx.moveTo(0, -15);
+  ctx.lineTo(-18, -24);
+  ctx.moveTo(0, -15);
+  ctx.lineTo(18, -24);
+  ctx.stroke();
+  for (let i = 0; i < 3; i += 1) {
+    ctx.beginPath();
+    ctx.arc(0, -15, 25 + i * 7 + variant, Math.PI * 1.18, Math.PI * 1.82);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(-20, 8);
+  ctx.lineTo(0, -4);
+  ctx.lineTo(20, 8);
+  ctx.stroke();
 }
 
 function drawCampaignLegend(campaign) {

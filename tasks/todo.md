@@ -1,5 +1,29 @@
 # Mother OS Campaign Map Planning
 
+## Current Visual Pass
+
+### Spec
+
+- [x] Make the campaign grid fill the full horizontal canvas instead of sitting inside a letterboxed board area.
+- [x] Add facility schematic graphics inside campaign nodes, with type-specific silhouettes and deterministic per-facility variation.
+- [x] Add localized topography to the campaign map: mountain ranges, forest clusters, rivers, and terrain contour detail.
+- [x] Keep the static no-build/no-server architecture and verify with browser screenshots.
+
+### Plan
+
+- [x] Split campaign rendering/input scaling from combat rendering so campaign mode can fill the whole canvas.
+- [x] Add deterministic terrain rendering anchored to campaign world coordinates and responsive to map pan.
+- [x] Replace plain campaign node boxes with larger nodes that include facility art, status text, and existing route states.
+- [x] Verify desktop campaign screenshot and static script checks.
+- [x] Commit and push the completed checkpoint.
+
+### Review
+
+- Campaign mode now renders with full-canvas scaling instead of combat-board letterboxing, with pointer mapping adjusted to match.
+- Facility nodes now include deterministic schematic artwork by type: tokamak, cargo, foundry, cryo, and radar variants.
+- The campaign map background now includes seeded rivers, mountain ranges, forest clusters, and contour rings anchored to campaign pan.
+- Verified with `node --check`, `git diff --check`, and a 2048px-wide headless Chrome campaign screenshot.
+
 ## Spec
 
 - [x] Add a persistent `localStorage` campaign map made of facility nodes connected in a fog-of-war graph.

@@ -207,6 +207,12 @@ function screenToWorld(event) {
   const rect = els.field.getBoundingClientRect();
   const sx = event.clientX - rect.left;
   const sy = event.clientY - rect.top;
+  if (state && state.mode === "campaign") {
+    return {
+      x: sx / (view.cssWidth / BOARD.width),
+      y: sy / (view.cssHeight / BOARD.height)
+    };
+  }
   return {
     x: (sx - view.offsetX) / view.scale,
     y: (sy - view.offsetY) / view.scale
