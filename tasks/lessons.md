@@ -18,3 +18,5 @@
 - Boss quality passes should make every interior stroke explain anatomy or construction; when lines feel arbitrary, rebuild the silhouette with named structures first, then add cracks, grime, and glow as secondary detail.
 - A strategic campaign map should read as a world, not a floating node chart: fill the whole map viewport with the grid, anchor terrain/topography in the world space, and put facility-specific schematics inside nodes instead of relying on labeled boxes.
 - Filling a canvas horizontally must not use non-uniform X/Y scaling for schematic UI; preserve the drawing aspect ratio with a wider logical viewport so maps fill the frame without stretching icons, text, or grid cells.
+- Campaign-map facility nodes should read as bracketed tactical schematics, not filled plaques; keep fills faint, corner/side brackets dominant, and icon linework contained inside a clear schematic viewport.
+- Terrain detail must be recognizable cartography at a glance. Avoid generic ellipse contour clusters that look like accidental squiggles; use restrained ridge lines, forest symbols, river traces, and survey ticks instead.

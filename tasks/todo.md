@@ -1,5 +1,30 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Map Bracket and Terrain Cleanup
+
+### Spec
+
+- [x] Convert facility nodes away from filled plaques and heavy top rails into low-fill bracketed schematic frames.
+- [x] Keep every facility schematic fully contained inside the node frame with connected, intentional linework.
+- [x] Remove terrain contour marks that read as circular squiggles and replace them with subtler cartographic detail.
+- [x] Preserve the full-width, non-stretched campaign viewport and static no-build architecture.
+- [x] Verify with static JS checks and a campaign screenshot before committing.
+
+### Plan
+
+- [x] Reduce node fill, remove the dominant upper border, and draw corner/side brackets plus subtle scan hatching.
+- [x] Scale and constrain campaign facility icons, rebuilding any overshooting icon details inside a fixed schematic viewport.
+- [x] Replace circular contour clusters with faint ridge lines, forest pockets, and sparse survey ticks.
+- [x] Run `node --check`, `git diff --check`, and capture a campaign map screenshot.
+- [ ] Commit and push the completed checkpoint.
+
+### Review
+
+- Facility nodes now use a dark route mask, very faint type tint, corner brackets, side brackets, and sparse scan hatching instead of a colored plaque or dominant top rail.
+- Facility schematics are clipped inside a fixed viewport and redrawn with connected bases, supports, masts, gantries, and equipment details so they do not exceed the node frame.
+- Circular contour clusters were replaced with subtle ridge fields and survey ticks; mountains and forests were lowered in density/opacity.
+- Verified with `node --check`, `git diff --check`, and a forced campaign-state Chrome screenshot at 2048px width.
+
 ## Campaign Map Fidelity Pass
 
 ### Spec

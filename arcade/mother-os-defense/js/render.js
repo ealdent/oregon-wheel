@@ -219,22 +219,27 @@ function drawCampaignTerrain(campaign) {
   const mapWidth = campaignViewportWidth();
   const mapHeight = campaignViewportHeight();
   drawCampaignRivers(campaign, rng);
-  for (let i = 0; i < 18; i += 1) {
+  for (let i = 0; i < 14; i += 1) {
     const x = campaignRandomInt(rng, -520, Math.round(mapWidth + 520));
     const y = campaignRandomInt(rng, -280, Math.round(mapHeight + 280));
     const width = campaignRandomInt(rng, 130, 360);
     const height = campaignRandomInt(rng, 24, 80);
     drawMountainRange(campaign, x, y, width, height, campaignRandomInt(rng, 6, 12), rng);
   }
-  for (let i = 0; i < 34; i += 1) {
+  for (let i = 0; i < 26; i += 1) {
     const x = campaignRandomInt(rng, -460, Math.round(mapWidth + 460));
     const y = campaignRandomInt(rng, -240, Math.round(mapHeight + 240));
-    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 5, 16), rng);
+    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 4, 12), rng);
   }
-  for (let i = 0; i < 26; i += 1) {
+  for (let i = 0; i < 24; i += 1) {
     const x = campaignRandomInt(rng, -480, Math.round(mapWidth + 480));
     const y = campaignRandomInt(rng, -260, Math.round(mapHeight + 260));
-    drawContourCluster(campaign, x, y, campaignRandomInt(rng, 36, 118), rng);
+    drawSurveyRidgeField(campaign, x, y, campaignRandomInt(rng, 110, 330), campaignRandomInt(rng, 2, 5), rng);
+  }
+  for (let i = 0; i < 18; i += 1) {
+    const x = campaignRandomInt(rng, -460, Math.round(mapWidth + 460));
+    const y = campaignRandomInt(rng, -260, Math.round(mapHeight + 260));
+    drawSurveyTicks(campaign, x, y, campaignRandomInt(rng, 5, 13), rng);
   }
 }
 
@@ -287,7 +292,7 @@ function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) 
   const start = campaignWorldToScreen(campaign, worldX - width / 2, worldY);
   if (start.x > mapWidth + width || start.x < -width || start.y > mapHeight + height || start.y < -height) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(97,255,126,0.105)";
+  ctx.strokeStyle = "rgba(97,255,126,0.074)";
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let i = 0; i <= peaks; i += 1) {
@@ -298,7 +303,7 @@ function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) 
     else ctx.lineTo(point.x, point.y);
   }
   ctx.stroke();
-  ctx.globalAlpha = 0.72;
+  ctx.globalAlpha = 0.62;
   for (let contour = 0; contour < 3; contour += 1) {
     ctx.beginPath();
     const offset = 12 + contour * 12;
@@ -320,13 +325,13 @@ function drawForestCluster(campaign, worldX, worldY, count, rng) {
   const center = campaignWorldToScreen(campaign, worldX, worldY);
   if (center.x > mapWidth + 80 || center.x < -80 || center.y > mapHeight + 80 || center.y < -80) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(133,255,145,0.085)";
-  ctx.fillStyle = "rgba(97,255,126,0.022)";
+  ctx.strokeStyle = "rgba(133,255,145,0.07)";
+  ctx.fillStyle = "rgba(97,255,126,0.012)";
   ctx.lineWidth = 1;
   for (let i = 0; i < count; i += 1) {
     const x = center.x + (rng() - 0.5) * 120;
     const y = center.y + (rng() - 0.5) * 66;
-    const size = 5 + rng() * 8;
+    const size = 4 + rng() * 7;
     ctx.beginPath();
     ctx.moveTo(x, y - size);
     ctx.lineTo(x - size * 0.72, y + size * 0.38);
@@ -342,22 +347,65 @@ function drawForestCluster(campaign, worldX, worldY, count, rng) {
   ctx.restore();
 }
 
-function drawContourCluster(campaign, worldX, worldY, radius, rng) {
+function drawSurveyRidgeField(campaign, worldX, worldY, width, lanes, rng) {
   const mapWidth = campaignViewportWidth();
   const mapHeight = campaignViewportHeight();
   const center = campaignWorldToScreen(campaign, worldX, worldY);
-  if (center.x > mapWidth + radius || center.x < -radius || center.y > mapHeight + radius || center.y < -radius) return;
+  if (center.x > mapWidth + width || center.x < -width || center.y > mapHeight + 120 || center.y < -120) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(185,255,189,0.052)";
+  ctx.strokeStyle = "rgba(185,255,189,0.042)";
   ctx.lineWidth = 1;
-  for (let ring = 1; ring <= 4; ring += 1) {
-    const rx = radius * ring / 4;
-    const ry = rx * (0.38 + rng() * 0.22);
+  for (let lane = 0; lane < lanes; lane += 1) {
+    const yBase = worldY + lane * 13 - lanes * 6;
+    const segments = campaignRandomInt(rng, 5, 9);
     ctx.beginPath();
-    ctx.ellipse(center.x, center.y, rx, ry, rng() * Math.PI, 0, Math.PI * 2);
+    for (let i = 0; i <= segments; i += 1) {
+      const x = worldX - width / 2 + (width / segments) * i;
+      const y = yBase + Math.sin(i * 1.7 + lane) * campaignRandomInt(rng, 3, 10) + campaignRandomInt(rng, -5, 5);
+      const point = campaignWorldToScreen(campaign, x, y);
+      if (i === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    }
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function drawSurveyTicks(campaign, worldX, worldY, count, rng) {
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
+  const center = campaignWorldToScreen(campaign, worldX, worldY);
+  if (center.x > mapWidth + 90 || center.x < -90 || center.y > mapHeight + 90 || center.y < -90) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(124,232,255,0.045)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < count; i += 1) {
+    const x = center.x + (rng() - 0.5) * 150;
+    const y = center.y + (rng() - 0.5) * 80;
+    const len = 8 + rng() * 24;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + len, y + (rng() - 0.5) * 3);
+    if (i % 4 === 0) {
+      ctx.moveTo(x + len * 0.55, y - 3);
+      ctx.lineTo(x + len * 0.55, y + 3);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRoundedOctagon(w, h, cut) {
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + cut, -h / 2);
+  ctx.lineTo(w / 2 - cut, -h / 2);
+  ctx.lineTo(w / 2, -h / 2 + cut);
+  ctx.lineTo(w / 2, h / 2 - cut);
+  ctx.lineTo(w / 2 - cut, h / 2);
+  ctx.lineTo(-w / 2 + cut, h / 2);
+  ctx.lineTo(-w / 2, h / 2 - cut);
+  ctx.lineTo(-w / 2, -h / 2 + cut);
+  ctx.closePath();
 }
 
 function drawCampaignEdges(campaign) {
@@ -412,26 +460,17 @@ function drawUnknownCampaignNode(x, y) {
   ctx.save();
   ctx.translate(x, y);
   ctx.strokeStyle = "rgba(97,255,126,0.28)";
-  ctx.fillStyle = "rgba(5,24,8,0.28)";
+  ctx.fillStyle = "rgba(5,24,8,0.085)";
   ctx.lineWidth = 1.3;
-  ctx.beginPath();
-  ctx.moveTo(-39, -18);
-  ctx.lineTo(-31, -25);
-  ctx.lineTo(31, -25);
-  ctx.lineTo(39, -18);
-  ctx.lineTo(39, 18);
-  ctx.lineTo(31, 25);
-  ctx.lineTo(-31, 25);
-  ctx.lineTo(-39, 18);
-  ctx.closePath();
+  drawRoundedOctagon(78, 50, 8);
   ctx.fill();
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(97,255,126,0.18)";
+  ctx.globalAlpha = 0.72;
+  drawCampaignNodeBracketFrame(78, 50, "#85ff91", false);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "rgba(97,255,126,0.16)";
   ctx.beginPath();
-  ctx.moveTo(-24, -20);
-  ctx.lineTo(24, -20);
-  ctx.moveTo(-24, 20);
-  ctx.lineTo(24, 20);
+  ctx.moveTo(-18, 16);
+  ctx.lineTo(18, 16);
   ctx.stroke();
   ctx.fillStyle = "rgba(185,255,189,0.52)";
   ctx.font = "700 20px Courier New, monospace";
@@ -451,26 +490,27 @@ function drawCampaignNode(campaign, node) {
   ctx.save();
   ctx.translate(pos.x, pos.y);
   ctx.shadowColor = color;
-  ctx.shadowBlur = selected ? 18 : node.secured ? 10 : available ? 12 : 4;
-  ctx.fillStyle = node.secured ? "rgba(25,86,34,0.15)" : available ? "rgba(106,82,18,0.17)" : "rgba(7,28,10,0.16)";
+  const frameGlow = selected ? 8 : node.secured ? 4 : available ? 5 : 2;
+  ctx.shadowBlur = 0;
+  const nodeTint = node.secured ? "rgba(25,86,34,0.055)" : available ? "rgba(106,82,18,0.07)" : "rgba(7,28,10,0.07)";
   ctx.strokeStyle = color;
-  ctx.lineWidth = selected ? 2.2 : 1.4;
+  ctx.lineWidth = selected ? 1.4 : 1;
   const w = CAMPAIGN_MAP.nodeWidth;
   const h = CAMPAIGN_MAP.nodeHeight;
-  ctx.beginPath();
-  ctx.moveTo(-w / 2 + 12, -h / 2);
-  ctx.lineTo(w / 2 - 12, -h / 2);
-  ctx.lineTo(w / 2, -h / 2 + 12);
-  ctx.lineTo(w / 2, h / 2 - 12);
-  ctx.lineTo(w / 2 - 12, h / 2);
-  ctx.lineTo(-w / 2 + 12, h / 2);
-  ctx.lineTo(-w / 2, h / 2 - 12);
-  ctx.lineTo(-w / 2, -h / 2 + 12);
-  ctx.closePath();
+  ctx.fillStyle = "rgba(0,7,2,0.58)";
+  drawRoundedOctagon(w, h, 13);
   ctx.fill();
+  ctx.fillStyle = nodeTint;
+  drawRoundedOctagon(w, h, 13);
+  ctx.fill();
+  ctx.save();
+  ctx.globalAlpha = selected ? 0.28 : 0.14;
   ctx.stroke();
+  ctx.restore();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = frameGlow;
+  drawCampaignNodeBracketFrame(w, h, color, selected);
   ctx.shadowBlur = 0;
-  drawCampaignNodeRailFrame(w, h, color, selected);
   drawCampaignFacilitySchematic(node, type, color, available || node.secured);
   ctx.fillStyle = color;
   ctx.font = "700 12px Courier New, monospace";
@@ -487,30 +527,61 @@ function drawCampaignNode(campaign, node) {
   ctx.restore();
 }
 
-function drawCampaignNodeRailFrame(w, h, color, selected) {
+function drawCampaignNodeBracketFrame(w, h, color, selected) {
   ctx.save();
-  ctx.lineWidth = selected ? 1.6 : 1.05;
+  const left = -w / 2;
+  const right = w / 2;
+  const top = -h / 2;
+  const bottom = h / 2;
+  const cut = Math.min(13, w * 0.1, h * 0.18);
+  const bracketX = Math.min(34, w * 0.22);
+  const bracketY = Math.min(25, h * 0.28);
+  ctx.lineWidth = selected ? 1.65 : 1.05;
   ctx.strokeStyle = color;
-  ctx.globalAlpha = selected ? 0.9 : 0.62;
+  ctx.globalAlpha = selected ? 0.92 : 0.66;
   ctx.beginPath();
-  ctx.moveTo(-w / 2 + 17, -h / 2 + 8);
-  ctx.lineTo(w / 2 - 17, -h / 2 + 8);
-  ctx.moveTo(-w / 2 + 17, h / 2 - 8);
-  ctx.lineTo(w / 2 - 17, h / 2 - 8);
+  ctx.moveTo(left + cut, top + 5);
+  ctx.lineTo(left + cut + bracketX, top + 5);
+  ctx.moveTo(left + 5, top + cut);
+  ctx.lineTo(left + 5, top + cut + bracketY);
+  ctx.moveTo(left + 5, top + cut);
+  ctx.lineTo(left + cut, top + 5);
+  ctx.moveTo(right - cut, top + 5);
+  ctx.lineTo(right - cut - bracketX, top + 5);
+  ctx.moveTo(right - 5, top + cut);
+  ctx.lineTo(right - 5, top + cut + bracketY);
+  ctx.moveTo(right - 5, top + cut);
+  ctx.lineTo(right - cut, top + 5);
+  ctx.moveTo(left + cut, bottom - 5);
+  ctx.lineTo(left + cut + bracketX, bottom - 5);
+  ctx.moveTo(left + 5, bottom - cut);
+  ctx.lineTo(left + 5, bottom - cut - bracketY);
+  ctx.moveTo(left + 5, bottom - cut);
+  ctx.lineTo(left + cut, bottom - 5);
+  ctx.moveTo(right - cut, bottom - 5);
+  ctx.lineTo(right - cut - bracketX, bottom - 5);
+  ctx.moveTo(right - 5, bottom - cut);
+  ctx.lineTo(right - 5, bottom - cut - bracketY);
+  ctx.moveTo(right - 5, bottom - cut);
+  ctx.lineTo(right - cut, bottom - 5);
   ctx.stroke();
-  ctx.globalAlpha = 0.32;
+  ctx.globalAlpha = selected ? 0.42 : 0.28;
   ctx.strokeStyle = "rgba(185,255,189,0.75)";
   ctx.beginPath();
-  ctx.moveTo(-w / 2 + 9, -h / 2 + 18);
-  ctx.lineTo(-w / 2 + 9, h / 2 - 18);
-  ctx.moveTo(w / 2 - 9, -h / 2 + 18);
-  ctx.lineTo(w / 2 - 9, h / 2 - 18);
+  ctx.moveTo(left + 16, -8);
+  ctx.lineTo(left + 16, 8);
+  ctx.moveTo(right - 16, -8);
+  ctx.lineTo(right - 16, 8);
+  ctx.moveTo(-18, top + 9);
+  ctx.lineTo(18, top + 9);
+  ctx.moveTo(-18, bottom - 9);
+  ctx.lineTo(18, bottom - 9);
   ctx.stroke();
-  ctx.globalAlpha = 0.18;
-  for (let y = -h / 2 + 16; y < h / 2 - 14; y += 5) {
+  ctx.globalAlpha = 0.13;
+  for (let y = top + 17; y < bottom - 14; y += 5) {
     ctx.beginPath();
-    ctx.moveTo(-w / 2 + 18, y);
-    ctx.lineTo(w / 2 - 18, y);
+    ctx.moveTo(left + 22, y);
+    ctx.lineTo(right - 22, y);
     ctx.stroke();
   }
   ctx.restore();
@@ -519,13 +590,18 @@ function drawCampaignNodeRailFrame(w, h, color, selected) {
 function drawCampaignFacilitySchematic(node, type, color, bright) {
   const variant = campaignHash(`${node.seed}:facility-icon`) % 4;
   ctx.save();
-  ctx.translate(0, -10);
-  ctx.scale(1.18, 1.18);
+  ctx.beginPath();
+  ctx.rect(-49, -41, 98, 57);
+  ctx.clip();
+  ctx.translate(0, -12);
+  ctx.scale(0.86, 0.86);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   ctx.strokeStyle = bright ? color : "rgba(185,255,189,0.46)";
-  ctx.fillStyle = bright ? "rgba(97,255,126,0.075)" : "rgba(97,255,126,0.035)";
-  ctx.lineWidth = 1.35;
+  ctx.fillStyle = bright ? "rgba(97,255,126,0.042)" : "rgba(97,255,126,0.022)";
+  ctx.lineWidth = 1.3;
   ctx.shadowColor = color;
-  ctx.shadowBlur = bright ? 7 : 2;
+  ctx.shadowBlur = bright ? 4 : 1;
   if (node.type === "tokamak") {
     drawTokamakFacilityIcon(variant);
   } else if (node.type === "cargo") {
@@ -543,117 +619,137 @@ function drawCampaignFacilitySchematic(node, type, color, bright) {
 
 function drawFacilityMicroDetail(variant) {
   ctx.save();
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = 0.38;
   ctx.lineWidth = 0.75;
-  for (let i = 0; i < 5; i += 1) {
-    const y = 13 + i * 2;
+  for (let i = 0; i < 4; i += 1) {
+    const y = 16 + i * 2;
     ctx.beginPath();
-    ctx.moveTo(-30 + i * 3, y);
-    ctx.lineTo(-16 + i * 3, y);
-    ctx.moveTo(16 - i * 2, y);
-    ctx.lineTo(30 - i * 2, y);
+    ctx.moveTo(-31 + i * 4, y);
+    ctx.lineTo(-18 + i * 4, y);
+    ctx.moveTo(18 - i * 4, y);
+    ctx.lineTo(31 - i * 4, y);
     ctx.stroke();
   }
   for (let i = 0; i < 3 + variant; i += 1) {
-    const x = -22 + i * 14;
-    ctx.strokeRect(x, 17, 4, 3);
+    const x = -21 + i * 12;
+    ctx.strokeRect(x, 21, 3, 2.5);
   }
   ctx.restore();
 }
 
 function drawTokamakFacilityIcon(variant) {
   ctx.beginPath();
-  ctx.ellipse(0, 9, 28, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 10, 30, 7, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  ctx.strokeRect(-24, 4, 48, 10);
   ctx.beginPath();
-  ctx.arc(0, 3, 18, Math.PI, 0);
-  ctx.lineTo(18, 10);
-  ctx.moveTo(-18, 10);
-  ctx.lineTo(-18, 3);
+  ctx.moveTo(-28, 10);
+  ctx.lineTo(-22, 3);
+  ctx.lineTo(22, 3);
+  ctx.lineTo(28, 10);
+  ctx.lineTo(22, 16);
+  ctx.lineTo(-22, 16);
+  ctx.closePath();
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(0, -21);
-  ctx.lineTo(0, 4);
-  ctx.moveTo(-8, -8);
-  ctx.lineTo(8, -8);
-  ctx.moveTo(-5, -15);
-  ctx.lineTo(5, -15);
+  ctx.arc(0, 2, 17, Math.PI, 0);
+  ctx.lineTo(17, 9);
+  ctx.moveTo(-17, 9);
+  ctx.lineTo(-17, 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -24);
+  ctx.lineTo(0, 3);
+  ctx.moveTo(-8, -10);
+  ctx.lineTo(8, -10);
+  ctx.moveTo(-5, -18);
+  ctx.lineTo(5, -18);
   ctx.stroke();
   for (let i = 0; i < 3 + variant; i += 1) {
     ctx.beginPath();
-    ctx.ellipse(0, -1 + i * 2, 18 + i * 2, 4 + i * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -1 + i * 2, 16 + i * 2, 3.4 + i * 0.35, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.beginPath();
-  ctx.arc(0, 3, 5 + variant, 0, Math.PI * 2);
-  ctx.moveTo(-24, 10);
-  ctx.lineTo(24, 10);
-  ctx.moveTo(-16, 4);
-  ctx.lineTo(-16, 14);
-  ctx.moveTo(16, 4);
-  ctx.lineTo(16, 14);
+  ctx.arc(0, 2, 5 + variant * 0.7, 0, Math.PI * 2);
+  ctx.moveTo(-24, 12);
+  ctx.lineTo(24, 12);
+  ctx.moveTo(-15, 5);
+  ctx.lineTo(-15, 16);
+  ctx.moveTo(15, 5);
+  ctx.lineTo(15, 16);
   ctx.stroke();
 }
 
 function drawCargoFacilityIcon(variant) {
+  ctx.beginPath();
+  ctx.moveTo(-35, 17);
+  ctx.lineTo(35, 17);
+  ctx.moveTo(-31, 22);
+  ctx.lineTo(31, 22);
+  ctx.stroke();
   for (let i = 0; i < 3; i += 1) {
-    ctx.strokeRect(-30 + i * 20, 0, 18, 13);
+    const x = -29 + i * 20;
+    ctx.strokeRect(x, 2, 17, 13);
     ctx.beginPath();
-    ctx.moveTo(-27 + i * 20, 5);
-    ctx.lineTo(-15 + i * 20, 5);
+    ctx.moveTo(x + 3, 7);
+    ctx.lineTo(x + 14, 7);
+    ctx.moveTo(x + 8.5, 2);
+    ctx.lineTo(x + 8.5, 15);
     ctx.stroke();
   }
-  ctx.strokeRect(-34, 13, 68, 7);
   ctx.beginPath();
-  ctx.moveTo(-26, 0);
-  ctx.lineTo(-26, -24);
-  ctx.lineTo(22 + variant * 3, -24);
-  ctx.lineTo(22 + variant * 3, -17);
-  ctx.moveTo(-30, -16);
-  ctx.lineTo(8, -24);
-  ctx.moveTo(-20, -24);
-  ctx.lineTo(-3, -6);
+  ctx.moveTo(-28, 2);
+  ctx.lineTo(-28, -23);
+  ctx.lineTo(19 + variant * 2, -23);
+  ctx.lineTo(19 + variant * 2, -16);
+  ctx.moveTo(-30, -14);
+  ctx.lineTo(8, -23);
+  ctx.moveTo(-20, -23);
+  ctx.lineTo(-5, -4);
   ctx.stroke();
-  ctx.strokeRect(18 + variant * 3, -17, 8, 8);
+  ctx.strokeRect(16 + variant * 2, -16, 8, 7);
   ctx.beginPath();
   for (let i = 0; i < 4; i += 1) {
     const x = -30 + i * 17;
-    ctx.moveTo(x, 20);
-    ctx.lineTo(x + 11, 20);
+    ctx.moveTo(x, 22);
+    ctx.lineTo(x + 11, 22);
   }
   ctx.stroke();
 }
 
 function drawFoundryFacilityIcon(variant) {
-  ctx.strokeRect(-31, -2, 62, 20);
   ctx.beginPath();
-  ctx.moveTo(-31, -2);
-  ctx.lineTo(-18, -15);
-  ctx.lineTo(-5, -2);
-  ctx.lineTo(8, -16);
-  ctx.lineTo(31, -2);
+  ctx.moveTo(-34, 15);
+  ctx.lineTo(-34, -1);
+  ctx.lineTo(-21, -14);
+  ctx.lineTo(-8, -1);
+  ctx.lineTo(7, -15);
+  ctx.lineTo(34, -1);
+  ctx.lineTo(34, 15);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
   for (let i = 0; i < 3; i += 1) {
     const x = -23 + i * 22;
-    ctx.strokeRect(x, -28 - (i === variant % 3 ? 5 : 0), 8, 26 + (i === variant % 3 ? 5 : 0));
+    const lift = i === variant % 3 ? 4 : 0;
+    ctx.strokeRect(x, -25 - lift, 8, 24 + lift);
     ctx.beginPath();
-    ctx.moveTo(x - 2, -29 - (i === variant % 3 ? 5 : 0));
-    ctx.lineTo(x + 10, -29 - (i === variant % 3 ? 5 : 0));
+    ctx.moveTo(x - 2, -26 - lift);
+    ctx.lineTo(x + 10, -26 - lift);
     ctx.stroke();
   }
   ctx.beginPath();
-  ctx.arc(0, 8, 7, 0, Math.PI * 2);
-  ctx.moveTo(-22, 18);
-  ctx.lineTo(22, 18);
-  ctx.moveTo(-28, 8);
-  ctx.lineTo(-12, 8);
-  ctx.moveTo(12, 8);
-  ctx.lineTo(28, 8);
+  ctx.arc(0, 7, 6, 0, Math.PI * 2);
+  ctx.moveTo(-26, 20);
+  ctx.lineTo(26, 20);
+  ctx.moveTo(-29, 7);
+  ctx.lineTo(-12, 7);
+  ctx.moveTo(12, 7);
+  ctx.lineTo(29, 7);
   for (let i = 0; i < 5; i += 1) {
-    ctx.moveTo(-24 + i * 12, 18);
-    ctx.lineTo(-19 + i * 12, 12);
+    ctx.moveTo(-24 + i * 12, 20);
+    ctx.lineTo(-19 + i * 12, 13);
   }
   ctx.stroke();
 }
@@ -663,18 +759,23 @@ function drawCryoFacilityIcon(variant) {
     ctx.beginPath();
     ctx.ellipse(x, -14, 8, 4, 0, 0, Math.PI * 2);
     ctx.moveTo(x - 8, -14);
-    ctx.lineTo(x - 8, 10);
+    ctx.lineTo(x - 8, 11);
     ctx.moveTo(x + 8, -14);
-    ctx.lineTo(x + 8, 10);
-    ctx.ellipse(x, 10, 8, 4, 0, 0, Math.PI * 2);
+    ctx.lineTo(x + 8, 11);
+    ctx.ellipse(x, 11, 8, 4, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.strokeRect(-31, 10, 62, 10);
+  ctx.beginPath();
+  ctx.moveTo(-34, 15);
+  ctx.lineTo(34, 15);
+  ctx.moveTo(-29, 22);
+  ctx.lineTo(29, 22);
+  ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(-14, -3);
   ctx.lineTo(14, -3);
   ctx.moveTo(0, -25);
-  ctx.lineTo(0, 18);
+  ctx.lineTo(0, 20);
   ctx.moveTo(-6 - variant, -17);
   ctx.lineTo(6 + variant, -9);
   ctx.moveTo(6 + variant, -17);
@@ -682,41 +783,47 @@ function drawCryoFacilityIcon(variant) {
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(0, -3, 5, 0, Math.PI * 2);
-  ctx.moveTo(-22, 15);
-  ctx.lineTo(22, 15);
-  ctx.moveTo(-25, 10);
-  ctx.lineTo(-25, 20);
-  ctx.moveTo(25, 10);
-  ctx.lineTo(25, 20);
+  ctx.moveTo(-22, 18);
+  ctx.lineTo(22, 18);
+  ctx.moveTo(-25, 12);
+  ctx.lineTo(-25, 22);
+  ctx.moveTo(25, 12);
+  ctx.lineTo(25, 22);
   ctx.stroke();
 }
 
 function drawRadarFacilityIcon(variant) {
-  ctx.strokeRect(-29, 8, 58, 12);
   ctx.beginPath();
-  ctx.moveTo(0, 8);
-  ctx.lineTo(0, -22);
-  ctx.arc(0, -15, 18, Math.PI * 1.08, Math.PI * 1.92);
-  ctx.moveTo(0, -15);
-  ctx.lineTo(-18, -24);
-  ctx.moveTo(0, -15);
-  ctx.lineTo(18, -24);
+  ctx.moveTo(-31, 10);
+  ctx.lineTo(31, 10);
+  ctx.lineTo(31, 21);
+  ctx.lineTo(-31, 21);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, 10);
+  ctx.lineTo(0, -21);
+  ctx.arc(0, -12, 14, Math.PI * 1.1, Math.PI * 1.9);
+  ctx.moveTo(0, -12);
+  ctx.lineTo(-16, -21);
+  ctx.moveTo(0, -12);
+  ctx.lineTo(16, -21);
   ctx.stroke();
   for (let i = 0; i < 3; i += 1) {
     ctx.beginPath();
-    ctx.arc(0, -15, 25 + i * 7 + variant, Math.PI * 1.18, Math.PI * 1.82);
+    ctx.arc(0, -12, 18 + i * 6 + variant * 0.5, Math.PI * 1.18, Math.PI * 1.82);
     ctx.stroke();
   }
   ctx.beginPath();
-  ctx.moveTo(-20, 8);
-  ctx.lineTo(0, -4);
-  ctx.lineTo(20, 8);
-  ctx.moveTo(-12, 20);
-  ctx.lineTo(-12, 8);
-  ctx.moveTo(12, 20);
-  ctx.lineTo(12, 8);
-  ctx.moveTo(-26, 14);
-  ctx.lineTo(26, 14);
+  ctx.moveTo(-20, 10);
+  ctx.lineTo(0, -3);
+  ctx.lineTo(20, 10);
+  ctx.moveTo(-12, 21);
+  ctx.lineTo(-12, 10);
+  ctx.moveTo(12, 21);
+  ctx.lineTo(12, 10);
+  ctx.moveTo(-26, 16);
+  ctx.lineTo(26, 16);
   ctx.stroke();
 }
 
