@@ -1,37 +1,36 @@
-# Mother OS Static Modular Refactor
+# Mother OS Boss Fidelity Pass
 
 ## Spec
 
-- [ ] Split the single `index.html` into static CSS and ordered classic JavaScript files.
-- [ ] Avoid build tools, ES modules, package dependencies, or server requirements.
-- [ ] Keep the game loadable from a static website and from direct file access where browser policy allows classic scripts.
-- [ ] Preserve existing gameplay, boss/enemy/tower rendering, input, audio, UI, and wave behavior.
-- [ ] Keep script ordering explicit and understandable for future changes.
-- [ ] Verify parsing, dependency scan, file load, gameplay boot, and boss sector rendering.
+- [ ] Improve all four cached boss schematics without adding dependencies, build steps, or server requirements.
+- [ ] Prioritize coherent anatomy over extra decorative strokes, especially on The Void Colossus.
+- [ ] Make interior lines read as plates, seams, ribs, apertures, vents, joints, or energy channels.
+- [ ] Preserve the static modular file structure and cached sprite pipeline.
+- [ ] Verify boss preview readability, live boss rendering, syntax, and static file loading.
 - [x] Commit and push the completed checkpoint.
 
 ## Plan
 
-- [x] Confirm current working tree and relevant game architecture.
-- [x] Extract CSS to `arcade/mother-os-defense/styles.css`.
-- [x] Split JavaScript into static domain files under `arcade/mother-os-defense/js/`.
-- [x] Replace inline `<style>` and `<script>` blocks with static includes.
-- [x] Run syntax, dependency, file-load, and browser smoke checks.
+- [x] Inspect current boss renderer and reference image.
+- [x] Capture the current boss lineup for comparison.
+- [x] Refine shared boss art helpers and all four boss silhouettes.
+- [x] Rebuild The Void Colossus with clearer hood, shell masses, side limbs, core breach, and structural line logic.
+- [x] Run JavaScript parse, dependency scan, browser file-load, boss preview, and live boss render checks.
 - [x] Commit and push to `main`.
 
 ## Progress
 
 - [x] Context gathered
 - [x] Plan written
-- [x] CSS extracted
-- [x] JavaScript split
+- [x] Current lineup captured
+- [x] Boss art improved
 - [x] Verification completed
 
 ## Review
 
-- Extracted the Mother OS CSS into `arcade/mother-os-defense/styles.css`.
-- Split the previous inline JavaScript into ordered classic scripts under `arcade/mother-os-defense/js/` with no modules, imports, build steps, or server requirements.
-- Verified each JavaScript file parses, the game directory has no external dependency URLs or module imports, whitespace is clean, and the extracted CSS/JS reconstructs the previous inline implementation.
-- Browser verification loaded `arcade/mother-os-defense/index.html` directly through `file://`, rendered the game, populated tower cards, and started combat.
-- Boss-sector browser verification used a temporary static copy to force Sector 1 and confirmed the Hive Mother preview and live cached boss sprite still render.
-- Browser verification screenshots: `/tmp/mother-os-static-refactor-file-load.png` and `/tmp/mother-os-static-refactor-boss-sector.png`.
+- Added shared boss-art primitives for plates, joints, contour ribs, crack fields, energy streams, and scythe legs so interior lines map to readable structures.
+- Strengthened Hive Mother, Conduit, and Harvester with more coherent shell seams, joints, ribs, and energy cores.
+- Rebuilt The Void Colossus around a clearer hooded shell, layered side masses, limb silhouettes, side ports, and a structured central breach instead of arbitrary hatch lines.
+- Increased the Colossus tactical preview scale so the new structure is readable in the right rail.
+- Verified all JavaScript files parse, the game remains dependency-free/static, whitespace is clean, direct `file://` load enters combat, all four boss previews rotate correctly, and the Colossus live boss path renders.
+- Browser verification screenshots: `/tmp/mother-os-boss-quality-before.png`, `/tmp/mother-os-boss-quality-after-2.png`, `/tmp/mother-os-boss-pass-file-load.png`, `/tmp/mother-os-colossus-live-check.png`, and `/tmp/mother-os-boss-preview-rotation-final.png`.

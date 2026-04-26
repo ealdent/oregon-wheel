@@ -101,7 +101,7 @@ function renderThreatPreview(canvas, type) {
     obelisk: 1.42,
     hive: 1.12,
     conduit: 1.0,
-    colossus: 0.9,
+    colossus: 1.02,
     harvester: 0.95
   };
   const scale = previewScale[type] || 1.5;
