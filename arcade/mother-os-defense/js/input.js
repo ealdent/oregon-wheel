@@ -70,8 +70,8 @@ function centerCampaignMapOnSelection() {
     state.campaign.pan = { x: 0, y: 0 };
   } else {
     const pos = campaignNodePosition(node, state.campaign);
-    state.campaign.pan.x += BOARD.width / 2 - pos.x;
-    state.campaign.pan.y += BOARD.height / 2 - pos.y;
+    state.campaign.pan.x += campaignViewportWidth() / 2 - pos.x;
+    state.campaign.pan.y += campaignViewportHeight() / 2 - pos.y;
   }
   saveCampaign(state.campaign);
   playSound("click");

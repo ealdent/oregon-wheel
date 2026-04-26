@@ -1,5 +1,31 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Map Fidelity Pass
+
+### Spec
+
+- [x] Remove campaign-map visual stretching while keeping the grid full-width.
+- [x] Rework facility nodes from filled badges into lighter schematic frames with top/bottom rails and side/corner structure like the reference.
+- [x] Increase facility schematic fidelity with more internal construction detail and deterministic variation.
+- [x] Make landscape/topography subtler but more intricate: finer mountain, forest, river, contour, and scanline detail.
+- [x] Preserve the static no-build/no-server architecture and verify with screenshot-based browser QA.
+
+### Plan
+
+- [x] Replace campaign non-uniform scaling with a wider logical viewport and matching pointer coordinate mapping.
+- [x] Update campaign render bounds helpers so grid, terrain, frame, legend, routes, and selection panel use the dynamic map width.
+- [x] Refactor node rendering into transparent framed schematic modules with richer icons and reduced fill opacity.
+- [x] Tune terrain alpha/detail toward the uploaded reference image.
+- [x] Run JS/static checks and capture campaign screenshots before committing.
+
+### Review
+
+- Campaign rendering now uses uniform scaling plus a dynamic logical map width, so the grid fills the horizontal canvas without stretching facility art or text.
+- Campaign input, map centering, legend, selection panel, frame, and terrain now use the same dynamic campaign viewport.
+- Facility nodes now use lower-opacity fills, top/bottom rails, side rails, internal hatching, and richer schematic details.
+- Terrain now uses subtler rivers plus denser mountains, forests, contours, and scanline grime.
+- Verified with `node --check`, `git diff --check`, and a forced campaign-state Chrome screenshot at 2048px width.
+
 ## Current Visual Pass
 
 ### Spec

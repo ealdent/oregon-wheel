@@ -4,9 +4,7 @@ const CAMPAIGN_MAP = {
   nodeWidth: 154,
   nodeHeight: 98,
   gridX: 245,
-  gridY: 162,
-  originX: BOARD.width / 2,
-  originY: BOARD.height / 2
+  gridY: 162
 };
 
 const CAMPAIGN_DIRECTIONS = [
@@ -366,9 +364,33 @@ function revealCampaignExits(campaign, nodeId) {
 function campaignNodePosition(node, campaign = currentState() && currentState().campaign) {
   const pan = campaign.pan || { x: 0, y: 0 };
   return {
-    x: CAMPAIGN_MAP.originX + node.gridX * CAMPAIGN_MAP.gridX + pan.x,
-    y: CAMPAIGN_MAP.originY + node.gridY * CAMPAIGN_MAP.gridY + pan.y
+    x: campaignViewportWidth() / 2 + node.gridX * CAMPAIGN_MAP.gridX + pan.x,
+    y: campaignViewportHeight() / 2 + node.gridY * CAMPAIGN_MAP.gridY + pan.y
   };
+}
+
+function campaignViewportHeight() {
+  return BOARD.height;
+}
+
+function campaignViewportWidth() {
+  try {
+    if (currentState() && currentState().mode === "campaign" && view.cssWidth && view.cssHeight) {
+      return Math.max(BOARD.width, BOARD.height * (view.cssWidth / view.cssHeight));
+    }
+  } catch (error) {
+    return BOARD.width;
+  }
+  return BOARD.width;
+}
+
+function campaignRenderScale() {
+  try {
+    if (view.cssHeight) return view.cssHeight / campaignViewportHeight();
+  } catch (error) {
+    return 1;
+  }
+  return 1;
 }
 
 function campaignNodeAt(x, y, campaign = currentState() && currentState().campaign) {

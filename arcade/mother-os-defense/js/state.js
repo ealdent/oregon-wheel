@@ -208,9 +208,10 @@ function screenToWorld(event) {
   const sx = event.clientX - rect.left;
   const sy = event.clientY - rect.top;
   if (state && state.mode === "campaign") {
+    const scale = campaignRenderScale();
     return {
-      x: sx / (view.cssWidth / BOARD.width),
-      y: sy / (view.cssHeight / BOARD.height)
+      x: sx / scale,
+      y: sy / scale
     };
   }
   return {

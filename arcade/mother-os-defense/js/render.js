@@ -8,7 +8,8 @@ function render() {
   ctx.fillRect(0, 0, view.cssWidth, view.cssHeight);
   if (state.mode === "campaign") {
     ctx.save();
-    ctx.scale(view.cssWidth / BOARD.width, view.cssHeight / BOARD.height);
+    const scale = campaignRenderScale();
+    ctx.scale(scale, scale);
     drawWorld();
     ctx.restore();
     return;
@@ -90,7 +91,7 @@ function drawBackground(g = ctx) {
   g.restore();
 }
 
-function drawGrimeLayer(g = ctx) {
+function drawGrimeLayer(g = ctx, width = BOARD.width, height = BOARD.height) {
   g.save();
   g.lineWidth = 1;
   for (const mark of grimeMarks) {
@@ -112,8 +113,8 @@ function drawGrimeLayer(g = ctx) {
     g.restore();
   }
   g.fillStyle = "rgba(97,255,126,0.028)";
-  for (let y = 3; y < BOARD.height; y += 9) {
-    g.fillRect(0, y, BOARD.width, 1);
+  for (let y = 3; y < height; y += 9) {
+    g.fillRect(0, y, width, 1);
   }
   g.restore();
 }
@@ -155,33 +156,56 @@ function drawCampaignMap() {
 function drawCampaignBackground() {
   const campaign = state.campaign;
   const pan = campaign.pan || { x: 0, y: 0 };
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
   ctx.fillStyle = "#010801";
-  ctx.fillRect(0, 0, BOARD.width, BOARD.height);
+  ctx.fillRect(0, 0, mapWidth, mapHeight);
   ctx.save();
   ctx.lineWidth = 1;
   const gridStep = 24;
   const gridStartX = -gridStep + ((pan.x % gridStep) + gridStep) % gridStep;
   const gridStartY = -gridStep + ((pan.y % gridStep) + gridStep) % gridStep;
-  for (let x = gridStartX; x <= BOARD.width + gridStep; x += gridStep) {
+  for (let x = gridStartX; x <= mapWidth + gridStep; x += gridStep) {
     const worldX = Math.round((x - pan.x) / gridStep);
     ctx.strokeStyle = worldX % 4 === 0 ? "rgba(97,255,126,0.14)" : "rgba(97,255,126,0.05)";
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, BOARD.height);
+    ctx.lineTo(x, mapHeight);
     ctx.stroke();
   }
-  for (let y = gridStartY; y <= BOARD.height + gridStep; y += gridStep) {
+  for (let y = gridStartY; y <= mapHeight + gridStep; y += gridStep) {
     const worldY = Math.round((y - pan.y) / gridStep);
     ctx.strokeStyle = worldY % 4 === 0 ? "rgba(97,255,126,0.14)" : "rgba(97,255,126,0.05)";
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(BOARD.width, y);
+    ctx.lineTo(mapWidth, y);
     ctx.stroke();
   }
   drawCampaignTerrain(campaign);
-  drawGrimeLayer(ctx);
-  ctx.strokeStyle = "rgba(124,232,255,0.16)";
-  ctx.strokeRect(8, 8, BOARD.width - 16, BOARD.height - 16);
+  drawGrimeLayer(ctx, mapWidth, mapHeight);
+  drawCampaignMapFrame(mapWidth, mapHeight);
+  ctx.restore();
+}
+
+function drawCampaignMapFrame(width, height) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(124,232,255,0.14)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(8, 8, width - 16, height - 16);
+  ctx.strokeStyle = "rgba(97,255,126,0.2)";
+  ctx.beginPath();
+  ctx.moveTo(18, 22);
+  ctx.lineTo(width - 18, 22);
+  ctx.moveTo(18, height - 22);
+  ctx.lineTo(width - 18, height - 22);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(97,255,126,0.1)";
+  for (const x of [30, width - 30]) {
+    ctx.beginPath();
+    ctx.moveTo(x, 34);
+    ctx.lineTo(x, height - 34);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -192,46 +216,50 @@ function campaignWorldToScreen(campaign, x, y) {
 
 function drawCampaignTerrain(campaign) {
   const rng = makeCampaignRng(`${campaign.seed}:terrain`);
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
   drawCampaignRivers(campaign, rng);
-  for (let i = 0; i < 12; i += 1) {
-    const x = campaignRandomInt(rng, -760, 1760);
-    const y = campaignRandomInt(rng, -420, 1100);
-    const width = campaignRandomInt(rng, 150, 330);
-    const height = campaignRandomInt(rng, 34, 88);
-    drawMountainRange(campaign, x, y, width, height, campaignRandomInt(rng, 5, 9), rng);
+  for (let i = 0; i < 18; i += 1) {
+    const x = campaignRandomInt(rng, -520, Math.round(mapWidth + 520));
+    const y = campaignRandomInt(rng, -280, Math.round(mapHeight + 280));
+    const width = campaignRandomInt(rng, 130, 360);
+    const height = campaignRandomInt(rng, 24, 80);
+    drawMountainRange(campaign, x, y, width, height, campaignRandomInt(rng, 6, 12), rng);
   }
-  for (let i = 0; i < 20; i += 1) {
-    const x = campaignRandomInt(rng, -680, 1680);
-    const y = campaignRandomInt(rng, -360, 1040);
-    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 7, 18), rng);
+  for (let i = 0; i < 34; i += 1) {
+    const x = campaignRandomInt(rng, -460, Math.round(mapWidth + 460));
+    const y = campaignRandomInt(rng, -240, Math.round(mapHeight + 240));
+    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 5, 16), rng);
   }
-  for (let i = 0; i < 14; i += 1) {
-    const x = campaignRandomInt(rng, -700, 1700);
-    const y = campaignRandomInt(rng, -360, 1040);
-    drawContourCluster(campaign, x, y, campaignRandomInt(rng, 42, 120), rng);
+  for (let i = 0; i < 26; i += 1) {
+    const x = campaignRandomInt(rng, -480, Math.round(mapWidth + 480));
+    const y = campaignRandomInt(rng, -260, Math.round(mapHeight + 260));
+    drawContourCluster(campaign, x, y, campaignRandomInt(rng, 36, 118), rng);
   }
 }
 
 function drawCampaignRivers(campaign, rng) {
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
   for (let river = 0; river < 3; river += 1) {
-    const startX = campaignRandomInt(rng, -760, 120);
-    const startY = campaignRandomInt(rng, -260, 840);
+    const startX = campaignRandomInt(rng, -Math.round(mapWidth * 0.45), Math.round(mapWidth * 0.12));
+    const startY = campaignRandomInt(rng, -Math.round(mapHeight * 0.28), Math.round(mapHeight * 1.1));
     const points = [];
     for (let i = 0; i < 8; i += 1) {
       points.push(campaignWorldToScreen(
         campaign,
-        startX + i * campaignRandomInt(rng, 190, 270),
+        startX + i * campaignRandomInt(rng, 190, 285),
         startY + Math.sin(i * 1.4 + river) * campaignRandomInt(rng, 48, 112) + campaignRandomInt(rng, -36, 36)
       ));
     }
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "rgba(124,232,255,0.08)";
-    ctx.lineWidth = 10;
+    ctx.strokeStyle = "rgba(124,232,255,0.045)";
+    ctx.lineWidth = 8;
     drawTerrainPolyline(points);
-    ctx.strokeStyle = "rgba(124,232,255,0.22)";
-    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = "rgba(124,232,255,0.14)";
+    ctx.lineWidth = 1.7;
     drawTerrainPolyline(points);
     ctx.strokeStyle = "rgba(185,255,189,0.08)";
     ctx.lineWidth = 1;
@@ -254,11 +282,13 @@ function drawTerrainPolyline(points) {
 }
 
 function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) {
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
   const start = campaignWorldToScreen(campaign, worldX - width / 2, worldY);
-  if (start.x > BOARD.width + width || start.x < -width || start.y > BOARD.height + height || start.y < -height) return;
+  if (start.x > mapWidth + width || start.x < -width || start.y > mapHeight + height || start.y < -height) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(97,255,126,0.13)";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "rgba(97,255,126,0.105)";
+  ctx.lineWidth = 1;
   ctx.beginPath();
   for (let i = 0; i <= peaks; i += 1) {
     const x = worldX - width / 2 + (width / peaks) * i;
@@ -285,11 +315,13 @@ function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) 
 }
 
 function drawForestCluster(campaign, worldX, worldY, count, rng) {
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
   const center = campaignWorldToScreen(campaign, worldX, worldY);
-  if (center.x > BOARD.width + 80 || center.x < -80 || center.y > BOARD.height + 80 || center.y < -80) return;
+  if (center.x > mapWidth + 80 || center.x < -80 || center.y > mapHeight + 80 || center.y < -80) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(133,255,145,0.11)";
-  ctx.fillStyle = "rgba(97,255,126,0.035)";
+  ctx.strokeStyle = "rgba(133,255,145,0.085)";
+  ctx.fillStyle = "rgba(97,255,126,0.022)";
   ctx.lineWidth = 1;
   for (let i = 0; i < count; i += 1) {
     const x = center.x + (rng() - 0.5) * 120;
@@ -311,10 +343,12 @@ function drawForestCluster(campaign, worldX, worldY, count, rng) {
 }
 
 function drawContourCluster(campaign, worldX, worldY, radius, rng) {
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
   const center = campaignWorldToScreen(campaign, worldX, worldY);
-  if (center.x > BOARD.width + radius || center.x < -radius || center.y > BOARD.height + radius || center.y < -radius) return;
+  if (center.x > mapWidth + radius || center.x < -radius || center.y > mapHeight + radius || center.y < -radius) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(185,255,189,0.07)";
+  ctx.strokeStyle = "rgba(185,255,189,0.052)";
   ctx.lineWidth = 1;
   for (let ring = 1; ring <= 4; ring += 1) {
     const rx = radius * ring / 4;
@@ -377,12 +411,27 @@ function drawCampaignUnknownRoutes(campaign) {
 function drawUnknownCampaignNode(x, y) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.strokeStyle = "rgba(97,255,126,0.32)";
-  ctx.fillStyle = "rgba(5,24,8,0.74)";
+  ctx.strokeStyle = "rgba(97,255,126,0.28)";
+  ctx.fillStyle = "rgba(5,24,8,0.28)";
   ctx.lineWidth = 1.3;
   ctx.beginPath();
-  ctx.rect(-39, -25, 78, 50);
+  ctx.moveTo(-39, -18);
+  ctx.lineTo(-31, -25);
+  ctx.lineTo(31, -25);
+  ctx.lineTo(39, -18);
+  ctx.lineTo(39, 18);
+  ctx.lineTo(31, 25);
+  ctx.lineTo(-31, 25);
+  ctx.lineTo(-39, 18);
+  ctx.closePath();
   ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(97,255,126,0.18)";
+  ctx.beginPath();
+  ctx.moveTo(-24, -20);
+  ctx.lineTo(24, -20);
+  ctx.moveTo(-24, 20);
+  ctx.lineTo(24, 20);
   ctx.stroke();
   ctx.fillStyle = "rgba(185,255,189,0.52)";
   ctx.font = "700 20px Courier New, monospace";
@@ -403,7 +452,7 @@ function drawCampaignNode(campaign, node) {
   ctx.translate(pos.x, pos.y);
   ctx.shadowColor = color;
   ctx.shadowBlur = selected ? 18 : node.secured ? 10 : available ? 12 : 4;
-  ctx.fillStyle = node.secured ? "rgba(16,64,22,0.78)" : available ? "rgba(80,58,14,0.76)" : "rgba(7,28,10,0.72)";
+  ctx.fillStyle = node.secured ? "rgba(25,86,34,0.15)" : available ? "rgba(106,82,18,0.17)" : "rgba(7,28,10,0.16)";
   ctx.strokeStyle = color;
   ctx.lineWidth = selected ? 2.2 : 1.4;
   const w = CAMPAIGN_MAP.nodeWidth;
@@ -421,8 +470,7 @@ function drawCampaignNode(campaign, node) {
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = "rgba(185,255,189,0.2)";
-  ctx.strokeRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16);
+  drawCampaignNodeRailFrame(w, h, color, selected);
   drawCampaignFacilitySchematic(node, type, color, available || node.secured);
   ctx.fillStyle = color;
   ctx.font = "700 12px Courier New, monospace";
@@ -439,10 +487,40 @@ function drawCampaignNode(campaign, node) {
   ctx.restore();
 }
 
+function drawCampaignNodeRailFrame(w, h, color, selected) {
+  ctx.save();
+  ctx.lineWidth = selected ? 1.6 : 1.05;
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = selected ? 0.9 : 0.62;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + 17, -h / 2 + 8);
+  ctx.lineTo(w / 2 - 17, -h / 2 + 8);
+  ctx.moveTo(-w / 2 + 17, h / 2 - 8);
+  ctx.lineTo(w / 2 - 17, h / 2 - 8);
+  ctx.stroke();
+  ctx.globalAlpha = 0.32;
+  ctx.strokeStyle = "rgba(185,255,189,0.75)";
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + 9, -h / 2 + 18);
+  ctx.lineTo(-w / 2 + 9, h / 2 - 18);
+  ctx.moveTo(w / 2 - 9, -h / 2 + 18);
+  ctx.lineTo(w / 2 - 9, h / 2 - 18);
+  ctx.stroke();
+  ctx.globalAlpha = 0.18;
+  for (let y = -h / 2 + 16; y < h / 2 - 14; y += 5) {
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 + 18, y);
+    ctx.lineTo(w / 2 - 18, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawCampaignFacilitySchematic(node, type, color, bright) {
   const variant = campaignHash(`${node.seed}:facility-icon`) % 4;
   ctx.save();
   ctx.translate(0, -10);
+  ctx.scale(1.18, 1.18);
   ctx.strokeStyle = bright ? color : "rgba(185,255,189,0.46)";
   ctx.fillStyle = bright ? "rgba(97,255,126,0.075)" : "rgba(97,255,126,0.035)";
   ctx.lineWidth = 1.35;
@@ -458,6 +536,27 @@ function drawCampaignFacilitySchematic(node, type, color, bright) {
     drawCryoFacilityIcon(variant);
   } else {
     drawRadarFacilityIcon(variant);
+  }
+  drawFacilityMicroDetail(variant);
+  ctx.restore();
+}
+
+function drawFacilityMicroDetail(variant) {
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 0.75;
+  for (let i = 0; i < 5; i += 1) {
+    const y = 13 + i * 2;
+    ctx.beginPath();
+    ctx.moveTo(-30 + i * 3, y);
+    ctx.lineTo(-16 + i * 3, y);
+    ctx.moveTo(16 - i * 2, y);
+    ctx.lineTo(30 - i * 2, y);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 3 + variant; i += 1) {
+    const x = -22 + i * 14;
+    ctx.strokeRect(x, 17, 4, 3);
   }
   ctx.restore();
 }
@@ -487,6 +586,15 @@ function drawTokamakFacilityIcon(variant) {
     ctx.ellipse(0, -1 + i * 2, 18 + i * 2, 4 + i * 0.4, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
+  ctx.beginPath();
+  ctx.arc(0, 3, 5 + variant, 0, Math.PI * 2);
+  ctx.moveTo(-24, 10);
+  ctx.lineTo(24, 10);
+  ctx.moveTo(-16, 4);
+  ctx.lineTo(-16, 14);
+  ctx.moveTo(16, 4);
+  ctx.lineTo(16, 14);
+  ctx.stroke();
 }
 
 function drawCargoFacilityIcon(variant) {
@@ -509,6 +617,13 @@ function drawCargoFacilityIcon(variant) {
   ctx.lineTo(-3, -6);
   ctx.stroke();
   ctx.strokeRect(18 + variant * 3, -17, 8, 8);
+  ctx.beginPath();
+  for (let i = 0; i < 4; i += 1) {
+    const x = -30 + i * 17;
+    ctx.moveTo(x, 20);
+    ctx.lineTo(x + 11, 20);
+  }
+  ctx.stroke();
 }
 
 function drawFoundryFacilityIcon(variant) {
@@ -532,6 +647,14 @@ function drawFoundryFacilityIcon(variant) {
   ctx.arc(0, 8, 7, 0, Math.PI * 2);
   ctx.moveTo(-22, 18);
   ctx.lineTo(22, 18);
+  ctx.moveTo(-28, 8);
+  ctx.lineTo(-12, 8);
+  ctx.moveTo(12, 8);
+  ctx.lineTo(28, 8);
+  for (let i = 0; i < 5; i += 1) {
+    ctx.moveTo(-24 + i * 12, 18);
+    ctx.lineTo(-19 + i * 12, 12);
+  }
   ctx.stroke();
 }
 
@@ -557,6 +680,15 @@ function drawCryoFacilityIcon(variant) {
   ctx.moveTo(6 + variant, -17);
   ctx.lineTo(-6 - variant, -9);
   ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, -3, 5, 0, Math.PI * 2);
+  ctx.moveTo(-22, 15);
+  ctx.lineTo(22, 15);
+  ctx.moveTo(-25, 10);
+  ctx.lineTo(-25, 20);
+  ctx.moveTo(25, 10);
+  ctx.lineTo(25, 20);
+  ctx.stroke();
 }
 
 function drawRadarFacilityIcon(variant) {
@@ -579,12 +711,18 @@ function drawRadarFacilityIcon(variant) {
   ctx.moveTo(-20, 8);
   ctx.lineTo(0, -4);
   ctx.lineTo(20, 8);
+  ctx.moveTo(-12, 20);
+  ctx.lineTo(-12, 8);
+  ctx.moveTo(12, 20);
+  ctx.lineTo(12, 8);
+  ctx.moveTo(-26, 14);
+  ctx.lineTo(26, 14);
   ctx.stroke();
 }
 
 function drawCampaignLegend(campaign) {
   ctx.save();
-  ctx.translate(34, BOARD.height - 124);
+  ctx.translate(34, campaignViewportHeight() - 124);
   ctx.fillStyle = "rgba(0,12,4,0.76)";
   ctx.strokeStyle = "rgba(97,255,126,0.28)";
   ctx.lineWidth = 1;
@@ -618,7 +756,7 @@ function drawCampaignSelectionPanel(campaign) {
   if (!node) return;
   const type = facilityTypes[node.type] || facilityTypes.tokamak;
   ctx.save();
-  ctx.translate(BOARD.width - 256, BOARD.height - 116);
+  ctx.translate(campaignViewportWidth() - 256, campaignViewportHeight() - 116);
   ctx.fillStyle = "rgba(0,12,4,0.8)";
   ctx.strokeStyle = node.secured ? "rgba(133,255,145,0.42)" : canEnterCampaignNode(node, campaign) ? "rgba(255,207,90,0.52)" : "rgba(97,255,126,0.24)";
   ctx.fillRect(0, 0, 222, 86);

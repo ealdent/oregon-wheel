@@ -17,3 +17,4 @@
 - Boss assets should not be implemented as scaled regular enemies when the reference provides distinct boss silhouettes; give bosses their own definitions, selection cadence, preview path, cache key, and high-detail drawing function.
 - Boss quality passes should make every interior stroke explain anatomy or construction; when lines feel arbitrary, rebuild the silhouette with named structures first, then add cracks, grime, and glow as secondary detail.
 - A strategic campaign map should read as a world, not a floating node chart: fill the whole map viewport with the grid, anchor terrain/topography in the world space, and put facility-specific schematics inside nodes instead of relying on labeled boxes.
+- Filling a canvas horizontally must not use non-uniform X/Y scaling for schematic UI; preserve the drawing aspect ratio with a wider logical viewport so maps fill the frame without stretching icons, text, or grid cells.
