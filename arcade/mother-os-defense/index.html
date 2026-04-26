@@ -22,6 +22,7 @@
           <button id="sellBtn" type="button">Sell</button>
         </div>
         <div class="command-row utility-row">
+          <button id="mapBtn" type="button">Campaign Map</button>
           <button id="pauseBtn" type="button">Pause</button>
           <button id="speedBtn" type="button">Speed x1</button>
           <button id="autoBtn" class="toggle" type="button" role="switch" aria-checked="false">Auto Off</button>
@@ -30,20 +31,20 @@
       </div>
       <div class="topcell resource-cell" aria-label="Resource feed">
         <div class="resource-head">
-          <span class="resource-title">Resource Feed</span>
+          <span id="resourceTitle" class="resource-title">Resource Feed</span>
           <span id="clock" class="resource-clock">00:00:00</span>
         </div>
         <div class="resource-grid">
           <div class="resource-chip credits">
-            <span>Credits</span>
+            <span id="creditsLabel">Credits</span>
             <strong id="creditsReadout">$000</strong>
           </div>
           <div class="resource-chip health">
-            <span>Health</span>
+            <span id="livesLabel">Health</span>
             <strong id="livesReadout">00/25</strong>
           </div>
           <div class="resource-chip points">
-            <span>Points</span>
+            <span id="scoreLabel">Points</span>
             <strong id="scoreReadout">000000</strong>
           </div>
         </div>
@@ -98,7 +99,20 @@
     </main>
   </div>
 
+  <div id="summaryModal" class="summary-modal" hidden>
+    <div class="summary-dialog" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+      <div class="summary-frame">
+        <span class="micro">Facility Report</span>
+        <h2 id="summaryTitle">Facility Secured</h2>
+        <p id="summarySubtitle" class="summary-subtitle"></p>
+        <div id="summaryBody" class="summary-grid"></div>
+        <button id="summaryContinue" class="primary" type="button">Return to Campaign Map</button>
+      </div>
+    </div>
+  </div>
+
   <script defer src="./js/config.js"></script>
+  <script defer src="./js/campaign.js"></script>
   <script defer src="./js/state.js"></script>
   <script defer src="./js/audio.js"></script>
   <script defer src="./js/ui-previews.js"></script>

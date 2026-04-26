@@ -4,6 +4,9 @@ const BOARD = { width: 1000, height: 680, pathWidth: 76 };
 const MAX_TOWER_LEVEL = 12;
 const TARGET_MODES = ["FIRST", "STRONG", "NEAR"];
 const SPEEDS = [1, 2, 3];
+const CAMPAIGN_STORAGE_KEY = "mother-os-campaign-v1";
+const STARTING_CREDITS = 360;
+const STARTING_LIVES = 25;
 const WAVE_BALANCE = {
   regular: {
     baseCount: 44,
@@ -38,7 +41,7 @@ const WAVE_BALANCE = {
   clearPerWave: 6,
   bossClearBonus: 90
 };
-const pathPoints = [
+const DEFAULT_PATH_POINTS = [
   { x: 520, y: 34 },
   { x: 520, y: 118 },
   { x: 635, y: 118 },
@@ -52,6 +55,92 @@ const pathPoints = [
   { x: 245, y: 530 },
   { x: 245, y: 646 }
 ];
+let pathPoints = DEFAULT_PATH_POINTS.map((point) => ({ ...point }));
+
+const facilityTypes = {
+  tokamak: {
+    label: "Tokamak Plant",
+    desc: "Plasma infrastructure. Fast pressure and volatile returns.",
+    color: "#ffcf5a",
+    accent: "#85ff91",
+    palette: {
+      grid: "rgba(255,207,90,0.075)",
+      major: "rgba(255,207,90,0.15)",
+      pathOuter: "rgba(255,207,90,0.08)",
+      pathGlow: "rgba(255,207,90,0.2)",
+      pathBody: "rgba(76,74,21,0.62)",
+      pathCore: "rgba(32,31,8,0.94)"
+    },
+    balance: { count: 1.05, health: 1.0, speed: 1.06, reward: 1.04, interval: 0.94, armor: 1.0 },
+    enemyBias: { wisp: 1.1, crawler: 0.8 }
+  },
+  cargo: {
+    label: "Cargo Facility",
+    desc: "Wide logistics corridors. Bigger packs, softer armor.",
+    color: "#7ce8ff",
+    accent: "#b9ffbd",
+    palette: {
+      grid: "rgba(124,232,255,0.065)",
+      major: "rgba(124,232,255,0.13)",
+      pathOuter: "rgba(124,232,255,0.06)",
+      pathGlow: "rgba(124,232,255,0.16)",
+      pathBody: "rgba(20,68,70,0.56)",
+      pathCore: "rgba(8,31,34,0.92)"
+    },
+    balance: { count: 1.12, health: 0.94, speed: 0.98, reward: 0.98, interval: 1.02, armor: 0.94 },
+    enemyBias: { crawler: 1.2, mite: 0.9 }
+  },
+  foundry: {
+    label: "Null Foundry",
+    desc: "Armored industrial ruin. Fewer but harder chassis.",
+    color: "#d2ff78",
+    accent: "#ffcf5a",
+    palette: {
+      grid: "rgba(210,255,120,0.07)",
+      major: "rgba(210,255,120,0.14)",
+      pathOuter: "rgba(210,255,120,0.06)",
+      pathGlow: "rgba(210,255,120,0.17)",
+      pathBody: "rgba(54,76,20,0.58)",
+      pathCore: "rgba(23,31,8,0.92)"
+    },
+    balance: { count: 0.9, health: 1.14, speed: 0.94, reward: 1.08, interval: 1.08, armor: 1.16 },
+    enemyBias: { beetle: 1.3, juggernaut: 1.15, crawler: 0.75 }
+  },
+  cryo: {
+    label: "Cryogenic Vault",
+    desc: "Cold storage sectors. Slower lanes, resilient anomalies.",
+    color: "#b8f7ff",
+    accent: "#7ce8ff",
+    palette: {
+      grid: "rgba(184,247,255,0.065)",
+      major: "rgba(184,247,255,0.13)",
+      pathOuter: "rgba(184,247,255,0.055)",
+      pathGlow: "rgba(184,247,255,0.15)",
+      pathBody: "rgba(25,58,66,0.55)",
+      pathCore: "rgba(9,25,31,0.93)"
+    },
+    balance: { count: 0.96, health: 1.06, speed: 0.9, reward: 1.0, interval: 1.0, armor: 1.04 },
+    enemyBias: { slime: 1.2, wisp: 0.9 }
+  },
+  radar: {
+    label: "Radar Annex",
+    desc: "Signal-dense approach. More phasing and burrowing threats.",
+    color: "#d6c3ff",
+    accent: "#7ce8ff",
+    palette: {
+      grid: "rgba(214,195,255,0.058)",
+      major: "rgba(214,195,255,0.12)",
+      pathOuter: "rgba(214,195,255,0.05)",
+      pathGlow: "rgba(214,195,255,0.13)",
+      pathBody: "rgba(52,39,76,0.5)",
+      pathCore: "rgba(22,13,35,0.9)"
+    },
+    balance: { count: 1.0, health: 1.02, speed: 1.04, reward: 1.03, interval: 0.98, armor: 1.0 },
+    enemyBias: { phantom: 1.2, worm: 1.15, obelisk: 0.7 }
+  }
+};
+
+const facilityTypeOrder = Object.keys(facilityTypes);
 
 const towerDefs = [
   {

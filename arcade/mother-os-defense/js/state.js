@@ -12,9 +12,14 @@ const els = {
   speedBtn: document.getElementById("speedBtn"),
   autoBtn: document.getElementById("autoBtn"),
   soundBtn: document.getElementById("soundBtn"),
+  mapBtn: document.getElementById("mapBtn"),
   upgradeBtn: document.getElementById("upgradeBtn"),
   targetBtn: document.getElementById("targetBtn"),
   sellBtn: document.getElementById("sellBtn"),
+  resourceTitle: document.getElementById("resourceTitle"),
+  creditsLabel: document.getElementById("creditsLabel"),
+  livesLabel: document.getElementById("livesLabel"),
+  scoreLabel: document.getElementById("scoreLabel"),
   inspectorTitle: document.getElementById("inspectorTitle"),
   inspectorBody: document.getElementById("inspectorBody"),
   capacityReadout: document.getElementById("capacityReadout"),
@@ -27,7 +32,12 @@ const els = {
   threatReadout: document.getElementById("threatReadout"),
   waveReadout: document.getElementById("waveReadout"),
   waveBar: document.getElementById("waveBar"),
-  logList: document.getElementById("logList")
+  logList: document.getElementById("logList"),
+  summaryModal: document.getElementById("summaryModal"),
+  summaryTitle: document.getElementById("summaryTitle"),
+  summarySubtitle: document.getElementById("summarySubtitle"),
+  summaryBody: document.getElementById("summaryBody"),
+  summaryContinue: document.getElementById("summaryContinue")
 };
 
 const ctx = els.field.getContext("2d");
@@ -45,9 +55,9 @@ let uiTimer = 0;
 let resizeObserver = null;
 let staticWorldLayer = null;
 
-const path = buildPath(pathPoints);
-const schematicBlocks = buildSchematicBlocks();
-const grimeMarks = buildGrimeMarks();
+let path = buildPath(pathPoints);
+let schematicBlocks = buildSchematicBlocks();
+let grimeMarks = buildGrimeMarks();
 const STATIC_WORLD_PIXEL_SCALE = 2;
 const towerSpriteCache = new Map();
 const enemySpriteCache = new Map();
@@ -62,38 +72,12 @@ let logRenderKey = "";
 let state = makeInitialState();
 
 function makeInitialState() {
-  const operation = createOperation(1);
-  return {
-    wave: 0,
-    phase: "planning",
-    credits: 360,
-    lives: 25,
-    score: 0,
-    towerCapacity: 18,
-    towers: [],
-    enemies: [],
-    projectiles: [],
-    mines: [],
-    effects: [],
-    particles: [],
-    selectedTowerId: null,
-    placingType: null,
-    paused: false,
-    speedIndex: 0,
-    autoAdvance: false,
-    autoStartTimer: 0,
-    sound: true,
-    operationIndex: operation.index,
-    operation,
-    spawnQueue: [],
-    spawnTimer: 0,
-    wavePlan: null,
-    waveSpawned: 0,
-    waveResolved: 0,
-    kills: 0,
-    gameOver: false,
-    logs: [`${operationLabel(operation)} indexed.`, "Build protocol active.", "Select a tower design."]
-  };
+  const campaign = loadCampaign();
+  const startNode = campaign.nodes[campaign.currentNodeId] || campaign.nodes[campaign.selectedNodeId] || campaign.nodes["F-001"];
+  if (campaign.mapUnlocked) {
+    return buildCampaignMapState(campaign, campaign.selectedNodeId || startNode.id);
+  }
+  return buildFacilityRunState(campaign, startNode);
 }
 
 function buildPath(points) {
@@ -119,12 +103,12 @@ function buildPath(points) {
   return { points, segments, total };
 }
 
-function buildSchematicBlocks() {
-  let seed = 76013;
+function buildSchematicBlocks(seed = 76013) {
+  let value = seed >>> 0;
   const blocks = [];
   const random = () => {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    return seed / 4294967296;
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 4294967296;
   };
   for (let i = 0; i < 86; i += 1) {
     const w = 18 + random() * 72;
@@ -140,12 +124,12 @@ function buildSchematicBlocks() {
   return blocks;
 }
 
-function buildGrimeMarks() {
-  let seed = 76077;
+function buildGrimeMarks(seed = 76077) {
+  let value = seed >>> 0;
   const marks = [];
   const random = () => {
-    seed = (seed * 1103515245 + 12345) >>> 0;
-    return seed / 4294967296;
+    value = (value * 1103515245 + 12345) >>> 0;
+    return value / 4294967296;
   };
   for (let i = 0; i < 115; i += 1) {
     marks.push({
@@ -158,6 +142,14 @@ function buildGrimeMarks() {
     });
   }
   return marks;
+}
+
+function applyFacilityLayout(layout) {
+  pathPoints = (layout && layout.pathPoints ? layout.pathPoints : DEFAULT_PATH_POINTS).map((point) => ({ ...point }));
+  path = buildPath(pathPoints);
+  schematicBlocks = buildSchematicBlocks(layout ? layout.schematicSeed : 76013);
+  grimeMarks = buildGrimeMarks(layout ? layout.grimeSeed : 76077);
+  staticWorldLayer = null;
 }
 
 function resizeCanvas() {

@@ -14,6 +14,10 @@ function render() {
 }
 
 function drawWorld() {
+  if (state.mode === "campaign") {
+    drawCampaignMap();
+    return;
+  }
   drawStaticWorld();
   drawMines();
   drawTowers();
@@ -43,19 +47,21 @@ function getStaticWorldLayer() {
 }
 
 function drawBackground(g = ctx) {
+  const type = activeFacilityTypeDef();
+  const palette = type.palette || facilityTypes.tokamak.palette;
   g.fillStyle = "#010801";
   g.fillRect(0, 0, BOARD.width, BOARD.height);
   g.save();
   g.lineWidth = 1;
   for (let x = 0; x <= BOARD.width; x += 24) {
-    g.strokeStyle = x % 96 === 0 ? "rgba(89,255,115,0.13)" : "rgba(89,255,115,0.055)";
+    g.strokeStyle = x % 96 === 0 ? palette.major : palette.grid;
     g.beginPath();
     g.moveTo(x, 0);
     g.lineTo(x, BOARD.height);
     g.stroke();
   }
   for (let y = 0; y <= BOARD.height; y += 24) {
-    g.strokeStyle = y % 96 === 0 ? "rgba(89,255,115,0.13)" : "rgba(89,255,115,0.055)";
+    g.strokeStyle = y % 96 === 0 ? palette.major : palette.grid;
     g.beginPath();
     g.moveTo(0, y);
     g.lineTo(BOARD.width, y);
@@ -106,13 +112,14 @@ function drawGrimeLayer(g = ctx) {
 }
 
 function drawPath(g = ctx) {
+  const palette = activeFacilityTypeDef().palette || facilityTypes.tokamak.palette;
   g.save();
   g.lineCap = "round";
   g.lineJoin = "round";
-  drawPathStroke(g, BOARD.pathWidth + 24, "rgba(87,255,109,0.06)");
-  drawPathStroke(g, BOARD.pathWidth + 8, "rgba(87,255,109,0.18)");
-  drawPathStroke(g, BOARD.pathWidth, "rgba(22,92,32,0.56)");
-  drawPathStroke(g, BOARD.pathWidth - 18, "rgba(10,46,17,0.92)");
+  drawPathStroke(g, BOARD.pathWidth + 24, palette.pathOuter);
+  drawPathStroke(g, BOARD.pathWidth + 8, palette.pathGlow);
+  drawPathStroke(g, BOARD.pathWidth, palette.pathBody);
+  drawPathStroke(g, BOARD.pathWidth - 18, palette.pathCore);
   g.setLineDash([16, 18]);
   drawPathStroke(g, 2, "rgba(185,255,189,0.42)");
   g.setLineDash([]);
@@ -123,6 +130,223 @@ function drawPath(g = ctx) {
   drawGate(g, pathPoints[0], true);
   drawGate(g, pathPoints[pathPoints.length - 1], false);
   g.restore();
+}
+
+function drawCampaignMap() {
+  const campaign = state.campaign;
+  if (!campaign) return;
+  drawCampaignBackground();
+  drawCampaignEdges(campaign);
+  drawCampaignUnknownRoutes(campaign);
+  for (const node of visibleCampaignNodes(campaign).sort((a, b) => a.index - b.index)) {
+    drawCampaignNode(campaign, node);
+  }
+  drawCampaignLegend(campaign);
+  drawCampaignSelectionPanel(campaign);
+}
+
+function drawCampaignBackground() {
+  ctx.fillStyle = "#010801";
+  ctx.fillRect(0, 0, BOARD.width, BOARD.height);
+  ctx.save();
+  ctx.lineWidth = 1;
+  for (let x = -48; x <= BOARD.width + 48; x += 24) {
+    ctx.strokeStyle = x % 96 === 0 ? "rgba(97,255,126,0.12)" : "rgba(97,255,126,0.045)";
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, BOARD.height);
+    ctx.stroke();
+  }
+  for (let y = -48; y <= BOARD.height + 48; y += 24) {
+    ctx.strokeStyle = y % 96 === 0 ? "rgba(97,255,126,0.12)" : "rgba(97,255,126,0.045)";
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(BOARD.width, y);
+    ctx.stroke();
+  }
+  const pan = state.campaign.pan || { x: 0, y: 0 };
+  ctx.strokeStyle = "rgba(97,255,126,0.08)";
+  ctx.lineWidth = 1.2;
+  for (let ridge = 0; ridge < 8; ridge += 1) {
+    const baseY = 112 + ridge * 72 + ((pan.y * 0.12 + ridge * 31) % 42);
+    ctx.beginPath();
+    for (let i = -1; i <= 14; i += 1) {
+      const x = i * 86 + (pan.x * 0.08 % 86);
+      const y = baseY - Math.sin((i + ridge) * 1.7) * 26 - Math.cos(i * 0.8 + ridge) * 18;
+      if (i === -1) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  drawGrimeLayer(ctx);
+  ctx.strokeStyle = "rgba(124,232,255,0.18)";
+  ctx.strokeRect(18, 18, BOARD.width - 36, BOARD.height - 36);
+  ctx.restore();
+}
+
+function drawCampaignEdges(campaign) {
+  ctx.save();
+  ctx.lineWidth = 2;
+  for (const edge of campaign.edges) {
+    const from = campaign.nodes[edge.from];
+    const to = campaign.nodes[edge.to];
+    if (!from || !to || !from.visible || !to.visible) continue;
+    const a = campaignNodePosition(from, campaign);
+    const b = campaignNodePosition(to, campaign);
+    const secured = from.secured && to.secured;
+    const available = canEnterCampaignNode(to, campaign);
+    ctx.strokeStyle = secured ? "rgba(97,255,126,0.72)" : available ? "rgba(255,207,90,0.72)" : "rgba(97,255,126,0.28)";
+    ctx.setLineDash(secured ? [] : [8, 9]);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    const midX = (a.x + b.x) / 2;
+    const midY = (a.y + b.y) / 2;
+    ctx.quadraticCurveTo(midX + (b.y - a.y) * 0.08, midY - (b.x - a.x) * 0.08, b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawCampaignUnknownRoutes(campaign) {
+  ctx.save();
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([5, 8]);
+  for (const node of visibleCampaignNodes(campaign)) {
+    const directions = campaignUnknownExitDirections(campaign, node);
+    if (!directions.length) continue;
+    const from = campaignNodePosition(node, campaign);
+    for (const direction of directions) {
+      const to = {
+        x: from.x + direction.dx * CAMPAIGN_MAP.gridX * 0.72,
+        y: from.y + direction.dy * CAMPAIGN_MAP.gridY * 0.72
+      };
+      ctx.strokeStyle = "rgba(97,255,126,0.35)";
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      drawUnknownCampaignNode(to.x, to.y);
+    }
+  }
+  ctx.restore();
+}
+
+function drawUnknownCampaignNode(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = "rgba(97,255,126,0.32)";
+  ctx.fillStyle = "rgba(5,24,8,0.74)";
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.rect(-39, -25, 78, 50);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "rgba(185,255,189,0.52)";
+  ctx.font = "700 20px Courier New, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("?", 0, 0);
+  ctx.font = "700 8px Courier New, monospace";
+  ctx.fillText("UNKNOWN", 0, 15);
+  ctx.restore();
+}
+
+function drawCampaignNode(campaign, node) {
+  const pos = campaignNodePosition(node, campaign);
+  const selected = campaign.selectedNodeId === node.id;
+  const available = canEnterCampaignNode(node, campaign);
+  const type = facilityTypes[node.type] || facilityTypes.tokamak;
+  const color = node.secured ? "#85ff91" : available ? "#ffcf5a" : type.color;
+  ctx.save();
+  ctx.translate(pos.x, pos.y);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = selected ? 18 : node.secured ? 10 : available ? 12 : 4;
+  ctx.fillStyle = node.secured ? "rgba(16,64,22,0.78)" : available ? "rgba(80,58,14,0.76)" : "rgba(7,28,10,0.72)";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = selected ? 2.2 : 1.4;
+  const w = CAMPAIGN_MAP.nodeWidth;
+  const h = CAMPAIGN_MAP.nodeHeight;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + 12, -h / 2);
+  ctx.lineTo(w / 2 - 12, -h / 2);
+  ctx.lineTo(w / 2, -h / 2 + 12);
+  ctx.lineTo(w / 2, h / 2 - 12);
+  ctx.lineTo(w / 2 - 12, h / 2);
+  ctx.lineTo(-w / 2 + 12, h / 2);
+  ctx.lineTo(-w / 2, h / 2 - 12);
+  ctx.lineTo(-w / 2, -h / 2 + 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = "rgba(185,255,189,0.2)";
+  ctx.strokeRect(-w / 2 + 8, -h / 2 + 8, w - 16, h - 16);
+  ctx.fillStyle = color;
+  ctx.font = "700 12px Courier New, monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(String(node.index).padStart(2, "0"), 0, -22);
+  ctx.font = "700 9px Courier New, monospace";
+  const name = node.facility.toUpperCase();
+  ctx.fillText(name.length > 18 ? `${name.slice(0, 17)}.` : name, 0, -4);
+  ctx.fillStyle = "rgba(185,255,189,0.72)";
+  ctx.font = "8px Courier New, monospace";
+  ctx.fillText(type.label.toUpperCase(), 0, 12);
+  ctx.fillStyle = node.secured ? "#85ff91" : available ? "#ffcf5a" : "rgba(185,255,189,0.58)";
+  ctx.fillText(node.secured ? "SECURED" : `SECTOR ${String(node.currentSector).padStart(2, "0")}`, 0, 27);
+  ctx.restore();
+}
+
+function drawCampaignLegend(campaign) {
+  ctx.save();
+  ctx.translate(34, BOARD.height - 124);
+  ctx.fillStyle = "rgba(0,12,4,0.76)";
+  ctx.strokeStyle = "rgba(97,255,126,0.28)";
+  ctx.lineWidth = 1;
+  ctx.fillRect(0, 0, 174, 94);
+  ctx.strokeRect(0, 0, 174, 94);
+  ctx.fillStyle = "#b9ffbd";
+  ctx.font = "700 12px Courier New, monospace";
+  ctx.fillText("LEGEND", 16, 24);
+  const rows = [
+    ["#85ff91", "SECURED"],
+    ["#ffcf5a", "AVAILABLE"],
+    ["#7ce8ff", "VISIBLE"],
+    ["rgba(185,255,189,0.45)", "UNKNOWN"]
+  ];
+  ctx.font = "10px Courier New, monospace";
+  rows.forEach((row, index) => {
+    const y = 42 + index * 12;
+    ctx.strokeStyle = row[0];
+    ctx.beginPath();
+    ctx.moveTo(16, y);
+    ctx.lineTo(54, y);
+    ctx.stroke();
+    ctx.fillStyle = "#b9ffbd";
+    ctx.fillText(row[1], 66, y + 3);
+  });
+  ctx.restore();
+}
+
+function drawCampaignSelectionPanel(campaign) {
+  const node = selectedCampaignNode(campaign);
+  if (!node) return;
+  const type = facilityTypes[node.type] || facilityTypes.tokamak;
+  ctx.save();
+  ctx.translate(BOARD.width - 256, BOARD.height - 116);
+  ctx.fillStyle = "rgba(0,12,4,0.8)";
+  ctx.strokeStyle = node.secured ? "rgba(133,255,145,0.42)" : canEnterCampaignNode(node, campaign) ? "rgba(255,207,90,0.52)" : "rgba(97,255,126,0.24)";
+  ctx.fillRect(0, 0, 222, 86);
+  ctx.strokeRect(0, 0, 222, 86);
+  ctx.fillStyle = type.color;
+  ctx.font = "700 12px Courier New, monospace";
+  ctx.fillText(node.facility.toUpperCase(), 14, 22);
+  ctx.fillStyle = "rgba(185,255,189,0.66)";
+  ctx.font = "10px Courier New, monospace";
+  ctx.fillText(type.desc.toUpperCase().slice(0, 31), 14, 40);
+  ctx.fillStyle = "#b9ffbd";
+  ctx.fillText(node.secured ? "STATUS: SECURED" : canEnterCampaignNode(node, campaign) ? `READY: SECTOR ${node.currentSector}` : "STATUS: ROUTE LOCKED", 14, 58);
+  ctx.fillText(`EXITS: ${node.plannedExitCount}  FACILITIES: ${campaign.stats.facilitiesSecured}`, 14, 73);
+  ctx.restore();
 }
 
 function drawPathStroke(g, width, strokeStyle) {
@@ -765,6 +989,7 @@ function drawEffects() {
 }
 
 function drawPlacement() {
+  if (state.mode === "campaign") return;
   const def = towerById[state.placingType];
   if (!def || state.selectedTowerId) return;
   const placement = validatePlacement(hover.x, hover.y);
@@ -801,6 +1026,7 @@ function drawRange(x, y, range, color) {
 }
 
 function drawPhaseOverlay() {
+  if (state.mode === "campaign") return;
   const displayWave = state.phase === "combat" ? state.wave : state.wave + 1;
   const forecast = waveForecast(displayWave || 1, activeOperation());
   ctx.save();

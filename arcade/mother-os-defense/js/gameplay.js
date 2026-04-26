@@ -31,14 +31,19 @@ function waveBalanceConfig(bossWave) {
   return bossWave ? WAVE_BALANCE.boss : WAVE_BALANCE.regular;
 }
 
+function facilityBalance() {
+  const type = activeFacilityTypeDef();
+  return type.balance || { count: 1, health: 1, speed: 1, reward: 1, interval: 1, armor: 1 };
+}
+
 function waveEnemyCount(wave, bossWave) {
   const balance = waveBalanceConfig(bossWave);
-  return Math.min(balance.countCap, balance.baseCount + wave * balance.countPerWave);
+  return Math.round(Math.min(balance.countCap, balance.baseCount + wave * balance.countPerWave) * facilityBalance().count);
 }
 
 function waveSpawnInterval(wave, bossWave) {
   const balance = waveBalanceConfig(bossWave);
-  return Math.max(balance.minInterval, balance.intervalStart - wave * balance.intervalDrop);
+  return Math.max(balance.minInterval, balance.intervalStart - wave * balance.intervalDrop) * facilityBalance().interval;
 }
 
 function waveDurationSeconds(wave, bossWave) {
@@ -133,6 +138,9 @@ function isFullRefundEligible(tower) {
 }
 
 function validatePlacement(x, y) {
+  if (state.mode === "campaign") {
+    return { valid: false, reason: "Campaign map active" };
+  }
   if (x < 34 || x > BOARD.width - 34 || y < 34 || y > BOARD.height - 34) {
     return { valid: false, reason: "Outside grid" };
   }
@@ -152,6 +160,7 @@ function validatePlacement(x, y) {
 }
 
 function placeTower(x, y) {
+  if (state.mode === "campaign") return;
   const def = towerById[state.placingType];
   if (!def) {
     showToast("Select a tower design");
@@ -181,6 +190,8 @@ function placeTower(x, y) {
   };
   state.towers.push(tower);
   state.credits -= def.cost;
+  addRunStat("creditsSpent", def.cost);
+  addRunStat("towersBuilt", 1);
   state.selectedTowerId = tower.id;
   state.placingType = null;
   playSound("place");
@@ -215,6 +226,7 @@ function clearSelection(showMessage = false) {
 }
 
 function queueBuild(type) {
+  if (state.mode === "campaign") return;
   const def = towerById[type];
   if (!def) return;
   if (!state.selectedTowerId && state.placingType === type) {
@@ -234,6 +246,7 @@ function selectTower(tower) {
 }
 
 function upgradeSelected() {
+  if (state.mode === "campaign") return;
   const tower = selectedTower();
   if (!tower) {
     showToast("No tower selected");
@@ -250,6 +263,8 @@ function upgradeSelected() {
     return;
   }
   state.credits -= cost;
+  addRunStat("creditsSpent", cost);
+  addRunStat("upgrades", 1);
   tower.spent += cost;
   tower.level += 1;
   tower.refundable = false;
@@ -259,11 +274,14 @@ function upgradeSelected() {
 }
 
 function sellSelected() {
+  if (state.mode === "campaign") return;
   const tower = selectedTower();
   if (!tower) return;
   const fullRefund = isFullRefundEligible(tower);
   const refund = sellValue(tower);
   state.credits += refund;
+  addRunStat("creditsRefunded", refund);
+  addRunStat("towersSold", 1);
   state.towers = state.towers.filter((item) => item.id !== tower.id);
   state.mines = state.mines.filter((mine) => mine.owner !== tower.id);
   state.selectedTowerId = null;
@@ -272,6 +290,7 @@ function sellSelected() {
 }
 
 function cycleTargetMode() {
+  if (state.mode === "campaign") return;
   const tower = selectedTower();
   if (!tower) return;
   const index = TARGET_MODES.indexOf(tower.targetMode);
@@ -280,6 +299,15 @@ function cycleTargetMode() {
 }
 
 function resetGame() {
+  if (state.campaign && state.facilityNodeId) {
+    const campaign = state.campaign;
+    const node = campaign.nodes[state.facilityNodeId];
+    state = buildFacilityRunState(campaign, node);
+    resetRenderKeys();
+    log("Facility attempt restored to last secured sector.");
+    showToast("Facility retry restored");
+    return;
+  }
   state = makeInitialState();
   nextTowerId = 1;
   nextEnemyId = 1;
@@ -324,9 +352,11 @@ function generateWave(wave, operation) {
 
 function chooseEnemyType(unlocked, wave, index) {
   const weighted = [];
+  const bias = activeFacilityTypeDef().enemyBias || {};
   for (const id of unlocked) {
     const enemy = enemyDefs[id];
     let weight = enemy.weight + Math.max(0, wave - enemy.unlock) * 0.22;
+    if (bias[id]) weight *= bias[id];
     if (wave % 3 === 0 && (id === "beetle" || id === "worm")) weight += 1.7;
     if (wave % 4 === 0 && (id === "slime" || id === "wisp")) weight += 1.8;
     if (wave % 5 === 0 && (id === "mite" || id === "leech")) weight += 1.4;
@@ -344,6 +374,11 @@ function chooseEnemyType(unlocked, wave, index) {
 }
 
 function startWave() {
+  if (state.mode === "campaign") {
+    startSelectedCampaignFacility();
+    return;
+  }
+  if (state.summary) return;
   if (state.gameOver) {
     resetGame();
     return;
@@ -354,6 +389,7 @@ function startWave() {
     tower.refundable = false;
   }
   state.wave += 1;
+  addRunStat("wavesStarted", 1);
   state.phase = "combat";
   state.autoStartTimer = 0;
   state.wavePlan = generateWave(state.wave, cloneOperation(state.operation));
@@ -370,11 +406,12 @@ function makeEnemy(type, wave, options = {}) {
   const bossType = options.boss ? (options.bossType || type || "hive") : null;
   const bossDef = bossType ? bossDefs[bossType] || bossDefs.hive : null;
   const def = bossDef || enemyDefs[type] || enemyDefs.crawler;
+  const balance = facilityBalance();
   const waveScale = enemyHealthScale(wave);
   const bossScale = options.boss ? WAVE_BALANCE.bossHealthBase + wave * WAVE_BALANCE.bossHealthPerWave : 1;
   const childScale = options.child ? 0.42 : 1;
-  const hp = def.hp * waveScale * bossScale * childScale * (options.hpMult || 1);
-  const speed = def.speed * (options.speedMult || 1) * (options.boss ? 0.78 : 1) * (options.child ? 1.22 : 1);
+  const hp = def.hp * waveScale * bossScale * childScale * (options.hpMult || 1) * balance.health;
+  const speed = def.speed * (options.speedMult || 1) * (options.boss ? 0.78 : 1) * (options.child ? 1.22 : 1) * balance.speed;
   const radius = def.radius * (bossDef ? 1 : options.boss ? 1.85 : options.child ? 0.72 : 1);
   const rewardMult = options.boss ? WAVE_BALANCE.bossRewardMult : options.child ? 0.25 : 1;
   return {
@@ -385,8 +422,8 @@ function makeEnemy(type, wave, options = {}) {
     hp,
     maxHp: hp,
     speed,
-    armor: def.armor * enemyArmorScale(wave) * (options.boss ? 1.4 : options.child ? 0.45 : 1),
-    reward: Math.max(1, Math.round(def.reward * enemyRewardScale(wave) * rewardMult)),
+    armor: def.armor * enemyArmorScale(wave) * (options.boss ? 1.4 : options.child ? 0.45 : 1) * balance.armor,
+    reward: Math.max(1, Math.round(def.reward * enemyRewardScale(wave) * rewardMult * balance.reward)),
     leak: Math.round((def.leak || 1) * (bossDef ? 1 : options.boss ? 4.5 : 1)),
     radius,
     progress: Math.max(0, options.progress || 0),
@@ -419,6 +456,7 @@ function update(dt) {
     if (toastTimer <= 0) els.toast.classList.remove("show");
   }
   updateEffects(dt);
+  if (state.mode === "campaign" || state.summary) return;
   if (state.paused || state.gameOver) return;
   if (state.phase === "planning") {
     if (state.autoStartTimer > 0) {
@@ -483,6 +521,8 @@ function updateEnemies(dt) {
       enemy.remove = true;
       state.waveResolved += 1;
       state.lives -= enemy.leak;
+      addRunStat("enemiesLeaked", 1);
+      addRunStat("leakDamage", enemy.leak);
       log(`${enemy.name} breached the core.`);
       showToast("Core integrity compromised");
       playSound("leak");
@@ -729,8 +769,12 @@ function killEnemy(enemy) {
   enemy.dead = true;
   enemy.remove = true;
   state.credits += enemy.reward;
-  state.score += Math.round(enemy.reward * 11 + state.wave * (enemy.boss ? 90 : 8));
+  addRunStat("creditsEarned", enemy.reward);
+  const scoreGain = Math.round(enemy.reward * 11 + state.wave * (enemy.boss ? 90 : 8));
+  state.score += scoreGain;
+  addRunStat("scoreGained", scoreGain);
   state.kills += 1;
+  addRunStat("kills", 1);
   state.waveResolved += 1;
   const pos = pointAtDistance(enemy.progress);
   burstParticles(pos.x, pos.y, enemy.color, enemy.boss ? 24 : 8);
@@ -747,7 +791,9 @@ function killEnemy(enemy) {
     }
   }
   if (enemy.boss) {
-    state.credits += 85 + state.wave * 7;
+    const bossBonus = 85 + state.wave * 7;
+    state.credits += bossBonus;
+    addRunStat("creditsEarned", bossBonus);
     log("Boss chassis dismantled.");
     showToast("Boss dismantled");
   }
@@ -790,6 +836,10 @@ function updateEffects(dt) {
 
 function advanceOperationAfterClear(clearedPlan) {
   if (!clearedPlan) return;
+  if (state.campaign && state.facilityNodeId) {
+    advanceCampaignFacilityAfterClear(clearedPlan);
+    return;
+  }
   if (clearedPlan.bossWave) {
     const nextIndex = state.operationIndex + 1;
     state.operationIndex = nextIndex;
@@ -810,6 +860,7 @@ function checkWaveComplete() {
     const clearedPlan = state.wavePlan;
     const bonus = waveClearBonus(state.wave, clearedPlan && clearedPlan.bossWave);
     state.credits += bonus;
+    addRunStat("creditsEarned", bonus);
     state.phase = "planning";
     log(`${clearedPlan ? clearedPlan.operationLabel : `Wave ${state.wave}`} cleared. Buffer +$${bonus}.`);
     showToast(clearedPlan && clearedPlan.bossWave ? "Boss sector cleared" : `Sector ${clearedPlan ? clearedPlan.sector : state.wave} cleared`);
@@ -818,7 +869,9 @@ function checkWaveComplete() {
       log("Core integrity patched.");
     }
     advanceOperationAfterClear(clearedPlan);
-    state.wavePlan = null;
+    if (state.mode !== "campaign") {
+      state.wavePlan = null;
+    }
     if (state.autoAdvance) {
       state.autoStartTimer = 2.7;
     }
