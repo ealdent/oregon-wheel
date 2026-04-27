@@ -7,6 +7,15 @@ const CAMPAIGN_MAP = {
   gridY: 162
 };
 
+const CAMPAIGN_TERRAIN = {
+  version: 1,
+  chunkSize: 640,
+  margin: 260
+};
+
+let campaignTerrainFeatureCacheKey = "";
+let campaignTerrainFeatureCache = null;
+
 const CAMPAIGN_DIRECTIONS = [
   { id: "E", dx: 1, dy: 0 },
   { id: "S", dx: 0, dy: 1 },
@@ -94,6 +103,7 @@ function createCampaign() {
     nodes: {},
     edges: [],
     pan: { x: 0, y: 0 },
+    terrain: createCampaignTerrainStore(),
     stats: {
       facilitiesSecured: 0,
       totalKills: 0,
@@ -144,6 +154,7 @@ function normalizeCampaign(campaign) {
   campaign.version = 1;
   campaign.edges = Array.isArray(campaign.edges) ? campaign.edges : [];
   campaign.pan = campaign.pan || { x: 0, y: 0 };
+  campaign.terrain = normalizeCampaignTerrain(campaign.terrain);
   campaign.stats = {
     facilitiesSecured: 0,
     totalKills: 0,
@@ -203,6 +214,254 @@ function createDefaultCheckpoint(node) {
     runStats: createRunStats(node),
     updatedAt: Date.now()
   };
+}
+
+function createCampaignTerrainStore() {
+  return {
+    version: CAMPAIGN_TERRAIN.version,
+    chunkSize: CAMPAIGN_TERRAIN.chunkSize,
+    chunks: {}
+  };
+}
+
+function normalizeCampaignTerrain(terrain) {
+  const normalized = createCampaignTerrainStore();
+  if (!terrain || typeof terrain !== "object" || !terrain.chunks || typeof terrain.chunks !== "object") {
+    return normalized;
+  }
+  for (const [key, chunk] of Object.entries(terrain.chunks)) {
+    if (!chunk || typeof chunk !== "object") continue;
+    normalized.chunks[key] = {
+      x: Number.isFinite(chunk.x) ? chunk.x : 0,
+      y: Number.isFinite(chunk.y) ? chunk.y : 0,
+      rivers: Array.isArray(chunk.rivers) ? chunk.rivers : [],
+      mountains: Array.isArray(chunk.mountains) ? chunk.mountains : [],
+      forests: Array.isArray(chunk.forests) ? chunk.forests : [],
+      ridges: Array.isArray(chunk.ridges) ? chunk.ridges : [],
+      ticks: Array.isArray(chunk.ticks) ? chunk.ticks : []
+    };
+  }
+  return normalized;
+}
+
+function campaignTerrainChunkKey(x, y) {
+  return `${x},${y}`;
+}
+
+function invalidateCampaignTerrainFeatureCache() {
+  campaignTerrainFeatureCacheKey = "";
+  campaignTerrainFeatureCache = null;
+}
+
+function campaignTerrainViewportRange(campaign) {
+  const pan = campaign.pan || { x: 0, y: 0 };
+  const size = CAMPAIGN_TERRAIN.chunkSize;
+  const margin = CAMPAIGN_TERRAIN.margin;
+  const minX = -pan.x - margin;
+  const maxX = -pan.x + campaignViewportWidth() + margin;
+  const minY = -pan.y - margin;
+  const maxY = -pan.y + campaignViewportHeight() + margin;
+  return {
+    minChunkX: Math.floor(minX / size),
+    maxChunkX: Math.floor(maxX / size),
+    minChunkY: Math.floor(minY / size),
+    maxChunkY: Math.floor(maxY / size)
+  };
+}
+
+function ensureCampaignTerrainForViewport(campaign) {
+  if (!campaign) return campaignTerrainFeatureCache || { rivers: [], mountains: [], forests: [], ridges: [], ticks: [] };
+  if (!campaign.terrain || !campaign.terrain.chunks) {
+    campaign.terrain = createCampaignTerrainStore();
+    invalidateCampaignTerrainFeatureCache();
+  }
+  const range = campaignTerrainViewportRange(campaign);
+  let generated = false;
+  for (let chunkY = range.minChunkY; chunkY <= range.maxChunkY; chunkY += 1) {
+    for (let chunkX = range.minChunkX; chunkX <= range.maxChunkX; chunkX += 1) {
+      const key = campaignTerrainChunkKey(chunkX, chunkY);
+      if (!campaign.terrain.chunks[key]) {
+        campaign.terrain.chunks[key] = createCampaignTerrainChunk(campaign, chunkX, chunkY);
+        generated = true;
+      }
+    }
+  }
+  if (generated) {
+    invalidateCampaignTerrainFeatureCache();
+    saveCampaign(campaign);
+  }
+  const cacheKey = [
+    campaign.seed,
+    range.minChunkX,
+    range.maxChunkX,
+    range.minChunkY,
+    range.maxChunkY,
+    Object.keys(campaign.terrain.chunks).length
+  ].join(":");
+  if (campaignTerrainFeatureCache && campaignTerrainFeatureCacheKey === cacheKey) {
+    return campaignTerrainFeatureCache;
+  }
+  const features = { rivers: [], mountains: [], forests: [], ridges: [], ticks: [] };
+  for (let chunkY = range.minChunkY; chunkY <= range.maxChunkY; chunkY += 1) {
+    for (let chunkX = range.minChunkX; chunkX <= range.maxChunkX; chunkX += 1) {
+      const chunk = campaign.terrain.chunks[campaignTerrainChunkKey(chunkX, chunkY)];
+      if (!chunk) continue;
+      features.rivers.push(...chunk.rivers);
+      features.mountains.push(...chunk.mountains);
+      features.forests.push(...chunk.forests);
+      features.ridges.push(...chunk.ridges);
+      features.ticks.push(...chunk.ticks);
+    }
+  }
+  campaignTerrainFeatureCacheKey = cacheKey;
+  campaignTerrainFeatureCache = features;
+  return features;
+}
+
+function createCampaignTerrainChunk(campaign, chunkX, chunkY) {
+  const rng = makeCampaignRng(`${campaign.seed}:terrain:${chunkX}:${chunkY}`);
+  const size = CAMPAIGN_TERRAIN.chunkSize;
+  const originX = chunkX * size;
+  const originY = chunkY * size;
+  const chunk = {
+    x: chunkX,
+    y: chunkY,
+    rivers: [],
+    mountains: [],
+    forests: [],
+    ridges: [],
+    ticks: []
+  };
+  if (rng() < 0.48) {
+    chunk.rivers.push(createCampaignTerrainRiver(rng, originX, originY, size));
+  }
+  const mountainCount = campaignRandomInt(rng, 1, 2) + (rng() < 0.2 ? 1 : 0);
+  for (let i = 0; i < mountainCount; i += 1) {
+    chunk.mountains.push(createCampaignTerrainMountain(rng, originX, originY, size));
+  }
+  const forestCount = campaignRandomInt(rng, 1, 3);
+  for (let i = 0; i < forestCount; i += 1) {
+    chunk.forests.push(createCampaignTerrainForest(rng, originX, originY, size));
+  }
+  const ridgeCount = campaignRandomInt(rng, 1, 3);
+  for (let i = 0; i < ridgeCount; i += 1) {
+    chunk.ridges.push(createCampaignTerrainRidge(rng, originX, originY, size));
+  }
+  const tickCount = campaignRandomInt(rng, 1, 2);
+  for (let i = 0; i < tickCount; i += 1) {
+    chunk.ticks.push(createCampaignTerrainTicks(rng, originX, originY, size));
+  }
+  return chunk;
+}
+
+function createCampaignTerrainRiver(rng, originX, originY, size) {
+  const startX = originX - campaignRandomInt(rng, 180, 300);
+  const startY = originY + campaignRandomInt(rng, -110, size + 110);
+  const step = (size + campaignRandomInt(rng, 260, 420)) / 6;
+  const drift = campaignRandomInt(rng, -36, 36);
+  const amp = campaignRandomInt(rng, 46, 106);
+  const phase = rng() * Math.PI * 2;
+  const points = [];
+  for (let i = 0; i < 7; i += 1) {
+    points.push({
+      x: Math.round(startX + i * step),
+      y: Math.round(startY + Math.sin(i * 1.32 + phase) * amp + drift * i + campaignRandomInt(rng, -26, 26))
+    });
+  }
+  return { points };
+}
+
+function createCampaignTerrainMountain(rng, originX, originY, size) {
+  const width = campaignRandomInt(rng, 130, 360);
+  const height = campaignRandomInt(rng, 28, 86);
+  const peaks = campaignRandomInt(rng, 6, 12);
+  const x = originX + campaignRandomInt(rng, -120, size + 120);
+  const y = originY + campaignRandomInt(rng, -80, size + 120);
+  const crest = [];
+  for (let i = 0; i <= peaks; i += 1) {
+    const px = x - width / 2 + (width / peaks) * i;
+    const peak = i % 2 === 0 ? rng() * height * 0.35 : height * (0.58 + rng() * 0.42);
+    crest.push({
+      x: Math.round(px),
+      y: Math.round(y - peak),
+      high: i % 2 === 1,
+      baseX: Math.round(px + (rng() - 0.5) * width * 0.16),
+      baseY: Math.round(y + 8 + rng() * 12)
+    });
+  }
+  const contours = [];
+  for (let contour = 0; contour < 3; contour += 1) {
+    const offset = 13 + contour * 12;
+    const points = [];
+    for (let i = 0; i <= peaks; i += 1) {
+      const px = x - width / 2 + (width / peaks) * i;
+      const py = y + offset - Math.sin(i * 1.6 + contour) * height * 0.18;
+      points.push({ x: Math.round(px), y: Math.round(py) });
+    }
+    contours.push(points);
+  }
+  return { x: Math.round(x), y: Math.round(y), width, height, crest, contours };
+}
+
+function createCampaignTerrainForest(rng, originX, originY, size) {
+  const x = originX + campaignRandomInt(rng, -90, size + 90);
+  const y = originY + campaignRandomInt(rng, -70, size + 90);
+  const count = campaignRandomInt(rng, 6, 15);
+  const trees = [];
+  for (let i = 0; i < count; i += 1) {
+    trees.push({
+      x: Math.round(x + (rng() - 0.5) * 120),
+      y: Math.round(y + (rng() - 0.5) * 66),
+      size: Math.round((5 + rng() * 8) * 10) / 10
+    });
+  }
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    rotation: Math.round((-0.08 + rng() * 0.16) * 1000) / 1000,
+    trees
+  };
+}
+
+function createCampaignTerrainRidge(rng, originX, originY, size) {
+  const x = originX + campaignRandomInt(rng, -110, size + 110);
+  const y = originY + campaignRandomInt(rng, -90, size + 90);
+  const width = campaignRandomInt(rng, 110, 330);
+  const lanes = campaignRandomInt(rng, 2, 5);
+  const ridgeLanes = [];
+  for (let lane = 0; lane < lanes; lane += 1) {
+    const yBase = y + lane * 13 - lanes * 6;
+    const segments = campaignRandomInt(rng, 5, 9);
+    const points = [];
+    for (let i = 0; i <= segments; i += 1) {
+      points.push({
+        x: Math.round(x - width / 2 + (width / segments) * i),
+        y: Math.round(yBase + Math.sin(i * 1.7 + lane) * campaignRandomInt(rng, 3, 10) + campaignRandomInt(rng, -5, 5))
+      });
+    }
+    ridgeLanes.push(points);
+  }
+  return { x: Math.round(x), y: Math.round(y), width, lanes: ridgeLanes };
+}
+
+function createCampaignTerrainTicks(rng, originX, originY, size) {
+  const x = originX + campaignRandomInt(rng, -90, size + 90);
+  const y = originY + campaignRandomInt(rng, -90, size + 90);
+  const count = campaignRandomInt(rng, 5, 13);
+  const marks = [];
+  for (let i = 0; i < count; i += 1) {
+    const markX = x + (rng() - 0.5) * 150;
+    const markY = y + (rng() - 0.5) * 80;
+    const len = 8 + rng() * 24;
+    marks.push({
+      x: Math.round(markX),
+      y: Math.round(markY),
+      x2: Math.round(markX + len),
+      y2: Math.round(markY + (rng() - 0.5) * 3),
+      cross: i % 4 === 0
+    });
+  }
+  return { x: Math.round(x), y: Math.round(y), marks };
 }
 
 function createRunStats(node) {

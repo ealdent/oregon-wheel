@@ -215,63 +215,31 @@ function campaignWorldToScreen(campaign, x, y) {
 }
 
 function drawCampaignTerrain(campaign) {
-  const rng = makeCampaignRng(`${campaign.seed}:terrain`);
-  const mapWidth = campaignViewportWidth();
-  const mapHeight = campaignViewportHeight();
-  drawCampaignRivers(campaign, rng);
-  for (let i = 0; i < 18; i += 1) {
-    const x = campaignRandomInt(rng, -520, Math.round(mapWidth + 520));
-    const y = campaignRandomInt(rng, -280, Math.round(mapHeight + 280));
-    const width = campaignRandomInt(rng, 130, 360);
-    const height = campaignRandomInt(rng, 24, 80);
-    drawMountainRange(campaign, x, y, width, height, campaignRandomInt(rng, 6, 12), rng);
-  }
-  for (let i = 0; i < 32; i += 1) {
-    const x = campaignRandomInt(rng, -460, Math.round(mapWidth + 460));
-    const y = campaignRandomInt(rng, -240, Math.round(mapHeight + 240));
-    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 6, 15), rng);
-  }
-  for (let i = 0; i < 24; i += 1) {
-    const x = campaignRandomInt(rng, -480, Math.round(mapWidth + 480));
-    const y = campaignRandomInt(rng, -260, Math.round(mapHeight + 260));
-    drawSurveyRidgeField(campaign, x, y, campaignRandomInt(rng, 110, 330), campaignRandomInt(rng, 2, 5), rng);
-  }
-  for (let i = 0; i < 18; i += 1) {
-    const x = campaignRandomInt(rng, -460, Math.round(mapWidth + 460));
-    const y = campaignRandomInt(rng, -260, Math.round(mapHeight + 260));
-    drawSurveyTicks(campaign, x, y, campaignRandomInt(rng, 5, 13), rng);
-  }
+  const terrain = ensureCampaignTerrainForViewport(campaign);
+  terrain.rivers.forEach((river) => drawCampaignRiverFeature(campaign, river));
+  terrain.ridges.forEach((ridge) => drawSurveyRidgeFeature(campaign, ridge));
+  terrain.mountains.forEach((mountain) => drawMountainFeature(campaign, mountain));
+  terrain.forests.forEach((forest) => drawForestFeature(campaign, forest));
+  terrain.ticks.forEach((ticks) => drawSurveyTickFeature(campaign, ticks));
 }
 
-function drawCampaignRivers(campaign, rng) {
-  const mapWidth = campaignViewportWidth();
-  const mapHeight = campaignViewportHeight();
-  for (let river = 0; river < 3; river += 1) {
-    const startX = campaignRandomInt(rng, -Math.round(mapWidth * 0.45), Math.round(mapWidth * 0.12));
-    const startY = campaignRandomInt(rng, -Math.round(mapHeight * 0.28), Math.round(mapHeight * 1.1));
-    const points = [];
-    for (let i = 0; i < 8; i += 1) {
-      points.push(campaignWorldToScreen(
-        campaign,
-        startX + i * campaignRandomInt(rng, 190, 285),
-        startY + Math.sin(i * 1.4 + river) * campaignRandomInt(rng, 48, 112) + campaignRandomInt(rng, -36, 36)
-      ));
-    }
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "rgba(124,232,255,0.028)";
-    ctx.lineWidth = 5.5;
-    drawTerrainPolyline(points);
-    ctx.strokeStyle = "rgba(124,232,255,0.095)";
-    ctx.lineWidth = 1.15;
-    drawTerrainPolyline(points);
-    ctx.strokeStyle = "rgba(185,255,189,0.05)";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([10, 13]);
-    drawTerrainPolyline(points);
-    ctx.restore();
-  }
+function drawCampaignRiverFeature(campaign, river) {
+  const points = (river.points || []).map((point) => campaignWorldToScreen(campaign, point.x, point.y));
+  if (points.length < 2 || !screenPolylineNearView(points, 80)) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(124,232,255,0.028)";
+  ctx.lineWidth = 5.5;
+  drawTerrainPolyline(points);
+  ctx.strokeStyle = "rgba(124,232,255,0.095)";
+  ctx.lineWidth = 1.15;
+  drawTerrainPolyline(points);
+  ctx.strokeStyle = "rgba(185,255,189,0.05)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([10, 13]);
+  drawTerrainPolyline(points);
+  ctx.restore();
 }
 
 function drawTerrainPolyline(points) {
@@ -286,18 +254,23 @@ function drawTerrainPolyline(points) {
   ctx.stroke();
 }
 
-function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) {
-  const mapWidth = campaignViewportWidth();
-  const mapHeight = campaignViewportHeight();
-  const start = campaignWorldToScreen(campaign, worldX - width / 2, worldY);
-  if (start.x > mapWidth + width || start.x < -width || start.y > mapHeight + height || start.y < -height) return;
+function screenPolylineNearView(points, margin) {
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxY = Math.max(...points.map((point) => point.y));
+  return maxX >= -margin && minX <= campaignViewportWidth() + margin && maxY >= -margin && minY <= campaignViewportHeight() + margin;
+}
+
+function worldFeatureNearView(campaign, x, y, radius) {
+  const point = campaignWorldToScreen(campaign, x, y);
+  return point.x >= -radius && point.x <= campaignViewportWidth() + radius && point.y >= -radius && point.y <= campaignViewportHeight() + radius;
+}
+
+function drawMountainFeature(campaign, mountain) {
+  if (!worldFeatureNearView(campaign, mountain.x, mountain.y, Math.max(mountain.width || 180, mountain.height || 80) + 80)) return;
   ctx.save();
-  const crest = [];
-  for (let i = 0; i <= peaks; i += 1) {
-    const x = worldX - width / 2 + (width / peaks) * i;
-    const peak = i % 2 === 0 ? rng() * height * 0.35 : height * (0.58 + rng() * 0.42);
-    crest.push({ x, y: worldY - peak, high: i % 2 === 1 });
-  }
+  const crest = mountain.crest || [];
   ctx.strokeStyle = "rgba(97,255,126,0.145)";
   ctx.lineWidth = 1.05;
   ctx.beginPath();
@@ -310,7 +283,7 @@ function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) 
   ctx.strokeStyle = "rgba(185,255,189,0.08)";
   for (const crestPoint of crest.filter((point) => point.high)) {
     const peak = campaignWorldToScreen(campaign, crestPoint.x, crestPoint.y);
-    const base = campaignWorldToScreen(campaign, crestPoint.x + (rng() - 0.5) * width * 0.16, worldY + 8 + rng() * 12);
+    const base = campaignWorldToScreen(campaign, crestPoint.baseX, crestPoint.baseY);
     ctx.beginPath();
     ctx.moveTo(peak.x, peak.y);
     ctx.lineTo(base.x, base.y);
@@ -318,96 +291,81 @@ function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) 
   }
   ctx.globalAlpha = 0.76;
   ctx.strokeStyle = "rgba(97,255,126,0.108)";
-  for (let contour = 0; contour < 3; contour += 1) {
+  for (const contourPoints of mountain.contours || []) {
     ctx.beginPath();
-    const offset = 13 + contour * 12;
-    for (let i = 0; i <= peaks; i += 1) {
-      const x = worldX - width / 2 + (width / peaks) * i;
-      const y = worldY + offset - Math.sin(i * 1.6 + contour) * height * 0.18;
-      const point = campaignWorldToScreen(campaign, x, y);
-      if (i === 0) ctx.moveTo(point.x, point.y);
+    contourPoints.forEach((contourPoint, index) => {
+      const point = campaignWorldToScreen(campaign, contourPoint.x, contourPoint.y);
+      if (index === 0) ctx.moveTo(point.x, point.y);
       else ctx.lineTo(point.x, point.y);
-    }
+    });
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawForestCluster(campaign, worldX, worldY, count, rng) {
-  const mapWidth = campaignViewportWidth();
-  const mapHeight = campaignViewportHeight();
-  const center = campaignWorldToScreen(campaign, worldX, worldY);
-  if (center.x > mapWidth + 80 || center.x < -80 || center.y > mapHeight + 80 || center.y < -80) return;
+function drawForestFeature(campaign, forest) {
+  if (!worldFeatureNearView(campaign, forest.x, forest.y, 110)) return;
+  const center = campaignWorldToScreen(campaign, forest.x, forest.y);
   ctx.save();
   ctx.strokeStyle = "rgba(133,255,145,0.135)";
   ctx.fillStyle = "rgba(97,255,126,0.028)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.ellipse(center.x, center.y + 8, 48, 18, -0.08 + rng() * 0.16, 0, Math.PI * 2);
+  ctx.ellipse(center.x, center.y + 8, 48, 18, forest.rotation || 0, 0, Math.PI * 2);
   ctx.strokeStyle = "rgba(97,255,126,0.05)";
   ctx.stroke();
   ctx.strokeStyle = "rgba(133,255,145,0.135)";
-  for (let i = 0; i < count; i += 1) {
-    const x = center.x + (rng() - 0.5) * 120;
-    const y = center.y + (rng() - 0.5) * 66;
-    const size = 5 + rng() * 8;
+  for (const tree of forest.trees || []) {
+    const point = campaignWorldToScreen(campaign, tree.x, tree.y);
+    const size = tree.size || 7;
     ctx.beginPath();
-    ctx.moveTo(x, y - size);
-    ctx.lineTo(x - size * 0.72, y + size * 0.38);
-    ctx.lineTo(x + size * 0.72, y + size * 0.38);
+    ctx.moveTo(point.x, point.y - size);
+    ctx.lineTo(point.x - size * 0.72, point.y + size * 0.38);
+    ctx.lineTo(point.x + size * 0.72, point.y + size * 0.38);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x, y + size * 0.36);
-    ctx.lineTo(x, y + size * 0.9);
+    ctx.moveTo(point.x, point.y + size * 0.36);
+    ctx.lineTo(point.x, point.y + size * 0.9);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawSurveyRidgeField(campaign, worldX, worldY, width, lanes, rng) {
-  const mapWidth = campaignViewportWidth();
-  const mapHeight = campaignViewportHeight();
-  const center = campaignWorldToScreen(campaign, worldX, worldY);
-  if (center.x > mapWidth + width || center.x < -width || center.y > mapHeight + 120 || center.y < -120) return;
+function drawSurveyRidgeFeature(campaign, ridge) {
+  if (!worldFeatureNearView(campaign, ridge.x, ridge.y, (ridge.width || 180) + 90)) return;
   ctx.save();
   ctx.strokeStyle = "rgba(185,255,189,0.062)";
   ctx.lineWidth = 1;
-  for (let lane = 0; lane < lanes; lane += 1) {
-    const yBase = worldY + lane * 13 - lanes * 6;
-    const segments = campaignRandomInt(rng, 5, 9);
+  for (const lane of ridge.lanes || []) {
     ctx.beginPath();
-    for (let i = 0; i <= segments; i += 1) {
-      const x = worldX - width / 2 + (width / segments) * i;
-      const y = yBase + Math.sin(i * 1.7 + lane) * campaignRandomInt(rng, 3, 10) + campaignRandomInt(rng, -5, 5);
-      const point = campaignWorldToScreen(campaign, x, y);
-      if (i === 0) ctx.moveTo(point.x, point.y);
+    lane.forEach((lanePoint, index) => {
+      const point = campaignWorldToScreen(campaign, lanePoint.x, lanePoint.y);
+      if (index === 0) ctx.moveTo(point.x, point.y);
       else ctx.lineTo(point.x, point.y);
-    }
+    });
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawSurveyTicks(campaign, worldX, worldY, count, rng) {
-  const mapWidth = campaignViewportWidth();
-  const mapHeight = campaignViewportHeight();
-  const center = campaignWorldToScreen(campaign, worldX, worldY);
-  if (center.x > mapWidth + 90 || center.x < -90 || center.y > mapHeight + 90 || center.y < -90) return;
+function drawSurveyTickFeature(campaign, ticks) {
+  if (!worldFeatureNearView(campaign, ticks.x, ticks.y, 120)) return;
   ctx.save();
   ctx.strokeStyle = "rgba(124,232,255,0.045)";
   ctx.lineWidth = 1;
-  for (let i = 0; i < count; i += 1) {
-    const x = center.x + (rng() - 0.5) * 150;
-    const y = center.y + (rng() - 0.5) * 80;
-    const len = 8 + rng() * 24;
+  for (const mark of ticks.marks || []) {
+    const a = campaignWorldToScreen(campaign, mark.x, mark.y);
+    const b = campaignWorldToScreen(campaign, mark.x2, mark.y2);
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + len, y + (rng() - 0.5) * 3);
-    if (i % 4 === 0) {
-      ctx.moveTo(x + len * 0.55, y - 3);
-      ctx.lineTo(x + len * 0.55, y + 3);
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    if (mark.cross) {
+      const crossX = a.x + (b.x - a.x) * 0.55;
+      const crossY = a.y + (b.y - a.y) * 0.55;
+      ctx.moveTo(crossX, crossY - 3);
+      ctx.lineTo(crossX, crossY + 3);
     }
     ctx.stroke();
   }

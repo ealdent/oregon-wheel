@@ -1,5 +1,32 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Terrain Persistence
+
+### Spec
+
+- [x] Generate campaign terrain once into persistent world-space data instead of re-rolling it from the current viewport.
+- [x] Keep rivers, forests, mountains, ridges, and survey ticks fixed as the player pans away and comes back.
+- [x] Generate additional terrain only when newly visible world chunks are encountered, then persist those chunks in `localStorage`.
+- [x] Avoid per-frame random terrain construction and keep the existing static browser/no-build architecture.
+- [x] Verify by panning the campaign map and comparing before/after terrain positions, plus static checks and screenshot QA.
+
+### Plan
+
+- [x] Add a normalized `campaign.terrain` model with versioned chunk storage.
+- [x] Implement deterministic chunk generation keyed by campaign seed and chunk coordinates, storing all feature geometry.
+- [x] Update campaign terrain rendering to draw stored features from visible chunks through `campaignWorldToScreen`.
+- [x] Add a lightweight visible-chunk cache so unchanged pans do not repeatedly flatten feature lists.
+- [x] Run `node --check`, `git diff --check`, and browser screenshot/pan stability verification.
+- [ ] Commit and push the checkpoint.
+
+### Review
+
+- Campaign saves now include `terrain` chunk storage, normalized for existing localStorage saves.
+- Terrain chunks are generated deterministically from campaign seed plus chunk coordinates, then persisted; rivers, mountains, forests, ridges, and ticks store fixed world-space geometry.
+- Rendering now draws persisted features through the current pan and uses a visible-chunk feature cache instead of rebuilding random terrain every frame.
+- Verified that panning away generated new chunks, returning to the original pan produced an identical canvas image, and the originally visible chunks remained unchanged.
+- Verified with `node --check`, `git diff --check`, and a campaign screenshot.
+
 ## Campaign Terrain Visibility Balance
 
 ### Spec
@@ -16,7 +43,7 @@
 - [x] Add slightly stronger mountain ridge details and forest silhouettes without making them noisy.
 - [x] Lower river glow/width while keeping a readable blue route through the landscape.
 - [x] Run `node --check`, `git diff --check`, and capture a campaign-map screenshot.
-- [ ] Commit and push the checkpoint.
+- [x] Commit and push the checkpoint.
 
 ### Review
 

@@ -21,3 +21,4 @@
 - Campaign-map facility nodes should read as bracketed tactical schematics, not filled plaques; keep fills faint, corner/side brackets dominant, and icon linework contained inside a clear schematic viewport.
 - Terrain detail must be recognizable cartography at a glance. Avoid generic ellipse contour clusters that look like accidental squiggles; use restrained ridge lines, forest symbols, river traces, and survey ticks instead.
 - Subtle terrain still needs enough contrast to survive grid lines, scanlines, route glow, and node masks; balance rivers downward only after mountains and forests remain visibly readable in a full-screen screenshot.
+- Campaign map terrain must be generated in persistent world space, not per-frame viewport space. If terrain is randomized from current bounds, panning changes the landscape and breaks map continuity.
