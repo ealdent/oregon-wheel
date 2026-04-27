@@ -177,6 +177,8 @@ Clear rewards:
 
 Terrain is generated in persistent world-space chunks, not per viewport. When the player pans away and returns, rivers, forests, mountains, ridges, and other features must remain fixed.
 
+Terrain generation is capped by the explored campaign frontier. Visible facilities, visible routes, and question-mark unknown exits define the current exploration geometry. The map renders a muted orange/red fog-of-war haze beyond that frontier: light haze just past the question marks, then progressively denser cover until distant terrain is fully hidden and no new terrain chunks are generated there.
+
 Current terrain feature families:
 
 - Rivers and streams.
@@ -197,6 +199,7 @@ Terrain art rules:
 - Forests should read as clusters of individual tree silhouettes, not generic noise.
 - Rivers should be present and legible without overpowering routes or facility nodes.
 - Avoid random circular squiggles or marks that do not read as intentional topography.
+- Fog should obscure unexplored terrain before it can become a performance problem, while keeping frontier question marks readable.
 
 ## Graphics And Performance Rules
 

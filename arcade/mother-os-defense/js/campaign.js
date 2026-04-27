@@ -13,6 +13,13 @@ const CAMPAIGN_TERRAIN = {
   margin: 260
 };
 
+const CAMPAIGN_FOG = {
+  clearRadius: 330,
+  opaqueRadius: 760,
+  terrainRadius: 860,
+  tileSize: 22
+};
+
 const CAMPAIGN_TERRAIN_FEATURE_KEYS = [
   "rivers",
   "mountains",
@@ -336,9 +343,11 @@ function ensureCampaignTerrainForViewport(campaign) {
     invalidateCampaignTerrainFeatureCache();
   }
   const range = campaignTerrainViewportRange(campaign);
+  const exploration = campaignExplorationGeometry(campaign);
   let generated = false;
   for (let chunkY = range.minChunkY; chunkY <= range.maxChunkY; chunkY += 1) {
     for (let chunkX = range.minChunkX; chunkX <= range.maxChunkX; chunkX += 1) {
+      if (!campaignTerrainChunkNearExploration(exploration, chunkX, chunkY)) continue;
       const key = campaignTerrainChunkKey(chunkX, chunkY);
       if (!campaign.terrain.chunks[key]) {
         campaign.terrain.chunks[key] = createCampaignTerrainChunk(campaign, chunkX, chunkY);
@@ -356,6 +365,7 @@ function ensureCampaignTerrainForViewport(campaign) {
     range.maxChunkX,
     range.minChunkY,
     range.maxChunkY,
+    exploration.signature,
     Object.keys(campaign.terrain.chunks).length
   ].join(":");
   if (campaignTerrainFeatureCache && campaignTerrainFeatureCacheKey === cacheKey) {
@@ -364,6 +374,7 @@ function ensureCampaignTerrainForViewport(campaign) {
   const features = emptyCampaignTerrainFeatures();
   for (let chunkY = range.minChunkY; chunkY <= range.maxChunkY; chunkY += 1) {
     for (let chunkX = range.minChunkX; chunkX <= range.maxChunkX; chunkX += 1) {
+      if (!campaignTerrainChunkNearExploration(exploration, chunkX, chunkY)) continue;
       const chunk = campaign.terrain.chunks[campaignTerrainChunkKey(chunkX, chunkY)];
       if (!chunk) continue;
       for (const featureKey of CAMPAIGN_TERRAIN_FEATURE_KEYS) {
@@ -374,6 +385,126 @@ function ensureCampaignTerrainForViewport(campaign) {
   campaignTerrainFeatureCacheKey = cacheKey;
   campaignTerrainFeatureCache = features;
   return features;
+}
+
+function campaignNodeWorldPosition(node) {
+  return {
+    x: campaignViewportWidth() / 2 + node.gridX * CAMPAIGN_MAP.gridX,
+    y: campaignViewportHeight() / 2 + node.gridY * CAMPAIGN_MAP.gridY
+  };
+}
+
+function campaignExplorationSignature(campaign) {
+  return visibleCampaignNodes(campaign)
+    .sort((a, b) => a.index - b.index)
+    .map((node) => [
+      node.id,
+      node.gridX,
+      node.gridY,
+      node.secured ? 1 : 0,
+      node.exitsGenerated ? 1 : 0,
+      node.plannedExitCount || 0,
+      node.childIds ? node.childIds.length : 0
+    ].join(","))
+    .join("|");
+}
+
+function campaignExplorationGeometry(campaign) {
+  const points = [];
+  const segments = [];
+  if (!campaign) {
+    return { points, segments, signature: "none" };
+  }
+  const visibleNodes = visibleCampaignNodes(campaign);
+  const positions = new Map();
+  for (const node of visibleNodes) {
+    const pos = campaignNodeWorldPosition(node);
+    positions.set(node.id, pos);
+    points.push(pos);
+  }
+  for (const edge of campaign.edges || []) {
+    const from = campaign.nodes[edge.from];
+    const to = campaign.nodes[edge.to];
+    if (!from || !to || !from.visible || !to.visible) continue;
+    const a = positions.get(from.id) || campaignNodeWorldPosition(from);
+    const b = positions.get(to.id) || campaignNodeWorldPosition(to);
+    segments.push({ a, b });
+  }
+  for (const node of visibleNodes) {
+    const from = positions.get(node.id) || campaignNodeWorldPosition(node);
+    for (const direction of campaignUnknownExitDirections(campaign, node)) {
+      const to = {
+        x: from.x + direction.dx * CAMPAIGN_MAP.gridX * 0.72,
+        y: from.y + direction.dy * CAMPAIGN_MAP.gridY * 0.72
+      };
+      points.push(to);
+      segments.push({ a: from, b: to });
+    }
+  }
+  return {
+    points,
+    segments,
+    signature: campaignExplorationSignature(campaign)
+  };
+}
+
+function pointSegmentDistanceSq(point, a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq <= 0.0001) {
+    const px = point.x - a.x;
+    const py = point.y - a.y;
+    return px * px + py * py;
+  }
+  const t = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq, 0, 1);
+  const x = a.x + dx * t;
+  const y = a.y + dy * t;
+  const px = point.x - x;
+  const py = point.y - y;
+  return px * px + py * py;
+}
+
+function campaignExplorationDistanceSq(exploration, x, y) {
+  if (!exploration || (!exploration.points.length && !exploration.segments.length)) return Infinity;
+  const point = { x, y };
+  let best = Infinity;
+  for (const item of exploration.points) {
+    const dx = x - item.x;
+    const dy = y - item.y;
+    best = Math.min(best, dx * dx + dy * dy);
+  }
+  for (const segment of exploration.segments) {
+    best = Math.min(best, pointSegmentDistanceSq(point, segment.a, segment.b));
+  }
+  return best;
+}
+
+function campaignFogAlphaAtWorld(exploration, x, y) {
+  const distance = Math.sqrt(campaignExplorationDistanceSq(exploration, x, y));
+  const t = clamp((distance - CAMPAIGN_FOG.clearRadius) / (CAMPAIGN_FOG.opaqueRadius - CAMPAIGN_FOG.clearRadius), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function campaignTerrainChunkNearExploration(exploration, chunkX, chunkY) {
+  const size = CAMPAIGN_TERRAIN.chunkSize;
+  const minX = chunkX * size;
+  const minY = chunkY * size;
+  const maxX = minX + size;
+  const maxY = minY + size;
+  const thresholdSq = CAMPAIGN_FOG.terrainRadius * CAMPAIGN_FOG.terrainRadius;
+  const samples = [
+    [minX, minY],
+    [maxX, minY],
+    [minX, maxY],
+    [maxX, maxY],
+    [(minX + maxX) / 2, minY],
+    [(minX + maxX) / 2, maxY],
+    [minX, (minY + maxY) / 2],
+    [maxX, (minY + maxY) / 2],
+    [(minX + maxX) / 2, (minY + maxY) / 2]
+  ];
+  return samples.some(([x, y]) => campaignExplorationDistanceSq(exploration, x, y) <= thresholdSq);
 }
 
 function emptyCampaignTerrainFeatures() {

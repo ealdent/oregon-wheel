@@ -1,3 +1,29 @@
+# Campaign Fog Of War
+
+## Spec
+
+- [x] Add a fog-of-war overlay beyond the explored campaign frontier.
+- [x] Keep question-mark frontier areas lightly hazed, then progressively obscure terrain farther out.
+- [x] Use a muted dark orange/red haze that supports the CRT theme without overpowering routes or nodes.
+- [x] Stop generating terrain chunks beyond the visible/explored frontier so fast panning does not build an infinite terrain cache.
+- [x] Update the running design catalog and verify before committing/pushing.
+
+## Plan
+
+- [x] Define campaign exploration geometry from visible facilities, visible routes, and unknown question-mark exits.
+- [x] Gate terrain chunk creation against that exploration geometry.
+- [x] Render a progressive fog overlay over the campaign map background.
+- [x] Update docs and task review.
+- [x] Run static checks plus a campaign-map browser smoke test, then commit and push.
+
+## Review
+
+- Added exploration geometry helpers that treat visible facilities, secured/visible routes, and question-mark exit stubs as the campaign's current explored frontier.
+- Terrain chunk generation now skips chunks outside that frontier radius, so scrolling deep into unexplored space does not keep filling localStorage with terrain.
+- Campaign rendering now draws a muted orange/red fog overlay: clear around explored routes, light haze near question marks, and dense cover farther out.
+- Updated the design catalog with the fog and terrain-generation rules.
+- Verified with `node --check`, `git diff --check`, and browser QA: panning beyond the frontier showed dense fog and the terrain chunk count stopped increasing once outside explored range.
+
 # Mother OS Design Catalog Documentation
 
 ## Spec

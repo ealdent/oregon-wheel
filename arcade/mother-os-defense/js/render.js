@@ -189,6 +189,7 @@ function drawCampaignBackground() {
     ctx.stroke();
   }
   drawCampaignTerrain(campaign);
+  drawCampaignFogOfWar(campaign);
   drawGrimeLayer(ctx, mapWidth, mapHeight);
   drawCampaignMapFrame(mapWidth, mapHeight);
   ctx.restore();
@@ -234,6 +235,39 @@ function drawCampaignTerrain(campaign) {
   terrain.marshes.forEach((marsh) => drawMarshFeature(campaign, marsh));
   terrain.structures.forEach((structure) => drawTerrainStructureFeature(campaign, structure));
   terrain.ticks.forEach((ticks) => drawSurveyTickFeature(campaign, ticks));
+}
+
+function drawCampaignFogOfWar(campaign) {
+  const mapWidth = campaignViewportWidth();
+  const mapHeight = campaignViewportHeight();
+  const pan = campaign.pan || { x: 0, y: 0 };
+  const exploration = campaignExplorationGeometry(campaign);
+  const tile = CAMPAIGN_FOG.tileSize;
+  ctx.save();
+  for (let y = -tile; y < mapHeight + tile; y += tile) {
+    for (let x = -tile; x < mapWidth + tile; x += tile) {
+      const worldX = x + tile * 0.5 - pan.x;
+      const worldY = y + tile * 0.5 - pan.y;
+      const alpha = campaignFogAlphaAtWorld(exploration, worldX, worldY);
+      if (alpha <= 0.015) continue;
+      const orangeAlpha = 0.08 + alpha * 0.33;
+      const blackAlpha = alpha * 0.58;
+      ctx.fillStyle = `rgba(72,24,10,${orangeAlpha.toFixed(3)})`;
+      ctx.fillRect(x, y, tile + 1, tile + 1);
+      ctx.fillStyle = `rgba(0,2,0,${blackAlpha.toFixed(3)})`;
+      ctx.fillRect(x, y, tile + 1, tile + 1);
+    }
+  }
+  ctx.globalAlpha = 0.42;
+  ctx.strokeStyle = "rgba(188,74,32,0.16)";
+  ctx.lineWidth = 1;
+  for (let y = 11; y < mapHeight; y += 44) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(mapWidth, y + Math.sin((y + pan.x) * 0.01) * 3);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawCampaignRiverFeature(campaign, river) {
