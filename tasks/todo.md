@@ -1,5 +1,32 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Facility Building Fidelity Pass
+
+### Spec
+
+- [x] Add 12 campaign facility classifications inspired by the uploaded building sheet, with labels that fit the Mother OS theme.
+- [x] Make campaign node facility art substantially higher fidelity, with distinct silhouettes for every classification.
+- [x] Cache high-detail facility building glyphs on offscreen canvases so map panning stays responsive.
+- [x] Preserve existing campaign saves by keeping old type keys valid and deterministic.
+- [x] Preserve static no-build/no-server loading.
+- [x] Verify with static checks and browser campaign-map screenshots before committing and pushing.
+
+### Plan
+
+- [x] Expand `facilityTypes` and campaign name pools to 12 classifications while keeping existing keys compatible.
+- [x] Add a compact facility glyph cache modeled after the terrain glyph cache.
+- [x] Replace campaign node schematic rendering with cached high-detail line-art building glyphs.
+- [x] Tune node spacing/label placement only as needed to make the richer art readable.
+- [x] Run `node --check`, `git diff --check`, screenshot QA, then commit and push.
+
+### Review
+
+- Expanded campaign facility classifications to 12: Tokamak Reactor, Radar Array, Annex Complex, Bio Research Facility, Mining Operation, Power Plant, Communications Hub, Hydroponics Farm, Vehicle Depot, Satellite Uplink, Storage Facility, and Command Center.
+- Existing save keys remain valid; older `cargo`, `foundry`, and `cryo` nodes now map to the new storage, mining, and bio-research visual classifications.
+- Campaign nodes now render cached high-detail building glyph sprites with distinct silhouettes, linework, windows, domes, towers, antennas, silos, doors, and grime.
+- Node art viewport and label placement were adjusted so the richer facility drawings stay readable at map scale.
+- Verified 12 visible facility types in a browser screenshot, confirmed cache reuse during panning, and passed `node --check` plus `git diff --check`.
+
 ## Campaign Topography Fidelity Pass
 
 ### Spec

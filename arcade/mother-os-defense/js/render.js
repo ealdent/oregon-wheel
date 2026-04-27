@@ -3,6 +3,9 @@
 const terrainGlyphCache = new Map();
 const TERRAIN_GLYPH_PIXEL_SCALE = 2;
 const TERRAIN_GLYPH_CACHE_LIMIT = 420;
+const facilityGlyphCache = new Map();
+const FACILITY_GLYPH_PIXEL_SCALE = 2;
+const FACILITY_GLYPH_CACHE_LIMIT = 192;
 
 function render() {
   const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -918,15 +921,15 @@ function drawCampaignNode(campaign, node) {
   ctx.fillStyle = color;
   ctx.font = "700 12px Courier New, monospace";
   ctx.textAlign = "center";
-  ctx.fillText(String(node.index).padStart(2, "0"), 0, -36);
+  ctx.fillText(String(node.index).padStart(2, "0"), 0, -44);
   ctx.font = "700 8px Courier New, monospace";
   const name = node.facility.toUpperCase();
-  ctx.fillText(name.length > 20 ? `${name.slice(0, 19)}.` : name, 0, 22);
+  ctx.fillText(name.length > 22 ? `${name.slice(0, 21)}.` : name, 0, 30);
   ctx.fillStyle = "rgba(185,255,189,0.72)";
   ctx.font = "7px Courier New, monospace";
-  ctx.fillText(type.label.toUpperCase(), 0, 34);
+  ctx.fillText(type.label.toUpperCase().slice(0, 26), 0, 43);
   ctx.fillStyle = node.secured ? "#85ff91" : available ? "#ffcf5a" : "rgba(185,255,189,0.58)";
-  ctx.fillText(node.secured ? "SECURED" : `SECTOR ${String(node.currentSector).padStart(2, "0")}`, 0, 44);
+  ctx.fillText(node.secured ? "SECURED" : `SECTOR ${String(node.currentSector).padStart(2, "0")}`, 0, 53);
   ctx.restore();
 }
 
@@ -991,33 +994,471 @@ function drawCampaignNodeBracketFrame(w, h, color, selected) {
 }
 
 function drawCampaignFacilitySchematic(node, type, color, bright) {
+  const glyph = type.glyph || node.type || "annex";
   const variant = campaignHash(`${node.seed}:facility-icon`) % 4;
+  const sprite = getFacilityGlyphSprite(glyph, variant, color, bright);
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(-49, -41, 98, 57);
-  ctx.clip();
-  ctx.translate(0, -12);
-  ctx.scale(0.86, 0.86);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = bright ? color : "rgba(185,255,189,0.46)";
-  ctx.fillStyle = bright ? "rgba(97,255,126,0.042)" : "rgba(97,255,126,0.022)";
-  ctx.lineWidth = 1.3;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = bright ? 4 : 1;
-  if (node.type === "tokamak") {
-    drawTokamakFacilityIcon(variant);
-  } else if (node.type === "cargo") {
-    drawCargoFacilityIcon(variant);
-  } else if (node.type === "foundry") {
-    drawFoundryFacilityIcon(variant);
-  } else if (node.type === "cryo") {
-    drawCryoFacilityIcon(variant);
-  } else {
-    drawRadarFacilityIcon(variant);
-  }
-  drawFacilityMicroDetail(variant);
+  ctx.translate(0, -28);
+  ctx.globalAlpha = bright ? 1 : 0.64;
+  ctx.drawImage(sprite.canvas, -sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height);
   ctx.restore();
+}
+
+function getFacilityGlyphSprite(glyph, variant, color, bright) {
+  const key = ["facility", glyph, variant, color, bright ? "b" : "d"].join(":");
+  const cached = facilityGlyphCache.get(key);
+  if (cached) {
+    facilityGlyphCache.delete(key);
+    facilityGlyphCache.set(key, cached);
+    return cached;
+  }
+  const width = 148;
+  const height = 72;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * FACILITY_GLYPH_PIXEL_SCALE;
+  canvas.height = height * FACILITY_GLYPH_PIXEL_SCALE;
+  const g = canvas.getContext("2d");
+  g.setTransform(
+    FACILITY_GLYPH_PIXEL_SCALE,
+    0,
+    0,
+    FACILITY_GLYPH_PIXEL_SCALE,
+    width * FACILITY_GLYPH_PIXEL_SCALE / 2,
+    height * FACILITY_GLYPH_PIXEL_SCALE / 2
+  );
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  g.shadowColor = color;
+  g.shadowBlur = bright ? 5 : 2;
+  const rng = makeCampaignRng(`facility-glyph:${glyph}:${variant}`);
+  drawFacilityGlyph(g, glyph, variant, color, bright, rng);
+  const sprite = { canvas, width, height };
+  facilityGlyphCache.set(key, sprite);
+  while (facilityGlyphCache.size > FACILITY_GLYPH_CACHE_LIMIT) {
+    facilityGlyphCache.delete(facilityGlyphCache.keys().next().value);
+  }
+  return sprite;
+}
+
+function facilityStroke(g, color, bright, alpha = 1, width = 1) {
+  g.strokeStyle = bright ? color : `rgba(185,255,189,${0.4 * alpha})`;
+  g.globalAlpha = bright ? alpha : Math.min(0.72, alpha * 0.82);
+  g.lineWidth = width;
+}
+
+function facilityFill(g, bright, alpha = 0.035) {
+  g.fillStyle = bright ? `rgba(97,255,126,${alpha})` : `rgba(97,255,126,${alpha * 0.52})`;
+}
+
+function drawFacilityGlyph(g, glyph, variant, color, bright, rng) {
+  facilityStroke(g, color, bright, 0.6, 0.75);
+  drawFacilityGround(g);
+  facilityStroke(g, color, bright, 1, 1.05);
+  facilityFill(g, bright);
+  if (glyph === "tokamak") drawFacilityTokamak(g, variant, color, bright, rng);
+  else if (glyph === "radar") drawFacilityRadar(g, variant, color, bright, rng);
+  else if (glyph === "annex") drawFacilityAnnex(g, variant, color, bright, rng);
+  else if (glyph === "bio") drawFacilityBio(g, variant, color, bright, rng);
+  else if (glyph === "mining") drawFacilityMining(g, variant, color, bright, rng);
+  else if (glyph === "power") drawFacilityPower(g, variant, color, bright, rng);
+  else if (glyph === "comms") drawFacilityComms(g, variant, color, bright, rng);
+  else if (glyph === "hydro") drawFacilityHydro(g, variant, color, bright, rng);
+  else if (glyph === "vehicle") drawFacilityVehicle(g, variant, color, bright, rng);
+  else if (glyph === "satellite") drawFacilitySatellite(g, variant, color, bright, rng);
+  else if (glyph === "storage") drawFacilityStorage(g, variant, color, bright, rng);
+  else drawFacilityCommand(g, variant, color, bright, rng);
+  drawFacilityGrime(g, variant, color, bright, rng);
+  g.globalAlpha = 1;
+}
+
+function drawFacilityGround(g) {
+  g.beginPath();
+  g.moveTo(-66, 27);
+  g.lineTo(66, 27);
+  g.moveTo(-58, 30);
+  g.lineTo(58, 30);
+  g.stroke();
+}
+
+function drawFacilityRect(g, x, y, w, h, fill = false) {
+  if (fill) g.fillRect(x, y, w, h);
+  g.strokeRect(x, y, w, h);
+}
+
+function drawFacilityPoly(g, points, fill = false) {
+  g.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) g.moveTo(point.x, point.y);
+    else g.lineTo(point.x, point.y);
+  });
+  g.closePath();
+  if (fill) g.fill();
+  g.stroke();
+}
+
+function drawFacilityWindows(g, x, y, cols, rows, stepX = 6, stepY = 6) {
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      g.strokeRect(x + col * stepX, y + row * stepY, 2.2, 2.6);
+    }
+  }
+}
+
+function drawFacilityDoor(g, x, y, w, h, rows = 3) {
+  g.strokeRect(x, y, w, h);
+  for (let i = 1; i < rows; i += 1) {
+    g.beginPath();
+    g.moveTo(x + 2, y + h * i / rows);
+    g.lineTo(x + w - 2, y + h * i / rows);
+    g.stroke();
+  }
+}
+
+function drawFacilityAntenna(g, x, top, bottom, radius = 2) {
+  g.beginPath();
+  g.moveTo(x, bottom);
+  g.lineTo(x, top);
+  g.moveTo(x - 4, top + 8);
+  g.lineTo(x + 4, top + 8);
+  g.stroke();
+  g.beginPath();
+  g.arc(x, top - radius, radius, 0, Math.PI * 2);
+  g.stroke();
+}
+
+function drawFacilityDome(g, x, y, rx, ry, ribs = 4) {
+  g.beginPath();
+  g.arc(x, y, rx, Math.PI, 0);
+  g.lineTo(x + rx, y + ry * 0.58);
+  g.lineTo(x - rx, y + ry * 0.58);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  for (let i = -ribs; i <= ribs; i += 1) {
+    const t = i / ribs;
+    g.beginPath();
+    g.ellipse(x + t * rx * 0.68, y + ry * 0.03, rx * 0.12, ry * 0.98, 0, Math.PI, 0);
+    g.stroke();
+  }
+  for (let i = 1; i <= 2; i += 1) {
+    g.beginPath();
+    g.ellipse(x, y + i * ry * 0.2, rx * (0.86 - i * 0.13), ry * 0.16, 0, Math.PI, 0);
+    g.stroke();
+  }
+}
+
+function drawFacilityDish(g, x, y, scale, tilt = -0.38) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(tilt);
+  g.beginPath();
+  g.ellipse(0, 0, 21 * scale, 9 * scale, 0, Math.PI * 0.1, Math.PI * 1.92);
+  g.stroke();
+  g.beginPath();
+  g.ellipse(0, 0, 14 * scale, 5.7 * scale, 0, Math.PI * 0.14, Math.PI * 1.86);
+  g.stroke();
+  for (const spoke of [-0.55, 0, 0.55]) {
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(Math.cos(spoke) * 18 * scale, Math.sin(spoke) * 7 * scale);
+    g.stroke();
+  }
+  g.restore();
+  g.beginPath();
+  g.moveTo(x, y + 5 * scale);
+  g.lineTo(x - 7 * scale, y + 21 * scale);
+  g.lineTo(x + 8 * scale, y + 21 * scale);
+  g.closePath();
+  g.stroke();
+}
+
+function drawFacilitySilo(g, x, y, w, h) {
+  g.beginPath();
+  g.ellipse(x + w / 2, y, w / 2, 3, 0, 0, Math.PI * 2);
+  g.moveTo(x, y);
+  g.lineTo(x, y + h);
+  g.moveTo(x + w, y);
+  g.lineTo(x + w, y + h);
+  g.ellipse(x + w / 2, y + h, w / 2, 3, 0, 0, Math.PI * 2);
+  g.stroke();
+}
+
+function drawFacilityTokamak(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -54, 9, 24, 18, true);
+  drawFacilityRect(g, 34, 6, 22, 21, true);
+  drawFacilityRect(g, -15, 13, 30, 14, true);
+  drawFacilityDoor(g, -7, 18, 14, 9, 2);
+  drawFacilityDome(g, 0, 2, 29, 18, 5);
+  for (let i = 0; i < 5; i += 1) {
+    g.beginPath();
+    g.ellipse(0, 3 + i * 1.7, 26 + i * 1.6, 5 + i * 0.25, 0, 0, Math.PI * 2);
+    g.stroke();
+  }
+  drawFacilityRect(g, -61, -8, 10, 35, false);
+  drawFacilityAntenna(g, -56, -25, -8, 1.8);
+  drawFacilityWindows(g, 41, 13, 2, 2);
+  g.beginPath();
+  g.moveTo(-48, 9);
+  g.lineTo(-36, 20);
+  g.moveTo(-44, 1);
+  g.lineTo(-32, 13);
+  g.moveTo(37, 6);
+  g.lineTo(49, 6);
+  g.moveTo(37, 17);
+  g.lineTo(52, 17);
+  g.stroke();
+}
+
+function drawFacilityRadar(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -48, 19, 22, 8, true);
+  drawFacilityRect(g, -22, 15, 28, 12, true);
+  drawFacilityRect(g, 34, 8, 18, 19, true);
+  drawFacilityDish(g, -1, -6, 1.15 + variant * 0.04, -0.48);
+  drawFacilityRect(g, -10, 14, 20, 13, true);
+  g.beginPath();
+  g.moveTo(-7, 14);
+  g.lineTo(-1, 4);
+  g.lineTo(6, 14);
+  g.moveTo(-38, 19);
+  g.lineTo(-38, 12);
+  g.lineTo(-34, 12);
+  g.moveTo(43, 8);
+  g.lineTo(43, -7);
+  g.stroke();
+  drawFacilityAntenna(g, 58, -22, 27, 1.8);
+  drawFacilityWindows(g, 39, 14, 2, 2);
+}
+
+function drawFacilityAnnex(g, variant, color, bright, rng) {
+  for (let i = 0; i < 5; i += 1) {
+    const x = -52 + i * 22;
+    const h = 15 + (i % 3) * 7 + (i === 2 ? 9 : 0);
+    drawFacilityRect(g, x, 27 - h, 20, h, true);
+    drawFacilityWindows(g, x + 5, 30 - h, 2, Math.max(1, Math.floor(h / 10)), 7, 7);
+  }
+  drawFacilityRect(g, -19, -5, 38, 32, true);
+  drawFacilityDoor(g, -7, 12, 14, 15, 2);
+  drawFacilityPoly(g, [{ x: -15, y: -5 }, { x: 0, y: -25 }, { x: 15, y: -5 }], false);
+  g.beginPath();
+  g.arc(0, -27, 6, 0, Math.PI * 2);
+  g.moveTo(0, -21);
+  g.lineTo(0, -5);
+  g.stroke();
+  drawFacilityAntenna(g, 45, -16, 3, 1.4);
+}
+
+function drawFacilityBio(g, variant, color, bright, rng) {
+  drawFacilityDome(g, -28, 5, 24, 19, 4);
+  drawFacilityDome(g, 20, -1, 33, 23, 5);
+  drawFacilityRect(g, -48, 15, 34, 12, true);
+  drawFacilityRect(g, 0, 10, 46, 17, true);
+  drawFacilityDoor(g, 15, 15, 14, 12, 2);
+  drawFacilitySilo(g, 55, -5, 7, 32);
+  drawFacilityAntenna(g, 60, -18, 27, 1.4);
+  g.beginPath();
+  for (let i = 0; i < 3; i += 1) {
+    g.moveTo(-58, -11 + i * 6);
+    g.quadraticCurveTo(-48, -13 + i * 4, -42, -9 + i * 6);
+  }
+  g.stroke();
+}
+
+function drawFacilityMining(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -39, -17, 18, 44, false);
+  g.beginPath();
+  g.moveTo(-39, 27);
+  g.lineTo(-30, -17);
+  g.lineTo(-21, 27);
+  g.moveTo(-39, 5);
+  g.lineTo(-21, 5);
+  g.moveTo(-37, -7);
+  g.lineTo(-23, 17);
+  g.moveTo(-23, -7);
+  g.lineTo(-37, 17);
+  g.stroke();
+  drawFacilityRect(g, -43, -23, 26, 6, false);
+  drawFacilityRect(g, -24, 14, 29, 13, true);
+  drawFacilityRect(g, 14, 8, 30, 19, true);
+  g.beginPath();
+  g.moveTo(-19, -7);
+  g.lineTo(28, 12);
+  g.lineTo(26, 16);
+  g.lineTo(-20, -2);
+  g.stroke();
+  drawFacilityDoor(g, 22, 18, 12, 9, 2);
+  drawOrePile(g, -58, 22, 14);
+  drawOrePile(g, 55, 22, 13);
+}
+
+function drawOrePile(g, x, y, r) {
+  g.beginPath();
+  g.arc(x, y, r, Math.PI, 0);
+  g.arc(x + r * 0.55, y + 1, r * 0.65, Math.PI, 0);
+  g.arc(x - r * 0.62, y + 2, r * 0.55, Math.PI, 0);
+  g.stroke();
+}
+
+function drawFacilityPower(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -38, 7, 36, 20, true);
+  drawFacilityRect(g, 4, 2, 34, 25, true);
+  drawFacilityRect(g, 37, 15, 20, 12, true);
+  for (const x of [-28, -10]) {
+    g.beginPath();
+    g.moveTo(x, 7);
+    g.lineTo(x + 3, -27);
+    g.lineTo(x + 11, -27);
+    g.lineTo(x + 14, 7);
+    g.closePath();
+    g.stroke();
+    for (let y = -17; y < 3; y += 8) {
+      g.beginPath();
+      g.moveTo(x + 2.5, y);
+      g.lineTo(x + 11.5, y);
+      g.stroke();
+    }
+  }
+  drawFacilitySilo(g, 41, 9, 9, 18);
+  drawFacilitySilo(g, 53, 9, 9, 18);
+  g.beginPath();
+  g.moveTo(-15, 14);
+  g.lineTo(-6, 3);
+  g.lineTo(-10, 14);
+  g.lineTo(-2, 14);
+  g.lineTo(-13, 27);
+  g.stroke();
+  drawFacilityWindows(g, 12, 8, 3, 2);
+}
+
+function drawFacilityComms(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -50, 13, 34, 14, true);
+  drawFacilityRect(g, -15, 8, 39, 19, true);
+  drawFacilityRect(g, 25, 15, 26, 12, true);
+  drawFacilityDish(g, -3, -10, 0.9, -0.42);
+  drawFacilityAntenna(g, 34, -25, 27, 1.5);
+  g.beginPath();
+  g.moveTo(28, 27);
+  g.lineTo(34, -2);
+  g.lineTo(41, 27);
+  g.moveTo(30, 12);
+  g.lineTo(39, 12);
+  g.moveTo(31, 4);
+  g.lineTo(38, 4);
+  g.stroke();
+  drawFacilityDoor(g, -5, 16, 15, 11, 2);
+  drawFacilityWindows(g, -43, 18, 3, 1);
+  drawFacilityWindows(g, 30, 19, 3, 1);
+}
+
+function drawFacilityHydro(g, variant, color, bright, rng) {
+  drawFacilityPoly(g, [{ x: -54, y: 5 }, { x: -45, y: -7 }, { x: 18, y: -7 }, { x: 28, y: 5 }, { x: 28, y: 27 }, { x: -54, y: 27 }], true);
+  for (let i = 0; i < 6; i += 1) {
+    const x = -43 + i * 11;
+    g.beginPath();
+    g.moveTo(x, -5);
+    g.lineTo(x - 5, 26);
+    g.moveTo(x + 8, -5);
+    g.lineTo(x + 3, 26);
+    g.stroke();
+  }
+  for (let i = 0; i < 5; i += 1) {
+    g.beginPath();
+    g.moveTo(-47 + i * 14, 5);
+    g.lineTo(-36 + i * 14, 5);
+    g.stroke();
+  }
+  drawFacilitySilo(g, 39, -16, 9, 43);
+  drawFacilitySilo(g, 52, -15, 9, 42);
+  drawFacilityRect(g, 31, 12, 36, 15, true);
+}
+
+function drawFacilityVehicle(g, variant, color, bright, rng) {
+  drawFacilityPoly(g, [{ x: -59, y: 12 }, { x: -43, y: -14 }, { x: 39, y: -14 }, { x: 58, y: 4 }, { x: 58, y: 27 }, { x: -59, y: 27 }], true);
+  drawFacilityDoor(g, -35, 3, 42, 24, 4);
+  drawFacilityRect(g, -21, -8, 31, 10, false);
+  drawFacilityRect(g, 22, -4, 24, 31, false);
+  drawFacilityAntenna(g, 37, -31, -4, 1.6);
+  g.beginPath();
+  g.moveTo(-13, 21);
+  g.lineTo(-2, 14);
+  g.lineTo(16, 14);
+  g.lineTo(28, 21);
+  g.lineTo(-13, 21);
+  g.moveTo(-4, 21);
+  g.arc(-4, 21, 3, 0, Math.PI * 2);
+  g.moveTo(19, 21);
+  g.arc(19, 21, 3, 0, Math.PI * 2);
+  g.stroke();
+}
+
+function drawFacilitySatellite(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -51, 6, 42, 21, true);
+  drawFacilityRect(g, -36, -5, 32, 11, false);
+  drawFacilityDoor(g, -39, 14, 24, 13, 3);
+  g.beginPath();
+  g.arc(-23, -19, 15, 0, Math.PI * 2);
+  g.stroke();
+  for (let i = -2; i <= 2; i += 1) {
+    g.beginPath();
+    g.moveTo(-23 + i * 6, -32 + Math.abs(i) * 3);
+    g.lineTo(-23 - i * 5, -7 - Math.abs(i) * 3);
+    g.stroke();
+  }
+  g.beginPath();
+  g.ellipse(-23, -19, 15, 5, 0, 0, Math.PI * 2);
+  g.moveTo(-38, -19);
+  g.lineTo(-8, -19);
+  g.stroke();
+  drawFacilityRect(g, 13, 9, 27, 18, true);
+  drawFacilityDish(g, 45, -1, 0.52, -0.22);
+  drawFacilityAntenna(g, 27, -22, 9, 1.4);
+}
+
+function drawFacilityStorage(g, variant, color, bright, rng) {
+  drawFacilityPoly(g, [{ x: -50, y: -8 }, { x: -34, y: -19 }, { x: 32, y: -19 }, { x: 48, y: -8 }, { x: 48, y: 27 }, { x: -50, y: 27 }], true);
+  drawFacilityDoor(g, -39, 2, 21, 25, 4);
+  drawFacilityDoor(g, -9, 4, 24, 23, 4);
+  drawFacilityRect(g, 24, -3, 22, 30, true);
+  drawFacilityRect(g, 51, 10, 13, 17, true);
+  drawFacilityWindows(g, -32, -12, 5, 1, 12, 5);
+  drawFacilityWindows(g, 26, 6, 2, 3, 7, 6);
+  for (let i = 0; i < 4; i += 1) {
+    drawFacilityRect(g, -58 + i * 10, 18, 8, 9, false);
+  }
+}
+
+function drawFacilityCommand(g, variant, color, bright, rng) {
+  drawFacilityRect(g, -58, 12, 22, 15, true);
+  drawFacilityRect(g, 36, 12, 22, 15, true);
+  drawFacilityRect(g, -34, 2, 68, 25, true);
+  drawFacilityRect(g, -22, -10, 44, 12, true);
+  drawFacilityRect(g, -12, -21, 24, 11, true);
+  drawFacilityDoor(g, -9, 13, 18, 14, 2);
+  drawFacilityWindows(g, -27, 8, 4, 1, 12, 5);
+  drawFacilityWindows(g, -15, -5, 4, 1, 9, 5);
+  drawFacilityWindows(g, -52, 18, 2, 1, 9, 5);
+  drawFacilityWindows(g, 43, 18, 2, 1, 9, 5);
+  drawFacilityAntenna(g, 0, -37, -21, 1.8);
+  g.beginPath();
+  g.moveTo(-16, -21);
+  g.lineTo(0, -31);
+  g.lineTo(16, -21);
+  g.moveTo(-4, -26);
+  g.lineTo(4, -26);
+  g.stroke();
+}
+
+function drawFacilityGrime(g, variant, color, bright, rng) {
+  facilityStroke(g, color, bright, 0.24, 0.55);
+  for (let i = 0; i < 16; i += 1) {
+    const x = -58 + rng() * 116;
+    const y = -24 + rng() * 48;
+    if (rng() < 0.46) {
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + 3 + rng() * 10, y + (rng() - 0.5) * 2);
+      g.stroke();
+    }
+  }
 }
 
 function drawFacilityMicroDetail(variant) {

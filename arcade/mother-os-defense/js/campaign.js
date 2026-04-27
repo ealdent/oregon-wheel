@@ -1,8 +1,8 @@
 "use strict";
 
 const CAMPAIGN_MAP = {
-  nodeWidth: 154,
-  nodeHeight: 98,
+  nodeWidth: 176,
+  nodeHeight: 112,
   gridX: 245,
   gridY: 162
 };
@@ -51,24 +51,52 @@ const CAMPAIGN_DIRECTIONS = [
 
 const facilityNamePools = {
   tokamak: {
-    sites: ["Tokamak Facility", "Plasma Intake Plant", "Fusion Valve Station"],
+    sites: ["Tokamak Reactor", "Plasma Intake Plant", "Fusion Valve Station"],
     suffixes: ["B", "K", "R-4", "Delta", "C-11", "Morrow"]
   },
-  cargo: {
-    sites: ["Orbital Cargo Facility", "Aperture Dockyard", "Freight Relay Yard"],
-    suffixes: ["13", "22", "C", "Helix", "Orion", "12"]
+  radar: {
+    sites: ["Deep Radar Array", "Catenary Radar Yard", "Subsurface Signal Array"],
+    suffixes: ["3", "Iris", "Q", "88", "V", "31"]
   },
-  foundry: {
-    sites: ["Null Foundry", "Mass Driver Array", "Vehicle Plant"],
-    suffixes: ["17", "Gamma", "Kestrel", "F", "9", "V"]
+  annex: {
+    sites: ["Annex Complex", "Civic Data Annex", "Municipal Relay Annex"],
+    suffixes: ["Aster", "Q-7", "Mosaic", "04", "Theta", "K"]
   },
   cryo: {
-    sites: ["Cryogenic Vault", "Bio-Research Lab", "Hydro Pump Station"],
+    sites: ["Bio Research Facility", "Cryogenic Bio Vault", "Containment Lab"],
     suffixes: ["Sigma", "E-6", "Lumen", "04", "7A", "Pike"]
   },
-  radar: {
-    sites: ["Deep Radar Annex", "Catenary Relay Station", "Subsurface Data Mine"],
-    suffixes: ["3", "Iris", "Q", "88", "V", "31"]
+  foundry: {
+    sites: ["Mining Operation", "Null Foundry", "Mass Driver Mine"],
+    suffixes: ["17", "Gamma", "Kestrel", "F", "9", "V"]
+  },
+  power: {
+    sites: ["Power Plant", "Thermal Stack Plant", "Reactor Switching Yard"],
+    suffixes: ["Grid-8", "Ion", "Cinder", "V", "21", "Argus"]
+  },
+  comms: {
+    sites: ["Communications Hub", "Catenary Relay Station", "Signal Control Hub"],
+    suffixes: ["Juno", "Beta", "V", "31", "Mirror", "L-9"]
+  },
+  hydro: {
+    sites: ["Hydroponics Farm", "Hydro Pump Station", "Nutrient Array"],
+    suffixes: ["Dawn", "Pike", "7A", "Canopy", "Eden", "04"]
+  },
+  vehicle: {
+    sites: ["Vehicle Depot", "Aperture Dockyard", "Armor Service Bay"],
+    suffixes: ["6", "Orion", "Z", "12", "H-2", "Bay"]
+  },
+  satellite: {
+    sites: ["Satellite Uplink", "Orbital Relay Dome", "Telemetry Uplink"],
+    suffixes: ["Iris", "Zenith", "31", "Helix", "Q", "Aster"]
+  },
+  cargo: {
+    sites: ["Storage Facility", "Orbital Cargo Facility", "Freight Relay Yard"],
+    suffixes: ["13", "22", "C", "Helix", "Orion", "12"]
+  },
+  command: {
+    sites: ["Command Center", "Sector Control Nexus", "Strategic Operations Core"],
+    suffixes: ["Prime", "Bastion", "76", "Axis", "R-4", "Delta"]
   }
 };
 
@@ -141,7 +169,7 @@ function createCampaign() {
   const start = {
     id: "F-001",
     index: 1,
-    facility: "Tokamak Facility B",
+    facility: "Tokamak Reactor B",
     type: "tokamak",
     gridX: 0,
     gridY: 0,
@@ -694,7 +722,14 @@ function createGeneratedCampaignNode(campaign, parent, direction, plannedExitCou
   const namePool = facilityNamePools[type] || facilityNamePools.tokamak;
   const facility = `${campaignPick(rng, namePool.sites)} ${campaignPick(rng, namePool.suffixes)}`;
   const sectorBase = campaignRandomInt(rng, 6, 12 + Math.min(5, Math.floor(index / 5)));
-  const sectorCount = clamp(sectorBase + (type === "foundry" ? 1 : type === "cargo" ? -1 : 0), 5, 16);
+  const sectorMod = {
+    cargo: -1,
+    hydro: -1,
+    foundry: 1,
+    power: 1,
+    command: 1
+  }[type] || 0;
+  const sectorCount = clamp(sectorBase + sectorMod, 5, 16);
   const node = {
     id,
     index,
@@ -910,8 +945,15 @@ function facilityPathDifficulty(node) {
     cargo: -0.08,
     cryo: -0.03,
     tokamak: 0.03,
+    annex: 0.02,
+    hydro: -0.06,
     radar: 0.06,
-    foundry: 0.1
+    comms: 0.06,
+    satellite: 0.07,
+    vehicle: 0.08,
+    power: 0.09,
+    foundry: 0.1,
+    command: 0.12
   };
   const indexPressure = clamp((node.index - 1) / 18, 0, 1) * 0.5;
   const sectorPressure = clamp((node.sectorCount - 5) / 11, 0, 1) * 0.38;
