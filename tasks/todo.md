@@ -1,5 +1,32 @@
 # Mother OS Campaign Map Planning
 
+## Facility Path Variation
+
+### Spec
+
+- [x] Replace the repeated central switchback generator with multiple seeded route archetypes.
+- [x] Make easier/earlier facilities bias toward longer, more winding tracks.
+- [x] Make harder/later facilities bias toward shorter, straighter tracks with fewer turns.
+- [x] Persist generated facility layouts on campaign nodes so a facility keeps the same route when revisited.
+- [x] Verify route length/turn metrics across generated facilities plus browser screenshot QA.
+
+### Plan
+
+- [x] Add a facility layout version and node-level layout cache.
+- [x] Add difficulty scoring from facility index, sector count, and facility type.
+- [x] Implement varied path archetypes: wide serpentine, perimeter loop, spiral, diagonal weave, offset switchback, dogleg, and straight chicane.
+- [x] Select candidate paths by target length and turn count so easier routes are long/winding and harder routes are short/direct.
+- [x] Run static checks, browser metric checks, and screenshot verification.
+- [x] Commit and push the checkpoint.
+
+### Review
+
+- Added versioned facility layout caching on campaign nodes so newly generated routes persist when a facility is revisited.
+- Added seeded path archetypes: wide serpentine, perimeter loop, spiral, diagonal weave, offset switchback, direct dogleg, and straight chicane.
+- Path selection now uses facility index, sector count, and facility type to bias easier facilities toward longer winding routes and harder facilities toward shorter straighter routes.
+- Browser metric sampling showed easy routes averaging about 2423m with 7 turns and hard routes averaging about 874m with 1 turn.
+- Verified with `node --check`, `git diff --check`, and a campaign facility screenshot.
+
 ## Campaign Terrain Persistence
 
 ### Spec
@@ -17,7 +44,7 @@
 - [x] Update campaign terrain rendering to draw stored features from visible chunks through `campaignWorldToScreen`.
 - [x] Add a lightweight visible-chunk cache so unchanged pans do not repeatedly flatten feature lists.
 - [x] Run `node --check`, `git diff --check`, and browser screenshot/pan stability verification.
-- [ ] Commit and push the checkpoint.
+- [x] Commit and push the checkpoint.
 
 ### Review
 

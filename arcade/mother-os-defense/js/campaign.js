@@ -13,6 +13,18 @@ const CAMPAIGN_TERRAIN = {
   margin: 260
 };
 
+const FACILITY_LAYOUT_VERSION = 2;
+const FACILITY_PATH_BOUNDS = {
+  minX: 82,
+  maxX: BOARD.width - 82,
+  minY: 34,
+  maxY: BOARD.height - 34,
+  innerMinX: 118,
+  innerMaxX: BOARD.width - 118,
+  innerMinY: 82,
+  innerMaxY: BOARD.height - 82
+};
+
 let campaignTerrainFeatureCacheKey = "";
 let campaignTerrainFeatureCache = null;
 
@@ -195,7 +207,7 @@ function saveCampaign(campaign = currentState() && currentState().campaign) {
   try {
     window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(campaign));
   } catch (error) {
-    showToast("Campaign save unavailable");
+    if (typeof showToast === "function") showToast("Campaign save unavailable");
   }
 }
 
@@ -679,18 +691,63 @@ function campaignUnknownExitDirections(campaign, node) {
 
 function generateFacilityLayout(node) {
   const type = facilityTypes[node.type] || facilityTypes.tokamak;
+  const layout = ensureFacilityLayout(node);
   return {
     nodeId: node.id,
     type: node.type,
     typeDef: type,
-    pathPoints: generateFacilityPath(node.seed),
+    pathPoints: layout.pathPoints.map((point) => ({ ...point })),
+    pathProfile: { ...(layout.pathProfile || {}) },
+    pathLength: layout.pathLength,
     schematicSeed: campaignHash(`${node.seed}:schematic`),
     grimeSeed: campaignHash(`${node.seed}:grime`),
     mapSeed: node.seed
   };
 }
 
-function generateFacilityPath(seed) {
+function ensureFacilityLayout(node) {
+  if (
+    node.layout
+    && node.layout.version === FACILITY_LAYOUT_VERSION
+    && Array.isArray(node.layout.pathPoints)
+    && node.layout.pathPoints.length >= 2
+  ) {
+    return node.layout;
+  }
+  const preserveStartedRoute = !!(
+    node.checkpoint
+    && (
+      (node.checkpoint.towers && node.checkpoint.towers.length)
+      || (node.checkpoint.mines && node.checkpoint.mines.length)
+      || (node.checkpoint.wave && node.checkpoint.wave > 0)
+      || (node.checkpoint.currentSector && node.checkpoint.currentSector < node.sectorCount)
+    )
+  );
+  const generated = preserveStartedRoute
+    ? createFacilityLayoutFromPath(generateLegacyFacilityPath(node.seed), node, "legacy-preserved")
+    : createFacilityLayoutFromPath(generateFacilityPath(node), node, null);
+  node.layout = generated;
+  return node.layout;
+}
+
+function createFacilityLayoutFromPath(result, node, forcedArchetype) {
+  const pathPoints = Array.isArray(result) ? result : result.points;
+  const normalized = normalizeFacilityPath(pathPoints);
+  const length = Math.round(measureFacilityPathLength(normalized));
+  return {
+    version: FACILITY_LAYOUT_VERSION,
+    pathPoints: normalized,
+    pathLength: length,
+    pathProfile: {
+      difficulty: Math.round(facilityPathDifficulty(node) * 1000) / 1000,
+      archetype: forcedArchetype || result.archetype || "generated",
+      turns: countFacilityPathTurns(normalized),
+      targetLength: result.targetLength ? Math.round(result.targetLength) : null
+    }
+  };
+}
+
+function generateLegacyFacilityPath(seed) {
   const rng = makeCampaignRng(`${seed}:path`);
   const startX = campaignRandomInt(rng, 360, 640);
   const rows = [
@@ -720,6 +777,385 @@ function generateFacilityPath(seed) {
   return points;
 }
 
+function generateFacilityPath(node) {
+  const difficulty = facilityPathDifficulty(node);
+  const rng = makeCampaignRng(`${node.seed}:path:v${FACILITY_LAYOUT_VERSION}`);
+  const targetLength = 2120 - difficulty * 980;
+  const archetype = pickFacilityPathArchetype(rng, difficulty);
+  let best = null;
+  for (let i = 0; i < 14; i += 1) {
+    const points = normalizeFacilityPath(generateFacilityPathByArchetype(archetype, rng, difficulty));
+    const length = measureFacilityPathLength(points);
+    const turns = countFacilityPathTurns(points);
+    const score = (
+      Math.abs(length - targetLength) / targetLength
+      + difficulty * turns * 0.022
+      + (1 - difficulty) * Math.max(0, 7 - turns) * 0.052
+      + (pathCenterBias(points) * 0.12)
+      + rng() * 0.035
+    );
+    if (!best || score < best.score) {
+      best = { points, archetype, length, turns, targetLength, score };
+    }
+  }
+  return best || { points: generateLegacyFacilityPath(node.seed), archetype: "legacy-fallback", targetLength };
+}
+
+function facilityPathDifficulty(node) {
+  const typeMods = {
+    cargo: -0.08,
+    cryo: -0.03,
+    tokamak: 0.03,
+    radar: 0.06,
+    foundry: 0.1
+  };
+  const indexPressure = clamp((node.index - 1) / 18, 0, 1) * 0.5;
+  const sectorPressure = clamp((node.sectorCount - 5) / 11, 0, 1) * 0.38;
+  return clamp(indexPressure + sectorPressure + (typeMods[node.type] || 0), 0, 1);
+}
+
+function pickFacilityPathArchetype(rng, difficulty) {
+  const easy = [
+    ["wide-serpentine", 3.4],
+    ["perimeter-loop", 2.6],
+    ["spiral", 2.4]
+  ];
+  const mid = [
+    ["diagonal-weave", 2.4],
+    ["offset-switchback", 2.0],
+    ["perimeter-loop", 1.1],
+    ["direct-dogleg", 1.0],
+    ["wide-serpentine", 0.9]
+  ];
+  const hard = [
+    ["direct-dogleg", 3.6],
+    ["straight-chicane", 3.0],
+    ["diagonal-weave", 1.0]
+  ];
+  const table = difficulty < 0.35 ? easy : difficulty > 0.68 ? hard : mid;
+  const total = table.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = rng() * total;
+  for (const [archetype, weight] of table) {
+    roll -= weight;
+    if (roll <= 0) return archetype;
+  }
+  return table[0][0];
+}
+
+function generateFacilityPathByArchetype(archetype, rng, difficulty) {
+  if (archetype === "perimeter-loop") return generatePerimeterLoopPath(rng, difficulty);
+  if (archetype === "spiral") return generateSpiralPath(rng, difficulty);
+  if (archetype === "diagonal-weave") return generateDiagonalWeavePath(rng, difficulty);
+  if (archetype === "offset-switchback") return generateOffsetSwitchbackPath(rng, difficulty);
+  if (archetype === "direct-dogleg") return generateDirectDoglegPath(rng, difficulty);
+  if (archetype === "straight-chicane") return generateStraightChicanePath(rng, difficulty);
+  return generateWideSerpentinePath(rng, difficulty);
+}
+
+function edgePoint(edge, rng, variance = 0.72) {
+  const b = FACILITY_PATH_BOUNDS;
+  const xRange = (b.innerMaxX - b.innerMinX) * variance;
+  const yRange = (b.innerMaxY - b.innerMinY) * variance;
+  const centerX = BOARD.width / 2;
+  const centerY = BOARD.height / 2;
+  if (edge === "top") return { x: Math.round(centerX + (rng() - 0.5) * xRange), y: b.minY };
+  if (edge === "bottom") return { x: Math.round(centerX + (rng() - 0.5) * xRange), y: b.maxY };
+  if (edge === "left") return { x: b.minX, y: Math.round(centerY + (rng() - 0.5) * yRange) };
+  return { x: b.maxX, y: Math.round(centerY + (rng() - 0.5) * yRange) };
+}
+
+function oppositeEdge(edge) {
+  return { top: "bottom", bottom: "top", left: "right", right: "left" }[edge] || "bottom";
+}
+
+function perpendicularEdges(edge) {
+  return edge === "top" || edge === "bottom" ? ["left", "right"] : ["top", "bottom"];
+}
+
+function randomExitEdge(rng, startEdge, difficulty) {
+  if (difficulty > 0.64 && rng() < 0.72) return oppositeEdge(startEdge);
+  const options = rng() < 0.62 ? perpendicularEdges(startEdge) : [oppositeEdge(startEdge), ...perpendicularEdges(startEdge)];
+  return campaignPick(rng, options);
+}
+
+function generateWideSerpentinePath(rng, difficulty) {
+  const vertical = rng() > 0.38;
+  const turns = campaignRandomInt(rng, difficulty < 0.25 ? 5 : 5, difficulty < 0.25 ? 8 : 7);
+  const points = [];
+  if (vertical) {
+    const startEdge = rng() > 0.5 ? "top" : "bottom";
+    const endEdge = oppositeEdge(startEdge);
+    const start = edgePoint(startEdge, rng);
+    const endY = endEdge === "bottom" ? FACILITY_PATH_BOUNDS.maxY : FACILITY_PATH_BOUNDS.minY;
+    const dir = endY > start.y ? 1 : -1;
+    points.push(start);
+    let x = start.x;
+    for (let i = 1; i <= turns; i += 1) {
+      const t = i / (turns + 1);
+      const y = start.y + (endY - start.y) * t + campaignRandomInt(rng, -18, 18);
+      points.push({ x, y });
+      const targetSide = i % 2 === 1 ? (rng() > 0.5 ? "left" : "right") : (x < BOARD.width / 2 ? "right" : "left");
+      const nextX = targetSide === "left"
+        ? campaignRandomInt(rng, FACILITY_PATH_BOUNDS.innerMinX, 330)
+        : campaignRandomInt(rng, 670, FACILITY_PATH_BOUNDS.innerMaxX);
+      x = clamp(nextX + campaignRandomInt(rng, -30, 30), FACILITY_PATH_BOUNDS.innerMinX, FACILITY_PATH_BOUNDS.innerMaxX);
+      points.push({ x, y });
+    }
+    points.push({ x, y: endY });
+  } else {
+    const startEdge = rng() > 0.5 ? "left" : "right";
+    const endEdge = oppositeEdge(startEdge);
+    const start = edgePoint(startEdge, rng);
+    const endX = endEdge === "right" ? FACILITY_PATH_BOUNDS.maxX : FACILITY_PATH_BOUNDS.minX;
+    points.push(start);
+    let y = start.y;
+    for (let i = 1; i <= turns; i += 1) {
+      const t = i / (turns + 1);
+      const x = start.x + (endX - start.x) * t + campaignRandomInt(rng, -20, 20);
+      points.push({ x, y });
+      const targetBand = i % 2 === 1 ? (rng() > 0.5 ? "top" : "bottom") : (y < BOARD.height / 2 ? "bottom" : "top");
+      const nextY = targetBand === "top"
+        ? campaignRandomInt(rng, FACILITY_PATH_BOUNDS.innerMinY, 230)
+        : campaignRandomInt(rng, 450, FACILITY_PATH_BOUNDS.innerMaxY);
+      y = clamp(nextY + campaignRandomInt(rng, -22, 22), FACILITY_PATH_BOUNDS.innerMinY, FACILITY_PATH_BOUNDS.innerMaxY);
+      points.push({ x, y });
+    }
+    points.push({ x: endX, y });
+  }
+  return points;
+}
+
+function generatePerimeterLoopPath(rng, difficulty) {
+  const inset = campaignRandomInt(rng, 92, 142);
+  const startEdge = campaignPick(rng, ["top", "left", "right", "bottom"]);
+  const exitEdge = randomExitEdge(rng, startEdge, difficulty * 0.7);
+  const start = edgePoint(startEdge, rng, 0.8);
+  const end = edgePoint(exitEdge, rng, 0.8);
+  const corners = [
+    { x: inset, y: inset },
+    { x: BOARD.width - inset, y: inset },
+    { x: BOARD.width - inset, y: BOARD.height - inset },
+    { x: inset, y: BOARD.height - inset }
+  ];
+  const startInside = projectToInset(start, startEdge, inset);
+  const endInside = projectToInset(end, exitEdge, inset);
+  const startCorner = perimeterCornerIndex(startEdge, startInside);
+  const endCorner = perimeterCornerIndex(exitEdge, endInside);
+  const clockwise = perimeterCornerSequence(startCorner, endCorner, 1);
+  const counter = perimeterCornerSequence(startCorner, endCorner, -1);
+  const cornerIndexes = difficulty < 0.35
+    ? (clockwise.length >= counter.length ? clockwise : counter)
+    : (rng() > 0.5 ? clockwise : counter);
+  const points = [start, startInside];
+  for (const index of cornerIndexes) {
+    points.push({
+      x: corners[index].x + campaignRandomInt(rng, -18, 18),
+      y: corners[index].y + campaignRandomInt(rng, -18, 18)
+    });
+  }
+  points.push(endInside, end);
+  return points;
+}
+
+function projectToInset(point, edge, inset) {
+  if (edge === "top") return { x: point.x, y: inset };
+  if (edge === "bottom") return { x: point.x, y: BOARD.height - inset };
+  if (edge === "left") return { x: inset, y: point.y };
+  return { x: BOARD.width - inset, y: point.y };
+}
+
+function perimeterCornerIndex(edge, point) {
+  if (edge === "top") return point.x < BOARD.width / 2 ? 0 : 1;
+  if (edge === "right") return point.y < BOARD.height / 2 ? 1 : 2;
+  if (edge === "bottom") return point.x > BOARD.width / 2 ? 2 : 3;
+  return point.y > BOARD.height / 2 ? 3 : 0;
+}
+
+function perimeterCornerSequence(startIndex, endIndex, step) {
+  const indexes = [];
+  let index = startIndex;
+  let guard = 0;
+  while (guard < 6) {
+    indexes.push(index);
+    if (index === endIndex && indexes.length > 1) break;
+    index = (index + step + 4) % 4;
+    guard += 1;
+  }
+  return indexes;
+}
+
+function generateSpiralPath(rng, difficulty) {
+  const startEdge = campaignPick(rng, ["top", "left"]);
+  const endEdge = startEdge === "top" ? "bottom" : "right";
+  const start = edgePoint(startEdge, rng, 0.6);
+  const end = edgePoint(endEdge, rng, 0.6);
+  const outer = campaignRandomInt(rng, 86, 124);
+  const inner = campaignRandomInt(rng, 245, 315);
+  const cx = BOARD.width / 2 + campaignRandomInt(rng, -80, 80);
+  const cy = BOARD.height / 2 + campaignRandomInt(rng, -55, 55);
+  const points = [start, projectToInset(start, startEdge, outer)];
+  points.push(
+    { x: BOARD.width - outer, y: outer },
+    { x: BOARD.width - outer, y: BOARD.height - outer },
+    { x: outer, y: BOARD.height - outer },
+    { x: outer, y: inner },
+    { x: cx + campaignRandomInt(rng, 95, 170), y: inner },
+    { x: cx + campaignRandomInt(rng, 95, 170), y: cy + campaignRandomInt(rng, 70, 135) },
+    { x: cx - campaignRandomInt(rng, 80, 150), y: cy + campaignRandomInt(rng, 70, 135) },
+    projectToInset(end, endEdge, outer),
+    end
+  );
+  if (difficulty > 0.45) points.splice(5, 2);
+  return points;
+}
+
+function generateDiagonalWeavePath(rng, difficulty) {
+  const startEdge = campaignPick(rng, ["top", "left", "right", "bottom"]);
+  const exitEdge = randomExitEdge(rng, startEdge, difficulty);
+  const start = edgePoint(startEdge, rng, 0.82);
+  const end = edgePoint(exitEdge, rng, 0.82);
+  const count = campaignRandomInt(rng, difficulty > 0.55 ? 2 : 3, difficulty > 0.55 ? 4 : 6);
+  const points = [start];
+  for (let i = 1; i <= count; i += 1) {
+    const t = i / (count + 1);
+    const waviness = (1 - difficulty) * 190 + 55;
+    points.push({
+      x: start.x + (end.x - start.x) * t + Math.sin(t * Math.PI * 2 + rng() * 1.4) * waviness + campaignRandomInt(rng, -45, 45),
+      y: start.y + (end.y - start.y) * t + Math.cos(t * Math.PI * 2 + rng() * 1.4) * waviness * 0.62 + campaignRandomInt(rng, -35, 35)
+    });
+  }
+  points.push(end);
+  return points;
+}
+
+function generateOffsetSwitchbackPath(rng, difficulty) {
+  const vertical = rng() > 0.5;
+  const rows = campaignRandomInt(rng, 4, difficulty > 0.55 ? 5 : 7);
+  const points = [];
+  if (vertical) {
+    const start = edgePoint("top", rng, 0.82);
+    points.push(start);
+    let x = start.x;
+    for (let i = 1; i <= rows; i += 1) {
+      const y = FACILITY_PATH_BOUNDS.minY + (FACILITY_PATH_BOUNDS.maxY - FACILITY_PATH_BOUNDS.minY) * (i / (rows + 1));
+      points.push({ x, y });
+      x = campaignRandomInt(rng, FACILITY_PATH_BOUNDS.innerMinX, FACILITY_PATH_BOUNDS.innerMaxX);
+      points.push({ x, y });
+    }
+    points.push({ x, y: FACILITY_PATH_BOUNDS.maxY });
+  } else {
+    const start = edgePoint("left", rng, 0.82);
+    points.push(start);
+    let y = start.y;
+    for (let i = 1; i <= rows; i += 1) {
+      const x = FACILITY_PATH_BOUNDS.minX + (FACILITY_PATH_BOUNDS.maxX - FACILITY_PATH_BOUNDS.minX) * (i / (rows + 1));
+      points.push({ x, y });
+      y = campaignRandomInt(rng, FACILITY_PATH_BOUNDS.innerMinY, FACILITY_PATH_BOUNDS.innerMaxY);
+      points.push({ x, y });
+    }
+    points.push({ x: FACILITY_PATH_BOUNDS.maxX, y });
+  }
+  return points;
+}
+
+function generateDirectDoglegPath(rng, difficulty) {
+  const startEdge = campaignPick(rng, ["top", "left", "right", "bottom"]);
+  const exitEdge = randomExitEdge(rng, startEdge, Math.max(0.7, difficulty));
+  const start = edgePoint(startEdge, rng, 0.66);
+  const end = edgePoint(exitEdge, rng, 0.66);
+  const bends = campaignRandomInt(rng, 1, difficulty > 0.78 ? 2 : 3);
+  const points = [start];
+  for (let i = 1; i <= bends; i += 1) {
+    const t = i / (bends + 1);
+    points.push({
+      x: start.x + (end.x - start.x) * t + campaignRandomInt(rng, -80, 80) * (1 - difficulty * 0.45),
+      y: start.y + (end.y - start.y) * t + campaignRandomInt(rng, -64, 64) * (1 - difficulty * 0.45)
+    });
+  }
+  points.push(end);
+  return points;
+}
+
+function generateStraightChicanePath(rng, difficulty) {
+  const startEdge = campaignPick(rng, ["top", "left", "right", "bottom"]);
+  const exitEdge = oppositeEdge(startEdge);
+  const start = edgePoint(startEdge, rng, 0.52);
+  const end = edgePoint(exitEdge, rng, 0.52);
+  const points = [start];
+  const middleCount = difficulty > 0.82 ? 1 : 2;
+  for (let i = 1; i <= middleCount; i += 1) {
+    const t = i / (middleCount + 1);
+    points.push({
+      x: start.x + (end.x - start.x) * t + campaignRandomInt(rng, -42, 42),
+      y: start.y + (end.y - start.y) * t + campaignRandomInt(rng, -42, 42)
+    });
+  }
+  points.push(end);
+  return points;
+}
+
+function normalizeFacilityPath(points) {
+  const normalized = [];
+  for (const point of points) {
+    const next = {
+      x: Math.round(clamp(point.x, FACILITY_PATH_BOUNDS.minX, FACILITY_PATH_BOUNDS.maxX)),
+      y: Math.round(clamp(point.y, FACILITY_PATH_BOUNDS.minY, FACILITY_PATH_BOUNDS.maxY))
+    };
+    const previous = normalized[normalized.length - 1];
+    if (!previous || Math.hypot(previous.x - next.x, previous.y - next.y) >= 34) {
+      normalized.push(next);
+    }
+  }
+  return removeFacilityPathCollinear(normalized.length >= 2 ? normalized : DEFAULT_PATH_POINTS);
+}
+
+function removeFacilityPathCollinear(points) {
+  if (points.length <= 2) return points.map((point) => ({ ...point }));
+  const result = [points[0]];
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const a = result[result.length - 1];
+    const b = points[i];
+    const c = points[i + 1];
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const bcx = c.x - b.x;
+    const bcy = c.y - b.y;
+    const cross = Math.abs(abx * bcy - aby * bcx);
+    const dot = abx * bcx + aby * bcy;
+    if (cross > 220 || dot < 0) result.push(b);
+  }
+  result.push(points[points.length - 1]);
+  return result;
+}
+
+function measureFacilityPathLength(points) {
+  let length = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    length += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+  }
+  return length;
+}
+
+function countFacilityPathTurns(points) {
+  let turns = 0;
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const a = points[i - 1];
+    const b = points[i];
+    const c = points[i + 1];
+    const angleA = Math.atan2(b.y - a.y, b.x - a.x);
+    const angleB = Math.atan2(c.y - b.y, c.x - b.x);
+    const delta = Math.abs(Math.atan2(Math.sin(angleB - angleA), Math.cos(angleB - angleA)));
+    if (delta > 0.35) turns += 1;
+  }
+  return turns;
+}
+
+function pathCenterBias(points) {
+  if (!points.length) return 0;
+  const central = points.filter((point) => point.x > 330 && point.x < 670 && point.y > 190 && point.y < 500).length;
+  return central / points.length;
+}
+
 function buildFacilityRunState(campaign, node) {
   const previousState = currentState();
   const checkpoint = node.checkpoint || createDefaultCheckpoint(node);
@@ -731,6 +1167,7 @@ function buildFacilityRunState(campaign, node) {
   node.checkpoint = checkpoint;
   const layout = generateFacilityLayout(node);
   applyFacilityLayout(layout);
+  saveCampaign(campaign);
   const operation = cloneOperation(checkpoint.operation || campaignOperationForNode(node));
   node.currentSector = checkpoint.currentSector || operation.sector;
   nextTowerId = Math.max(1, ...checkpoint.towers.map((tower) => tower.id + 1), 1);

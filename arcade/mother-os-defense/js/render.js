@@ -870,7 +870,7 @@ function drawPathStroke(g, width, strokeStyle) {
 
 function drawGate(g, point, entry) {
   g.save();
-  const offset = entry ? { x: 88, y: 34 } : { x: -86, y: -42 };
+  const offset = gateLabelOffset(point, entry);
   g.translate(point.x + offset.x, point.y + offset.y);
   g.globalAlpha = 0.48;
   g.strokeStyle = entry ? "rgba(124,232,255,0.72)" : "rgba(255,95,97,0.62)";
@@ -886,7 +886,15 @@ function drawGate(g, point, entry) {
   g.fillText(entry ? "ENTRY" : "CORE", 0, 4);
   for (let i = -1; i <= 1; i += 1) {
     g.beginPath();
-    if (entry) {
+    if (offset.edge === "top") {
+      g.moveTo(i * 9 - 4, -24);
+      g.lineTo(i * 9, -17);
+      g.lineTo(i * 9 + 4, -24);
+    } else if (offset.edge === "bottom") {
+      g.moveTo(i * 9 - 4, 24);
+      g.lineTo(i * 9, 17);
+      g.lineTo(i * 9 + 4, 24);
+    } else if (offset.edge === "right") {
       g.moveTo(-48, i * 7 - 4);
       g.lineTo(-39, i * 7);
       g.lineTo(-48, i * 7 + 4);
@@ -898,6 +906,15 @@ function drawGate(g, point, entry) {
     g.stroke();
   }
   g.restore();
+}
+
+function gateLabelOffset(point, entry) {
+  const margin = 92;
+  if (point.y <= FACILITY_PATH_BOUNDS.minY + 18) return { x: 0, y: 34, edge: "top" };
+  if (point.y >= FACILITY_PATH_BOUNDS.maxY - 18) return { x: 0, y: -34, edge: "bottom" };
+  if (point.x <= FACILITY_PATH_BOUNDS.minX + 18) return { x: 88, y: 0, edge: "left" };
+  if (point.x >= FACILITY_PATH_BOUNDS.maxX - 18) return { x: -88, y: 0, edge: "right" };
+  return entry ? { x: margin, y: 0, edge: "left" } : { x: -margin, y: 0, edge: "right" };
 }
 
 function drawMines() {
