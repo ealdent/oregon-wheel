@@ -3,8 +3,19 @@
 const CAMPAIGN_MAP = {
   nodeWidth: 166,
   nodeHeight: 128,
-  gridX: 245,
-  gridY: 184
+  gridX: 345,
+  gridY: 260
+};
+
+const CAMPAIGN_GRAPH_LAYOUT_VERSION = 2;
+
+const CAMPAIGN_BRANCH = {
+  minDistance: 470,
+  maxDistance: 690,
+  rootSpread: Math.PI * 1.72,
+  childSpread: Math.PI * 0.92,
+  clearance: 330,
+  unknownScale: 0.78
 };
 
 const CAMPAIGN_TERRAIN = {
@@ -48,13 +59,6 @@ const FACILITY_PATH_BOUNDS = {
 
 let campaignTerrainFeatureCacheKey = "";
 let campaignTerrainFeatureCache = null;
-
-const CAMPAIGN_DIRECTIONS = [
-  { id: "E", dx: 1, dy: 0 },
-  { id: "S", dx: 0, dy: 1 },
-  { id: "N", dx: 0, dy: -1 },
-  { id: "W", dx: -1, dy: 0 }
-];
 
 const facilityNamePools = {
   tokamak: {
@@ -161,6 +165,7 @@ function createCampaign() {
     currentNodeId: "F-001",
     selectedNodeId: "F-001",
     mapUnlocked: false,
+    graphLayoutVersion: CAMPAIGN_GRAPH_LAYOUT_VERSION,
     nodes: {},
     edges: [],
     pan: { x: 0, y: 0 },
@@ -180,6 +185,9 @@ function createCampaign() {
     type: "tokamak",
     gridX: 0,
     gridY: 0,
+    mapX: 0,
+    mapY: 0,
+    branchAngle: 0,
     seed: campaignHash(`${campaign.seed}:start`),
     sectorCount: 7,
     currentSector: 7,
@@ -213,6 +221,7 @@ function normalizeCampaign(campaign) {
     return createCampaign();
   }
   campaign.version = 1;
+  const needsGraphReflow = campaign.graphLayoutVersion !== CAMPAIGN_GRAPH_LAYOUT_VERSION;
   campaign.edges = Array.isArray(campaign.edges) ? campaign.edges : [];
   campaign.pan = campaign.pan || { x: 0, y: 0 };
   campaign.terrain = normalizeCampaignTerrain(campaign.terrain);
@@ -230,6 +239,10 @@ function normalizeCampaign(campaign) {
     node.type = facilityTypes[node.type] ? node.type : "tokamak";
     node.index = node.index || Number(node.id.replace(/\D/g, "")) || 1;
     node.seed = node.seed || campaignHash(`${campaign.seed}:${node.id}`);
+    node.gridX = Number.isFinite(node.gridX) ? node.gridX : 0;
+    node.gridY = Number.isFinite(node.gridY) ? node.gridY : 0;
+    node.mapX = Number.isFinite(node.mapX) ? node.mapX : node.gridX * CAMPAIGN_MAP.gridX;
+    node.mapY = Number.isFinite(node.mapY) ? node.mapY : node.gridY * CAMPAIGN_MAP.gridY;
     node.sectorCount = node.sectorCount || 7;
     node.currentSector = clamp(node.currentSector || node.sectorCount, 0, node.sectorCount);
     node.plannedExitCount = Number.isFinite(node.plannedExitCount) ? node.plannedExitCount : 2;
@@ -241,6 +254,12 @@ function normalizeCampaign(campaign) {
     if (!node.checkpoint && !node.secured) node.checkpoint = createDefaultCheckpoint(node);
     maxIndex = Math.max(maxIndex, node.index);
   }
+  if (needsGraphReflow) {
+    reflowCampaignGraph(campaign);
+  } else {
+    ensureCampaignBranchAngles(campaign);
+  }
+  campaign.graphLayoutVersion = CAMPAIGN_GRAPH_LAYOUT_VERSION;
   campaign.nextNodeIndex = Math.max(campaign.nextNodeIndex || 2, maxIndex + 1);
   campaign.selectedNodeId = campaign.selectedNodeId && campaign.nodes[campaign.selectedNodeId]
     ? campaign.selectedNodeId
@@ -388,9 +407,30 @@ function ensureCampaignTerrainForViewport(campaign) {
 }
 
 function campaignNodeWorldPosition(node) {
+  const point = campaignNodeMapPosition(node);
+  return campaignMapPointToWorld(point);
+}
+
+function campaignNodeMapPosition(node) {
   return {
-    x: campaignViewportWidth() / 2 + node.gridX * CAMPAIGN_MAP.gridX,
-    y: campaignViewportHeight() / 2 + node.gridY * CAMPAIGN_MAP.gridY
+    x: Number.isFinite(node.mapX) ? node.mapX : (node.gridX || 0) * CAMPAIGN_MAP.gridX,
+    y: Number.isFinite(node.mapY) ? node.mapY : (node.gridY || 0) * CAMPAIGN_MAP.gridY
+  };
+}
+
+function campaignMapPointToWorld(point) {
+  return {
+    x: campaignViewportWidth() / 2 + point.x,
+    y: campaignViewportHeight() / 2 + point.y
+  };
+}
+
+function campaignMapPointToScreen(campaign, point) {
+  const pan = campaign.pan || { x: 0, y: 0 };
+  const world = campaignMapPointToWorld(point);
+  return {
+    x: world.x + pan.x,
+    y: world.y + pan.y
   };
 }
 
@@ -399,8 +439,9 @@ function campaignExplorationSignature(campaign) {
     .sort((a, b) => a.index - b.index)
     .map((node) => [
       node.id,
-      node.gridX,
-      node.gridY,
+      Math.round(campaignNodeMapPosition(node).x),
+      Math.round(campaignNodeMapPosition(node).y),
+      Math.round((node.branchAngle || 0) * 1000),
       node.secured ? 1 : 0,
       node.exitsGenerated ? 1 : 0,
       node.plannedExitCount || 0,
@@ -432,11 +473,8 @@ function campaignExplorationGeometry(campaign) {
   }
   for (const node of visibleNodes) {
     const from = positions.get(node.id) || campaignNodeWorldPosition(node);
-    for (const direction of campaignUnknownExitDirections(campaign, node)) {
-      const to = {
-        x: from.x + direction.dx * CAMPAIGN_MAP.gridX * 0.72,
-        y: from.y + direction.dy * CAMPAIGN_MAP.gridY * 0.72
-      };
+    for (const branch of campaignUnknownExitBranches(campaign, node)) {
+      const to = campaignMapPointToWorld({ x: branch.mapX, y: branch.mapY });
       points.push(to);
       segments.push({ a: from, b: to });
     }
@@ -789,18 +827,6 @@ function visibleCampaignNodes(campaign = currentState() && currentState().campai
   return Object.values(campaign.nodes).filter((node) => node.visible);
 }
 
-function campaignGridKey(x, y) {
-  return `${x},${y}`;
-}
-
-function occupiedCampaignCells(campaign) {
-  const occupied = new Set();
-  for (const node of Object.values(campaign.nodes)) {
-    occupied.add(campaignGridKey(node.gridX, node.gridY));
-  }
-  return occupied;
-}
-
 function weightedExitCount(rng, siblingCount = 3) {
   const options = siblingCount >= 3
     ? [
@@ -844,10 +870,200 @@ function planSiblingExitCounts(rng, count) {
   return exits;
 }
 
-function createGeneratedCampaignNode(campaign, parent, direction, plannedExitCount) {
+function normalizeCampaignAngle(angle) {
+  if (!Number.isFinite(angle)) return 0;
+  const twoPi = Math.PI * 2;
+  return ((angle + Math.PI) % twoPi + twoPi) % twoPi - Math.PI;
+}
+
+function setCampaignNodeMapPosition(node, point, angle) {
+  node.mapX = Math.round(point.x);
+  node.mapY = Math.round(point.y);
+  node.gridX = Math.round(node.mapX / CAMPAIGN_MAP.gridX);
+  node.gridY = Math.round(node.mapY / CAMPAIGN_MAP.gridY);
+  node.branchAngle = normalizeCampaignAngle(angle);
+}
+
+function assignedCampaignMapPoints(campaign, excludeIds = new Set()) {
+  return Object.values(campaign.nodes || {})
+    .filter((node) => !excludeIds.has(node.id) && Number.isFinite(node.mapX) && Number.isFinite(node.mapY))
+    .map((node) => ({ x: node.mapX, y: node.mapY, id: node.id }));
+}
+
+function campaignPointDistanceSq(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function campaignGraphChildren(campaign, node) {
+  if (!campaign || !node) return [];
+  const ids = new Set(Array.isArray(node.childIds) ? node.childIds : []);
+  for (const edge of campaign.edges || []) {
+    if (edge.from === node.id) ids.add(edge.to);
+  }
+  return [...ids]
+    .map((id) => campaign.nodes[id])
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
+}
+
+function campaignIncomingBranchAngle(campaign, node) {
+  if (Number.isFinite(node.branchAngle) && node.parentIds && node.parentIds.length) {
+    return normalizeCampaignAngle(node.branchAngle);
+  }
+  const parentId = node.parentIds && node.parentIds[0];
+  const parent = parentId ? campaign.nodes[parentId] : null;
+  if (parent) {
+    const parentPoint = campaignNodeMapPosition(parent);
+    const nodePoint = campaignNodeMapPosition(node);
+    const angle = Math.atan2(nodePoint.y - parentPoint.y, nodePoint.x - parentPoint.x);
+    if (Number.isFinite(angle)) return normalizeCampaignAngle(angle);
+  }
+  return Number.isFinite(node.branchAngle) ? normalizeCampaignAngle(node.branchAngle) : 0;
+}
+
+function ensureCampaignBranchAngles(campaign) {
+  for (const node of Object.values(campaign.nodes || {})) {
+    if (!Number.isFinite(node.mapX) || !Number.isFinite(node.mapY)) {
+      node.mapX = (node.gridX || 0) * CAMPAIGN_MAP.gridX;
+      node.mapY = (node.gridY || 0) * CAMPAIGN_MAP.gridY;
+    }
+    if (!Number.isFinite(node.branchAngle) || (node.parentIds && node.parentIds.length)) {
+      node.branchAngle = campaignIncomingBranchAngle(campaign, node);
+    }
+  }
+}
+
+function campaignExitBaseAngle(campaign, node, rng) {
+  if (node.parentIds && node.parentIds.length) {
+    return campaignIncomingBranchAngle(campaign, node);
+  }
+  return normalizeCampaignAngle(rng() * Math.PI * 2);
+}
+
+function campaignBranchTarget(parentPoint, angle, distance) {
+  return {
+    x: parentPoint.x + Math.cos(angle) * distance,
+    y: parentPoint.y + Math.sin(angle) * distance
+  };
+}
+
+function campaignBestBranchTarget(campaign, parent, angle, distance, placedPoints) {
+  const parentPoint = campaignNodeMapPosition(parent);
+  const placed = (placedPoints || [])
+    .map((point) => ({
+      x: Number.isFinite(point.x) ? point.x : point.mapX,
+      y: Number.isFinite(point.y) ? point.y : point.mapY
+    }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  const occupied = assignedCampaignMapPoints(campaign, new Set([parent.id])).concat(placed);
+  const clearanceSq = CAMPAIGN_BRANCH.clearance * CAMPAIGN_BRANCH.clearance;
+  let best = null;
+  let bestClearance = -Infinity;
+  for (let attempt = 0; attempt < 22; attempt += 1) {
+    const turnStep = Math.ceil(attempt / 2);
+    const turnDirection = attempt % 2 === 0 ? -1 : 1;
+    const rotation = attempt === 0 ? 0 : turnDirection * turnStep * 0.15;
+    const stretch = Math.floor(attempt / 4) * 86;
+    const candidateAngle = normalizeCampaignAngle(angle + rotation);
+    const candidateDistance = distance + stretch;
+    const point = campaignBranchTarget(parentPoint, candidateAngle, candidateDistance);
+    const nearestSq = occupied.length
+      ? occupied.reduce((bestSq, item) => Math.min(bestSq, campaignPointDistanceSq(point, item)), Infinity)
+      : Infinity;
+    if (nearestSq > bestClearance) {
+      bestClearance = nearestSq;
+      best = {
+        angle: candidateAngle,
+        distance: candidateDistance,
+        mapX: point.x,
+        mapY: point.y
+      };
+    }
+    if (nearestSq >= clearanceSq) return best;
+  }
+  return best;
+}
+
+function campaignPlannedExitBranches(campaign, node, count) {
+  if (!campaign || !node || count <= 0) return [];
+  const rng = makeCampaignRng(`${campaign.seed}:${node.id}:${node.seed}:branch-plan`);
+  const parentPoint = campaignNodeMapPosition(node);
+  const baseAngle = campaignExitBaseAngle(campaign, node, rng);
+  const spread = node.parentIds && node.parentIds.length ? CAMPAIGN_BRANCH.childSpread : CAMPAIGN_BRANCH.rootSpread;
+  const countBonus = count >= 4 ? 104 : count >= 3 ? 54 : 0;
+  const depthBonus = Math.min(190, Math.max(0, (node.index || 1) - 1) * 10);
+  const branches = [];
+  for (let i = 0; i < count; i += 1) {
+    const centered = count === 1 ? 0 : (i / (count - 1) - 0.5);
+    const jitter = (rng() - 0.5) * 0.24;
+    const angle = normalizeCampaignAngle(baseAngle + centered * spread + jitter);
+    const distance = CAMPAIGN_BRANCH.minDistance
+      + countBonus
+      + depthBonus
+      + rng() * (CAMPAIGN_BRANCH.maxDistance - CAMPAIGN_BRANCH.minDistance);
+    const target = campaignBestBranchTarget(campaign, node, angle, distance, branches);
+    branches.push({
+      id: `B${i + 1}`,
+      angle: target.angle,
+      distance: target.distance,
+      mapX: Math.round(target.mapX),
+      mapY: Math.round(target.mapY),
+      fromX: Math.round(parentPoint.x),
+      fromY: Math.round(parentPoint.y)
+    });
+  }
+  return branches;
+}
+
+function reflowCampaignGraph(campaign) {
+  const nodes = Object.values(campaign.nodes || {});
+  if (!nodes.length) return;
+  const root = campaign.nodes["F-001"]
+    || nodes.find((node) => !node.parentIds || !node.parentIds.length)
+    || nodes.slice().sort((a, b) => a.index - b.index)[0];
+  for (const node of nodes) {
+    node.mapX = null;
+    node.mapY = null;
+    node.branchAngle = null;
+  }
+  setCampaignNodeMapPosition(root, { x: 0, y: 0 }, 0);
+  const queue = [root];
+  const seen = new Set([root.id]);
+  while (queue.length) {
+    const parent = queue.shift();
+    const children = campaignGraphChildren(campaign, parent).filter((child) => !seen.has(child.id));
+    const branches = campaignPlannedExitBranches(campaign, parent, children.length);
+    children.forEach((child, index) => {
+      const fallbackAngle = normalizeCampaignAngle((index / Math.max(1, children.length)) * Math.PI * 2);
+      const branch = branches[index] || {
+        angle: fallbackAngle,
+        mapX: parent.mapX + CAMPAIGN_BRANCH.minDistance * Math.cos(fallbackAngle),
+        mapY: parent.mapY + CAMPAIGN_BRANCH.minDistance * Math.sin(fallbackAngle)
+      };
+      setCampaignNodeMapPosition(child, { x: branch.mapX, y: branch.mapY }, branch.angle);
+      seen.add(child.id);
+      queue.push(child);
+    });
+  }
+  const orphaned = nodes
+    .filter((node) => !seen.has(node.id))
+    .sort((a, b) => a.index - b.index);
+  if (orphaned.length) {
+    const rng = makeCampaignRng(`${campaign.seed}:orphan-reflow`);
+    orphaned.forEach((node, index) => {
+      const angle = normalizeCampaignAngle(index / orphaned.length * Math.PI * 2 + rng() * 0.42);
+      const distance = 820 + index * 160;
+      setCampaignNodeMapPosition(node, campaignBranchTarget({ x: 0, y: 0 }, angle, distance), angle);
+    });
+  }
+}
+
+function createGeneratedCampaignNode(campaign, parent, branch, plannedExitCount) {
   const index = campaign.nextNodeIndex++;
   const id = `F-${String(index).padStart(3, "0")}`;
-  const seed = campaignHash(`${campaign.seed}:${parent.id}:${direction.id}:${index}`);
+  const seed = campaignHash(`${campaign.seed}:${parent.id}:${branch.id}:${index}`);
   const rng = makeCampaignRng(seed);
   const type = campaignPick(rng, facilityTypeOrder);
   const namePool = facilityNamePools[type] || facilityNamePools.tokamak;
@@ -866,8 +1082,11 @@ function createGeneratedCampaignNode(campaign, parent, direction, plannedExitCou
     index,
     facility,
     type,
-    gridX: parent.gridX + direction.dx,
-    gridY: parent.gridY + direction.dy,
+    gridX: Math.round(branch.mapX / CAMPAIGN_MAP.gridX),
+    gridY: Math.round(branch.mapY / CAMPAIGN_MAP.gridY),
+    mapX: Math.round(branch.mapX),
+    mapY: Math.round(branch.mapY),
+    branchAngle: branch.angle,
     seed,
     sectorCount,
     currentSector: sectorCount,
@@ -888,13 +1107,11 @@ function revealCampaignExits(campaign, nodeId) {
   const node = campaign.nodes[nodeId];
   if (!node || node.exitsGenerated) return;
   const rng = makeCampaignRng(`${node.seed}:exits`);
-  const occupied = occupiedCampaignCells(campaign);
-  const directions = campaignShuffle(rng, CAMPAIGN_DIRECTIONS)
-    .filter((direction) => !occupied.has(campaignGridKey(node.gridX + direction.dx, node.gridY + direction.dy)));
-  const exitCount = Math.min(node.plannedExitCount, directions.length);
+  const exitCount = clamp(node.plannedExitCount || 0, 0, 4);
+  const branches = campaignPlannedExitBranches(campaign, node, exitCount);
   const siblingExits = planSiblingExitCounts(rng, exitCount);
   for (let i = 0; i < exitCount; i += 1) {
-    const child = createGeneratedCampaignNode(campaign, node, directions[i], siblingExits[i]);
+    const child = createGeneratedCampaignNode(campaign, node, branches[i], siblingExits[i]);
     campaign.nodes[child.id] = child;
     node.childIds.push(child.id);
     campaign.edges.push({ from: node.id, to: child.id });
@@ -904,9 +1121,10 @@ function revealCampaignExits(campaign, nodeId) {
 
 function campaignNodePosition(node, campaign = currentState() && currentState().campaign) {
   const pan = campaign.pan || { x: 0, y: 0 };
+  const world = campaignNodeWorldPosition(node);
   return {
-    x: campaignViewportWidth() / 2 + node.gridX * CAMPAIGN_MAP.gridX + pan.x,
-    y: campaignViewportHeight() / 2 + node.gridY * CAMPAIGN_MAP.gridY + pan.y
+    x: world.x + pan.x,
+    y: world.y + pan.y
   };
 }
 
@@ -950,13 +1168,9 @@ function campaignNodeAt(x, y, campaign = currentState() && currentState().campai
   return null;
 }
 
-function campaignUnknownExitDirections(campaign, node) {
+function campaignUnknownExitBranches(campaign, node) {
   if (!node || node.secured || node.exitsGenerated || node.plannedExitCount <= 0) return [];
-  const occupied = occupiedCampaignCells(campaign);
-  const rng = makeCampaignRng(`${node.seed}:exits`);
-  return campaignShuffle(rng, CAMPAIGN_DIRECTIONS)
-    .filter((direction) => !occupied.has(campaignGridKey(node.gridX + direction.dx, node.gridY + direction.dy)))
-    .slice(0, node.plannedExitCount);
+  return campaignPlannedExitBranches(campaign, node, clamp(node.plannedExitCount, 0, 4), { unknown: true });
 }
 
 function generateFacilityLayout(node) {

@@ -1,3 +1,33 @@
+# Campaign Tree Layout And Road Connectors
+
+## Spec
+
+- [x] Replace strict orthogonal/cardinal campaign facility placement with a tree-like branch spread.
+- [x] Branches should point generally away from the route that led to the parent facility.
+- [x] Preserve all planned exits; avoid losing branches just because a cardinal grid cell is occupied.
+- [x] Increase facility spacing enough for larger, more immersive campaign map exploration.
+- [x] Render campaign connections as road-like schematic connectors inspired by the topography sheet's manmade structures.
+- [x] Keep existing campaign saves compatible by migrating old grid-positioned nodes.
+- [x] Update the design catalog, verify, then commit and push.
+
+## Plan
+
+- [x] Add continuous campaign map coordinates and branch-angle metadata with fallback from old grid data.
+- [x] Generate child branches using deterministic fan angles and collision-aware spacing.
+- [x] Reflow older orthogonal campaign saves into the new tree layout.
+- [x] Replace route rendering with layered road connectors for visible and unknown routes.
+- [x] Update docs and task review.
+- [x] Run static checks and browser campaign-map QA, then commit and push.
+
+## Review
+
+- Campaign facilities now use continuous `mapX` / `mapY` positions and `branchAngle` metadata instead of relying on occupied cardinal grid slots.
+- New and migrated exits fan from the incoming branch direction, then use deterministic collision-aware stretching/rotation to keep every planned exit available.
+- Older localStorage campaigns without graph layout version `2` are reflowed into the new tree-style layout while preserving facility progress and graph edges.
+- Campaign routes now render as layered schematic roads with side rails, center dashes, and small survey ticks; unknown exits use the same visual language with lighter dashed roads.
+- Updated the design catalog with the graph layout version, continuous tree-branch rule, no-silent-exit-dropping rule, and road connector art requirement.
+- Verified with `node --check`, `git diff --check`, generated-graph and migration smoke scripts, and a browser campaign-map QA page.
+
 # Selected Tower Tactical Panel
 
 ## Spec

@@ -21,6 +21,7 @@ This is the running record for Mother OS Defense. Update it whenever a rule, ass
 - Maximum tower level is `12`.
 - Speed controls are `x1`, `x2`, and `x3`.
 - Campaign data persists in `localStorage` under `mother-os-campaign-v1`.
+- Campaign graph placement is versioned separately and currently uses graph layout version `2`.
 - Campaign terrain is versioned separately and currently uses terrain version `3`.
 - Facility path layouts are versioned separately and currently use layout version `2`.
 
@@ -30,7 +31,9 @@ This is the running record for Mother OS Defense. Update it whenever a rule, ass
 - Facilities are individual levels. Money, towers, mines, score, and lives do not carry into a brand-new facility.
 - A facility can be abandoned between sectors. Completed sector progress is checkpointed; an in-progress sector resets to the last completed-sector checkpoint.
 - Uncleared facilities can be entered only when visible and connected to a secured facility. The starting facility is the only exception.
-- Securing a facility reveals its outgoing routes and connected unknown nodes. The graph expands in all four cardinal directions.
+- Securing a facility reveals its outgoing routes and connected unknown nodes.
+- Campaign facilities use continuous world coordinates, not an orthogonal grid. Branches should fan outward like a computer-science tree: child exits point generally away from the route that led into the parent facility.
+- All planned exits should survive placement. Collision avoidance may push a branch farther out or rotate it slightly, but should not silently drop an exit because another facility occupies a cardinal slot.
 - Completing a facility shows a summary dialog with run stats, then returns control to the campaign map.
 - Auto advance is disabled/reset when a facility is completed. Starting or resuming a facility begins with auto advance off.
 - Secured facilities are marked secured. Campaign reward systems are intentionally deferred.
@@ -179,6 +182,8 @@ Clear rewards:
 Terrain is generated in persistent world-space chunks, not per viewport. When the player pans away and returns, rivers, forests, mountains, ridges, and other features must remain fixed.
 
 Terrain generation is capped by the explored campaign frontier. Visible facilities, visible routes, and question-mark unknown exits define the current exploration geometry. The map renders a muted orange/red fog-of-war haze beyond that frontier: light haze just past the question marks, then progressively denser cover until distant terrain is fully hidden and no new terrain chunks are generated there.
+
+Campaign map connections should read as schematic roads, not abstract graph lines. Visible and unknown routes use layered road strokes, side rails, center dashes, and small survey ticks inspired by the reference sheet's manmade terrain connectors.
 
 Current terrain feature families:
 

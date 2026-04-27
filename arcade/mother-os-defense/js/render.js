@@ -850,7 +850,6 @@ function drawRoundedOctagon(w, h, cut) {
 
 function drawCampaignEdges(campaign) {
   ctx.save();
-  ctx.lineWidth = 2;
   for (const edge of campaign.edges) {
     const from = campaign.nodes[edge.from];
     const to = campaign.nodes[edge.to];
@@ -859,40 +858,158 @@ function drawCampaignEdges(campaign) {
     const b = campaignNodePosition(to, campaign);
     const secured = from.secured && to.secured;
     const available = canEnterCampaignNode(to, campaign);
-    ctx.strokeStyle = secured ? "rgba(97,255,126,0.72)" : available ? "rgba(255,207,90,0.72)" : "rgba(97,255,126,0.28)";
-    ctx.setLineDash(secured ? [] : [8, 9]);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    const midX = (a.x + b.x) / 2;
-    const midY = (a.y + b.y) / 2;
-    ctx.quadraticCurveTo(midX + (b.y - a.y) * 0.08, midY - (b.x - a.x) * 0.08, b.x, b.y);
-    ctx.stroke();
+    drawCampaignRoadConnector(a, b, {
+      seed: campaignHash(`${campaign.seed}:${edge.from}:${edge.to}`),
+      color: secured ? "97,255,126" : available ? "255,207,90" : "97,255,126",
+      alpha: secured ? 0.76 : available ? 0.74 : 0.3,
+      dashed: !secured,
+      trimStart: 82,
+      trimEnd: 82
+    });
   }
-  ctx.setLineDash([]);
   ctx.restore();
 }
 
 function drawCampaignUnknownRoutes(campaign) {
   ctx.save();
-  ctx.lineWidth = 1.6;
-  ctx.setLineDash([5, 8]);
   for (const node of visibleCampaignNodes(campaign)) {
-    const directions = campaignUnknownExitDirections(campaign, node);
-    if (!directions.length) continue;
+    const branches = campaignUnknownExitBranches(campaign, node);
+    if (!branches.length) continue;
     const from = campaignNodePosition(node, campaign);
-    for (const direction of directions) {
-      const to = {
-        x: from.x + direction.dx * CAMPAIGN_MAP.gridX * 0.72,
-        y: from.y + direction.dy * CAMPAIGN_MAP.gridY * 0.72
-      };
-      ctx.strokeStyle = "rgba(97,255,126,0.35)";
-      ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(to.x, to.y);
-      ctx.stroke();
+    for (const branch of branches) {
+      const to = campaignMapPointToScreen(campaign, { x: branch.mapX, y: branch.mapY });
+      drawCampaignRoadConnector(from, to, {
+        seed: campaignHash(`${campaign.seed}:${node.id}:${branch.id}:unknown`),
+        color: "97,255,126",
+        alpha: 0.33,
+        dashed: true,
+        unknown: true,
+        trimStart: 72,
+        trimEnd: 38
+      });
       drawUnknownCampaignNode(to.x, to.y);
     }
   }
+  ctx.restore();
+}
+
+function campaignRoadTrimEndpoints(a, b, startTrim, endTrim) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const maxTrim = Math.max(0, length * 0.38);
+  const start = Math.min(startTrim || 0, maxTrim);
+  const end = Math.min(endTrim || 0, maxTrim);
+  return {
+    a: { x: a.x + dx / length * start, y: a.y + dy / length * start },
+    b: { x: b.x - dx / length * end, y: b.y - dy / length * end }
+  };
+}
+
+function campaignRoadPoints(a, b, seed) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 8) return [a, b];
+  const normal = { x: -dy / length, y: dx / length };
+  const rng = makeCampaignRng(`road:${seed}`);
+  const segmentCount = length > 820 ? 4 : length > 540 ? 3 : length > 310 ? 2 : 1;
+  const points = [{ ...a }];
+  for (let i = 1; i <= segmentCount; i += 1) {
+    const t = i / (segmentCount + 1);
+    const laneBias = Math.sin((Number(seed) % 23 + i) * 1.37) * 0.5 + (rng() - 0.5);
+    const bend = laneBias * Math.min(150, Math.max(34, length * 0.17));
+    const jog = (rng() - 0.5) * Math.min(58, length * 0.08);
+    points.push({
+      x: a.x + dx * t + normal.x * bend + dx / length * jog,
+      y: a.y + dy * t + normal.y * bend + dy / length * jog
+    });
+  }
+  points.push({ ...b });
+  return points;
+}
+
+function strokeCampaignPolyline(points) {
+  if (!points.length) return;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.stroke();
+}
+
+function offsetCampaignRoadPoints(points, amount) {
+  return points.map((point, index) => {
+    const previous = points[Math.max(0, index - 1)];
+    const next = points[Math.min(points.length - 1, index + 1)];
+    const dx = next.x - previous.x;
+    const dy = next.y - previous.y;
+    const length = Math.hypot(dx, dy) || 1;
+    return {
+      x: point.x - dy / length * amount,
+      y: point.y + dx / length * amount
+    };
+  });
+}
+
+function drawCampaignRoadTicks(points, color, alpha, seed) {
+  const rng = makeCampaignRng(`road-ticks:${seed}`);
+  ctx.save();
+  ctx.strokeStyle = `rgba(${color},${alpha})`;
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 70) continue;
+    const nx = -dy / length;
+    const ny = dx / length;
+    const ticks = Math.floor(length / 86);
+    for (let t = 1; t <= ticks; t += 1) {
+      if (rng() < 0.28) continue;
+      const k = (t + 0.08 + rng() * 0.2) / (ticks + 1);
+      const x = a.x + dx * k;
+      const y = a.y + dy * k;
+      const half = 4 + rng() * 3;
+      ctx.beginPath();
+      ctx.moveTo(x - nx * half, y - ny * half);
+      ctx.lineTo(x + nx * half, y + ny * half);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawCampaignRoadConnector(a, b, options) {
+  const trimmed = campaignRoadTrimEndpoints(a, b, options.trimStart, options.trimEnd);
+  const points = campaignRoadPoints(trimmed.a, trimmed.b, options.seed || 1);
+  const color = options.color || "97,255,126";
+  const alpha = options.alpha || 0.55;
+  const roadWidth = options.unknown ? 7 : 11;
+  const railOffset = options.unknown ? 3.2 : 5.2;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(0,7,2,0.76)";
+  ctx.lineWidth = roadWidth + 8;
+  strokeCampaignPolyline(points);
+  ctx.strokeStyle = options.unknown ? `rgba(${color},0.07)` : "rgba(4,31,11,0.64)";
+  ctx.lineWidth = roadWidth;
+  strokeCampaignPolyline(points);
+  ctx.strokeStyle = `rgba(${color},${alpha})`;
+  ctx.lineWidth = options.unknown ? 1.3 : 1.7;
+  ctx.setLineDash(options.dashed ? [12, 12] : []);
+  strokeCampaignPolyline(offsetCampaignRoadPoints(points, railOffset));
+  strokeCampaignPolyline(offsetCampaignRoadPoints(points, -railOffset));
+  ctx.strokeStyle = `rgba(${color},${Math.max(0.12, alpha * 0.55)})`;
+  ctx.lineWidth = options.unknown ? 0.9 : 1.1;
+  ctx.setLineDash(options.dashed ? [5, 11] : [14, 16]);
+  strokeCampaignPolyline(points);
+  ctx.setLineDash([]);
+  if (!options.unknown) drawCampaignRoadTicks(points, color, alpha * 0.42, options.seed || 1);
   ctx.restore();
 }
 
