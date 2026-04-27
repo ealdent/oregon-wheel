@@ -23,3 +23,4 @@
 - Subtle terrain still needs enough contrast to survive grid lines, scanlines, route glow, and node masks; balance rivers downward only after mountains and forests remain visibly readable in a full-screen screenshot.
 - Campaign map terrain must be generated in persistent world space, not per-frame viewport space. If terrain is randomized from current bounds, panning changes the landscape and breaks map continuity.
 - Procedural tower-defense routes need multiple structural archetypes, not just randomized offsets on the same switchback. Tie path length and turn density to difficulty so layout variety also changes play pressure.
+- When a user provides a topographic symbol reference, copy the symbol vocabulary directly: mountain silhouettes, plateau contour rings, forests, streams, cliffs, rocks, marsh hatching, and terrain-context marks should be distinct reusable glyphs, not generic procedural squiggles.

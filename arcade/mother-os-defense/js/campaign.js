@@ -8,10 +8,24 @@ const CAMPAIGN_MAP = {
 };
 
 const CAMPAIGN_TERRAIN = {
-  version: 1,
+  version: 3,
   chunkSize: 640,
   margin: 260
 };
+
+const CAMPAIGN_TERRAIN_FEATURE_KEYS = [
+  "rivers",
+  "mountains",
+  "forests",
+  "ridges",
+  "plateaus",
+  "waters",
+  "marshes",
+  "rocks",
+  "coasts",
+  "structures",
+  "ticks"
+];
 
 const FACILITY_LAYOUT_VERSION = 2;
 const FACILITY_PATH_BOUNDS = {
@@ -238,20 +252,26 @@ function createCampaignTerrainStore() {
 
 function normalizeCampaignTerrain(terrain) {
   const normalized = createCampaignTerrainStore();
-  if (!terrain || typeof terrain !== "object" || !terrain.chunks || typeof terrain.chunks !== "object") {
+  if (
+    !terrain
+    || typeof terrain !== "object"
+    || terrain.version !== CAMPAIGN_TERRAIN.version
+    || terrain.chunkSize !== CAMPAIGN_TERRAIN.chunkSize
+    || !terrain.chunks
+    || typeof terrain.chunks !== "object"
+  ) {
     return normalized;
   }
   for (const [key, chunk] of Object.entries(terrain.chunks)) {
     if (!chunk || typeof chunk !== "object") continue;
-    normalized.chunks[key] = {
+    const normalizedChunk = {
       x: Number.isFinite(chunk.x) ? chunk.x : 0,
-      y: Number.isFinite(chunk.y) ? chunk.y : 0,
-      rivers: Array.isArray(chunk.rivers) ? chunk.rivers : [],
-      mountains: Array.isArray(chunk.mountains) ? chunk.mountains : [],
-      forests: Array.isArray(chunk.forests) ? chunk.forests : [],
-      ridges: Array.isArray(chunk.ridges) ? chunk.ridges : [],
-      ticks: Array.isArray(chunk.ticks) ? chunk.ticks : []
+      y: Number.isFinite(chunk.y) ? chunk.y : 0
     };
+    for (const featureKey of CAMPAIGN_TERRAIN_FEATURE_KEYS) {
+      normalizedChunk[featureKey] = Array.isArray(chunk[featureKey]) ? chunk[featureKey] : [];
+    }
+    normalized.chunks[key] = normalizedChunk;
   }
   return normalized;
 }
@@ -282,7 +302,7 @@ function campaignTerrainViewportRange(campaign) {
 }
 
 function ensureCampaignTerrainForViewport(campaign) {
-  if (!campaign) return campaignTerrainFeatureCache || { rivers: [], mountains: [], forests: [], ridges: [], ticks: [] };
+  if (!campaign) return campaignTerrainFeatureCache || emptyCampaignTerrainFeatures();
   if (!campaign.terrain || !campaign.terrain.chunks) {
     campaign.terrain = createCampaignTerrainStore();
     invalidateCampaignTerrainFeatureCache();
@@ -313,21 +333,23 @@ function ensureCampaignTerrainForViewport(campaign) {
   if (campaignTerrainFeatureCache && campaignTerrainFeatureCacheKey === cacheKey) {
     return campaignTerrainFeatureCache;
   }
-  const features = { rivers: [], mountains: [], forests: [], ridges: [], ticks: [] };
+  const features = emptyCampaignTerrainFeatures();
   for (let chunkY = range.minChunkY; chunkY <= range.maxChunkY; chunkY += 1) {
     for (let chunkX = range.minChunkX; chunkX <= range.maxChunkX; chunkX += 1) {
       const chunk = campaign.terrain.chunks[campaignTerrainChunkKey(chunkX, chunkY)];
       if (!chunk) continue;
-      features.rivers.push(...chunk.rivers);
-      features.mountains.push(...chunk.mountains);
-      features.forests.push(...chunk.forests);
-      features.ridges.push(...chunk.ridges);
-      features.ticks.push(...chunk.ticks);
+      for (const featureKey of CAMPAIGN_TERRAIN_FEATURE_KEYS) {
+        features[featureKey].push(...(chunk[featureKey] || []));
+      }
     }
   }
   campaignTerrainFeatureCacheKey = cacheKey;
   campaignTerrainFeatureCache = features;
   return features;
+}
+
+function emptyCampaignTerrainFeatures() {
+  return Object.fromEntries(CAMPAIGN_TERRAIN_FEATURE_KEYS.map((key) => [key, []]));
 }
 
 function createCampaignTerrainChunk(campaign, chunkX, chunkY) {
@@ -337,27 +359,47 @@ function createCampaignTerrainChunk(campaign, chunkX, chunkY) {
   const originY = chunkY * size;
   const chunk = {
     x: chunkX,
-    y: chunkY,
-    rivers: [],
-    mountains: [],
-    forests: [],
-    ridges: [],
-    ticks: []
+    y: chunkY
   };
-  if (rng() < 0.48) {
+  for (const featureKey of CAMPAIGN_TERRAIN_FEATURE_KEYS) {
+    chunk[featureKey] = [];
+  }
+  if (rng() < 0.54) {
     chunk.rivers.push(createCampaignTerrainRiver(rng, originX, originY, size));
   }
-  const mountainCount = campaignRandomInt(rng, 1, 2) + (rng() < 0.2 ? 1 : 0);
+  if (rng() < 0.18) {
+    chunk.coasts.push(createCampaignTerrainCoast(rng, originX, originY, size));
+  }
+  const waterCount = (rng() < 0.42 ? 1 : 0) + (rng() < 0.12 ? 1 : 0);
+  for (let i = 0; i < waterCount; i += 1) {
+    chunk.waters.push(createCampaignTerrainWater(rng, originX, originY, size));
+  }
+  const plateauCount = (rng() < 0.7 ? 1 : 0) + (rng() < 0.18 ? 1 : 0);
+  for (let i = 0; i < plateauCount; i += 1) {
+    chunk.plateaus.push(createCampaignTerrainPlateau(rng, originX, originY, size));
+  }
+  const mountainCount = campaignRandomInt(rng, 1, 3);
   for (let i = 0; i < mountainCount; i += 1) {
     chunk.mountains.push(createCampaignTerrainMountain(rng, originX, originY, size));
   }
-  const forestCount = campaignRandomInt(rng, 1, 3);
+  const forestCount = campaignRandomInt(rng, 2, 4);
   for (let i = 0; i < forestCount; i += 1) {
     chunk.forests.push(createCampaignTerrainForest(rng, originX, originY, size));
   }
-  const ridgeCount = campaignRandomInt(rng, 1, 3);
+  const ridgeCount = campaignRandomInt(rng, 2, 4);
   for (let i = 0; i < ridgeCount; i += 1) {
     chunk.ridges.push(createCampaignTerrainRidge(rng, originX, originY, size));
+  }
+  const marshCount = rng() < 0.38 ? 1 : 0;
+  for (let i = 0; i < marshCount; i += 1) {
+    chunk.marshes.push(createCampaignTerrainMarsh(rng, originX, originY, size));
+  }
+  const rockCount = campaignRandomInt(rng, 1, 3);
+  for (let i = 0; i < rockCount; i += 1) {
+    chunk.rocks.push(createCampaignTerrainRocks(rng, originX, originY, size));
+  }
+  if (rng() < 0.5) {
+    chunk.structures.push(createCampaignTerrainStructure(rng, originX, originY, size));
   }
   const tickCount = campaignRandomInt(rng, 1, 2);
   for (let i = 0; i < tickCount; i += 1) {
@@ -366,94 +408,156 @@ function createCampaignTerrainChunk(campaign, chunkX, chunkY) {
   return chunk;
 }
 
+function createTerrainGlyphFeature(rng, originX, originY, size, scaleMin, scaleMax, variants, marginX = 120, marginY = 90) {
+  return {
+    x: originX + campaignRandomInt(rng, -marginX, size + marginX),
+    y: originY + campaignRandomInt(rng, -marginY, size + marginY),
+    seed: campaignRandomInt(rng, 100000, 999999999),
+    variant: campaignRandomInt(rng, 0, Math.max(0, variants - 1)),
+    scale: Math.round((scaleMin + rng() * (scaleMax - scaleMin)) * 100) / 100,
+    rotation: Math.round((-0.08 + rng() * 0.16) * 1000) / 1000
+  };
+}
+
 function createCampaignTerrainRiver(rng, originX, originY, size) {
   const startX = originX - campaignRandomInt(rng, 180, 300);
   const startY = originY + campaignRandomInt(rng, -110, size + 110);
-  const step = (size + campaignRandomInt(rng, 260, 420)) / 6;
-  const drift = campaignRandomInt(rng, -36, 36);
-  const amp = campaignRandomInt(rng, 46, 106);
+  const pointCount = campaignRandomInt(rng, 6, 8);
+  const step = (size + campaignRandomInt(rng, 260, 460)) / (pointCount - 1);
+  const drift = campaignRandomInt(rng, -28, 28);
+  const amp = campaignRandomInt(rng, 42, 112);
   const phase = rng() * Math.PI * 2;
   const points = [];
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i < pointCount; i += 1) {
     points.push({
       x: Math.round(startX + i * step),
       y: Math.round(startY + Math.sin(i * 1.32 + phase) * amp + drift * i + campaignRandomInt(rng, -26, 26))
     });
   }
-  return { points };
+  const branches = [];
+  const branchCount = campaignRandomInt(rng, 0, 2);
+  for (let i = 0; i < branchCount; i += 1) {
+    const rootIndex = campaignRandomInt(rng, 1, Math.max(1, points.length - 3));
+    const root = points[rootIndex];
+    const direction = rng() > 0.5 ? 1 : -1;
+    const branch = [{ x: root.x, y: root.y }];
+    const len = campaignRandomInt(rng, 95, 190);
+    for (let j = 1; j <= 3; j += 1) {
+      branch.push({
+        x: Math.round(root.x + j * len / 3 + campaignRandomInt(rng, -18, 18)),
+        y: Math.round(root.y + direction * (j * campaignRandomInt(rng, 22, 48)) + campaignRandomInt(rng, -18, 18))
+      });
+    }
+    branches.push(branch);
+  }
+  return {
+    seed: campaignRandomInt(rng, 100000, 999999999),
+    points,
+    branches,
+    width: Math.round((0.9 + rng() * 0.5) * 100) / 100
+  };
 }
 
 function createCampaignTerrainMountain(rng, originX, originY, size) {
-  const width = campaignRandomInt(rng, 130, 360);
-  const height = campaignRandomInt(rng, 28, 86);
-  const peaks = campaignRandomInt(rng, 6, 12);
-  const x = originX + campaignRandomInt(rng, -120, size + 120);
-  const y = originY + campaignRandomInt(rng, -80, size + 120);
-  const crest = [];
-  for (let i = 0; i <= peaks; i += 1) {
-    const px = x - width / 2 + (width / peaks) * i;
-    const peak = i % 2 === 0 ? rng() * height * 0.35 : height * (0.58 + rng() * 0.42);
-    crest.push({
-      x: Math.round(px),
-      y: Math.round(y - peak),
-      high: i % 2 === 1,
-      baseX: Math.round(px + (rng() - 0.5) * width * 0.16),
-      baseY: Math.round(y + 8 + rng() * 12)
-    });
-  }
-  const contours = [];
-  for (let contour = 0; contour < 3; contour += 1) {
-    const offset = 13 + contour * 12;
-    const points = [];
-    for (let i = 0; i <= peaks; i += 1) {
-      const px = x - width / 2 + (width / peaks) * i;
-      const py = y + offset - Math.sin(i * 1.6 + contour) * height * 0.18;
-      points.push({ x: Math.round(px), y: Math.round(py) });
-    }
-    contours.push(points);
-  }
-  return { x: Math.round(x), y: Math.round(y), width, height, crest, contours };
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.72, 1.12, 7, 72, 54);
+  feature.width = Math.round(campaignRandomInt(rng, 108, 178) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 54, 96) * feature.scale);
+  return feature;
+}
+
+function createCampaignTerrainPlateau(rng, originX, originY, size) {
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.72, 1.42, 6);
+  feature.width = Math.round(campaignRandomInt(rng, 130, 260) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 58, 120) * feature.scale);
+  return feature;
 }
 
 function createCampaignTerrainForest(rng, originX, originY, size) {
-  const x = originX + campaignRandomInt(rng, -90, size + 90);
-  const y = originY + campaignRandomInt(rng, -70, size + 90);
-  const count = campaignRandomInt(rng, 6, 15);
-  const trees = [];
-  for (let i = 0; i < count; i += 1) {
-    trees.push({
-      x: Math.round(x + (rng() - 0.5) * 120),
-      y: Math.round(y + (rng() - 0.5) * 66),
-      size: Math.round((5 + rng() * 8) * 10) / 10
-    });
-  }
-  return {
-    x: Math.round(x),
-    y: Math.round(y),
-    rotation: Math.round((-0.08 + rng() * 0.16) * 1000) / 1000,
-    trees
-  };
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.78, 1.55, 5);
+  feature.count = campaignRandomInt(rng, 12, 42);
+  feature.width = Math.round(campaignRandomInt(rng, 105, 230) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 64, 128) * feature.scale);
+  return feature;
 }
 
 function createCampaignTerrainRidge(rng, originX, originY, size) {
   const x = originX + campaignRandomInt(rng, -110, size + 110);
   const y = originY + campaignRandomInt(rng, -90, size + 90);
-  const width = campaignRandomInt(rng, 110, 330);
-  const lanes = campaignRandomInt(rng, 2, 5);
-  const ridgeLanes = [];
-  for (let lane = 0; lane < lanes; lane += 1) {
-    const yBase = y + lane * 13 - lanes * 6;
-    const segments = campaignRandomInt(rng, 5, 9);
-    const points = [];
-    for (let i = 0; i <= segments; i += 1) {
-      points.push({
-        x: Math.round(x - width / 2 + (width / segments) * i),
-        y: Math.round(yBase + Math.sin(i * 1.7 + lane) * campaignRandomInt(rng, 3, 10) + campaignRandomInt(rng, -5, 5))
-      });
-    }
-    ridgeLanes.push(points);
+  const width = campaignRandomInt(rng, 145, 360);
+  const segments = campaignRandomInt(rng, 5, 9);
+  const points = [];
+  for (let i = 0; i <= segments; i += 1) {
+    points.push({
+      x: Math.round(x - width / 2 + (width / segments) * i),
+      y: Math.round(y + Math.sin(i * 1.35 + rng() * 0.4) * campaignRandomInt(rng, 8, 22) + campaignRandomInt(rng, -8, 8))
+    });
   }
-  return { x: Math.round(x), y: Math.round(y), width, lanes: ridgeLanes };
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    seed: campaignRandomInt(rng, 100000, 999999999),
+    width,
+    variant: campaignRandomInt(rng, 0, 3),
+    points
+  };
+}
+
+function createCampaignTerrainWater(rng, originX, originY, size) {
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.72, 1.35, 5);
+  feature.width = Math.round(campaignRandomInt(rng, 96, 205) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 42, 94) * feature.scale);
+  return feature;
+}
+
+function createCampaignTerrainMarsh(rng, originX, originY, size) {
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.78, 1.44, 4);
+  feature.width = Math.round(campaignRandomInt(rng, 142, 275) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 58, 122) * feature.scale);
+  return feature;
+}
+
+function createCampaignTerrainRocks(rng, originX, originY, size) {
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.68, 1.22, 5);
+  feature.width = Math.round(campaignRandomInt(rng, 74, 168) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 34, 78) * feature.scale);
+  return feature;
+}
+
+function createCampaignTerrainCoast(rng, originX, originY, size) {
+  const x = originX + campaignRandomInt(rng, -150, size + 150);
+  const y = originY + campaignRandomInt(rng, -120, size + 120);
+  const width = campaignRandomInt(rng, 210, 420);
+  const segments = campaignRandomInt(rng, 8, 13);
+  const points = [];
+  const vertical = rng() > 0.5;
+  for (let i = 0; i <= segments; i += 1) {
+    const t = i / segments;
+    const wave = Math.sin(t * Math.PI * 3 + rng() * 0.6) * campaignRandomInt(rng, 20, 48);
+    points.push(vertical
+      ? {
+          x: Math.round(x + wave + campaignRandomInt(rng, -18, 18)),
+          y: Math.round(y - width / 2 + width * t)
+        }
+      : {
+          x: Math.round(x - width / 2 + width * t),
+          y: Math.round(y + wave + campaignRandomInt(rng, -18, 18))
+        });
+  }
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    seed: campaignRandomInt(rng, 100000, 999999999),
+    width,
+    vertical,
+    points
+  };
+}
+
+function createCampaignTerrainStructure(rng, originX, originY, size) {
+  const feature = createTerrainGlyphFeature(rng, originX, originY, size, 0.82, 1.36, 4);
+  feature.width = Math.round(campaignRandomInt(rng, 120, 250) * feature.scale);
+  feature.height = Math.round(campaignRandomInt(rng, 46, 108) * feature.scale);
+  return feature;
 }
 
 function createCampaignTerrainTicks(rng, originX, originY, size) {

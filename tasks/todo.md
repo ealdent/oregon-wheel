@@ -1,5 +1,32 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Topography Fidelity Pass
+
+### Spec
+
+- [x] Brighten campaign topography slightly without letting terrain overpower routes or facilities.
+- [x] Replace weak mountain symbols with higher-fidelity mountain and plateau glyphs inspired by the reference sheet.
+- [x] Add stronger forests, rivers/streams, ridgelines, water, marsh, boulder, coastline, and terrain-context symbols from the reference vocabulary.
+- [x] Keep terrain generated in persistent world space so panning away and back preserves the same symbols.
+- [x] Preserve static browser loading and avoid per-frame procedural drawing work where possible.
+- [x] Verify with static checks and browser screenshots before committing and pushing.
+
+### Plan
+
+- [x] Bump the campaign terrain art version so old low-fidelity terrain chunks regenerate while campaign progress remains intact.
+- [x] Expand terrain chunk generation to store compact seeded glyph metadata for multiple topography families.
+- [x] Replace immediate generic mountain/forest/ridge drawing with reusable high-detail canvas glyph renderers and careful culling.
+- [x] Tune topography brightness and layer ordering against the campaign map.
+- [x] Run `node --check`, `git diff --check`, browser screenshot QA, then commit and push.
+
+### Review
+
+- Terrain art version is now `3`, so previous low-fidelity chunks regenerate while campaign graph progress remains intact.
+- Terrain chunks now persist compact world-space glyph metadata for mountains, plateaus, forests, rivers, waters, marshes, rocks, coasts, ridgelines, structures, and survey ticks.
+- Campaign rendering now caches high-detail terrain glyph canvases, keeping symbol quality higher without rebuilding every line on each frame.
+- Browser QA verified richer topography visibility and compact mountain silhouettes, plus panning away and back preserved original terrain chunk data.
+- Verified with `node --check` across all Mother OS scripts and `git diff --check`.
+
 ## Facility Path Variation
 
 ### Spec

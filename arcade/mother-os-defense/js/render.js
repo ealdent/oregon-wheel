@@ -1,5 +1,9 @@
 "use strict";
 
+const terrainGlyphCache = new Map();
+const TERRAIN_GLYPH_PIXEL_SCALE = 2;
+const TERRAIN_GLYPH_CACHE_LIMIT = 420;
+
 function render() {
   const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -216,10 +220,16 @@ function campaignWorldToScreen(campaign, x, y) {
 
 function drawCampaignTerrain(campaign) {
   const terrain = ensureCampaignTerrainForViewport(campaign);
+  terrain.coasts.forEach((coast) => drawCampaignCoastFeature(campaign, coast));
   terrain.rivers.forEach((river) => drawCampaignRiverFeature(campaign, river));
+  terrain.waters.forEach((water) => drawWaterFeature(campaign, water));
+  terrain.plateaus.forEach((plateau) => drawPlateauFeature(campaign, plateau));
   terrain.ridges.forEach((ridge) => drawSurveyRidgeFeature(campaign, ridge));
   terrain.mountains.forEach((mountain) => drawMountainFeature(campaign, mountain));
   terrain.forests.forEach((forest) => drawForestFeature(campaign, forest));
+  terrain.rocks.forEach((rocks) => drawRocksFeature(campaign, rocks));
+  terrain.marshes.forEach((marsh) => drawMarshFeature(campaign, marsh));
+  terrain.structures.forEach((structure) => drawTerrainStructureFeature(campaign, structure));
   terrain.ticks.forEach((ticks) => drawSurveyTickFeature(campaign, ticks));
 }
 
@@ -229,16 +239,29 @@ function drawCampaignRiverFeature(campaign, river) {
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(124,232,255,0.028)";
-  ctx.lineWidth = 5.5;
+  ctx.strokeStyle = "rgba(124,232,255,0.05)";
+  ctx.lineWidth = 7 * (river.width || 1);
   drawTerrainPolyline(points);
-  ctx.strokeStyle = "rgba(124,232,255,0.095)";
-  ctx.lineWidth = 1.15;
+  ctx.strokeStyle = "rgba(124,232,255,0.18)";
+  ctx.lineWidth = 1.45 * (river.width || 1);
   drawTerrainPolyline(points);
-  ctx.strokeStyle = "rgba(185,255,189,0.05)";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([10, 13]);
+  ctx.strokeStyle = "rgba(181,255,111,0.115)";
+  ctx.lineWidth = 0.9;
+  ctx.setLineDash([8, 11]);
   drawTerrainPolyline(points);
+  ctx.setLineDash([]);
+  for (const branch of river.branches || []) {
+    const branchPoints = branch.map((point) => campaignWorldToScreen(campaign, point.x, point.y));
+    if (branchPoints.length < 2) continue;
+    ctx.strokeStyle = "rgba(124,232,255,0.1)";
+    ctx.lineWidth = 0.9;
+    drawTerrainPolyline(branchPoints);
+    ctx.strokeStyle = "rgba(181,255,111,0.075)";
+    ctx.lineWidth = 0.65;
+    ctx.setLineDash([5, 8]);
+    drawTerrainPolyline(branchPoints);
+    ctx.setLineDash([]);
+  }
   ctx.restore();
 }
 
@@ -268,92 +291,112 @@ function worldFeatureNearView(campaign, x, y, radius) {
 }
 
 function drawMountainFeature(campaign, mountain) {
-  if (!worldFeatureNearView(campaign, mountain.x, mountain.y, Math.max(mountain.width || 180, mountain.height || 80) + 80)) return;
-  ctx.save();
-  const crest = mountain.crest || [];
-  ctx.strokeStyle = "rgba(97,255,126,0.145)";
-  ctx.lineWidth = 1.05;
-  ctx.beginPath();
-  crest.forEach((crestPoint, index) => {
-    const point = campaignWorldToScreen(campaign, crestPoint.x, crestPoint.y);
-    if (index === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
-  });
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(185,255,189,0.08)";
-  for (const crestPoint of crest.filter((point) => point.high)) {
-    const peak = campaignWorldToScreen(campaign, crestPoint.x, crestPoint.y);
-    const base = campaignWorldToScreen(campaign, crestPoint.baseX, crestPoint.baseY);
-    ctx.beginPath();
-    ctx.moveTo(peak.x, peak.y);
-    ctx.lineTo(base.x, base.y);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 0.76;
-  ctx.strokeStyle = "rgba(97,255,126,0.108)";
-  for (const contourPoints of mountain.contours || []) {
-    ctx.beginPath();
-    contourPoints.forEach((contourPoint, index) => {
-      const point = campaignWorldToScreen(campaign, contourPoint.x, contourPoint.y);
-      if (index === 0) ctx.moveTo(point.x, point.y);
-      else ctx.lineTo(point.x, point.y);
-    });
-    ctx.stroke();
-  }
-  ctx.restore();
+  drawCachedTerrainGlyph(campaign, mountain, "mountain", 190, 116, drawMountainGlyph, 1);
+}
+
+function drawPlateauFeature(campaign, plateau) {
+  drawCachedTerrainGlyph(campaign, plateau, "plateau", 210, 92, drawPlateauGlyph, 0.92);
 }
 
 function drawForestFeature(campaign, forest) {
-  if (!worldFeatureNearView(campaign, forest.x, forest.y, 110)) return;
-  const center = campaignWorldToScreen(campaign, forest.x, forest.y);
-  ctx.save();
-  ctx.strokeStyle = "rgba(133,255,145,0.135)";
-  ctx.fillStyle = "rgba(97,255,126,0.028)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.ellipse(center.x, center.y + 8, 48, 18, forest.rotation || 0, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(97,255,126,0.05)";
-  ctx.stroke();
-  ctx.strokeStyle = "rgba(133,255,145,0.135)";
-  for (const tree of forest.trees || []) {
-    const point = campaignWorldToScreen(campaign, tree.x, tree.y);
-    const size = tree.size || 7;
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y - size);
-    ctx.lineTo(point.x - size * 0.72, point.y + size * 0.38);
-    ctx.lineTo(point.x + size * 0.72, point.y + size * 0.38);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y + size * 0.36);
-    ctx.lineTo(point.x, point.y + size * 0.9);
-    ctx.stroke();
-  }
-  ctx.restore();
+  drawCachedTerrainGlyph(campaign, forest, "forest", 190, 116, drawForestGlyph, 0.96);
+}
+
+function drawWaterFeature(campaign, water) {
+  drawCachedTerrainGlyph(campaign, water, "water", 180, 86, drawWaterGlyph, 0.9);
+}
+
+function drawMarshFeature(campaign, marsh) {
+  drawCachedTerrainGlyph(campaign, marsh, "marsh", 210, 100, drawMarshGlyph, 0.86);
+}
+
+function drawRocksFeature(campaign, rocks) {
+  drawCachedTerrainGlyph(campaign, rocks, "rocks", 140, 68, drawRocksGlyph, 0.9);
+}
+
+function drawTerrainStructureFeature(campaign, structure) {
+  drawCachedTerrainGlyph(campaign, structure, "structure", 190, 82, drawStructureGlyph, 0.72);
 }
 
 function drawSurveyRidgeFeature(campaign, ridge) {
   if (!worldFeatureNearView(campaign, ridge.x, ridge.y, (ridge.width || 180) + 90)) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(185,255,189,0.062)";
-  ctx.lineWidth = 1;
-  for (const lane of ridge.lanes || []) {
-    ctx.beginPath();
-    lane.forEach((lanePoint, index) => {
-      const point = campaignWorldToScreen(campaign, lanePoint.x, lanePoint.y);
-      if (index === 0) ctx.moveTo(point.x, point.y);
-      else ctx.lineTo(point.x, point.y);
-    });
-    ctx.stroke();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  if (ridge.points) {
+    const points = ridge.points.map((point) => campaignWorldToScreen(campaign, point.x, point.y));
+    ctx.strokeStyle = "rgba(181,255,111,0.18)";
+    ctx.lineWidth = 1.15;
+    drawTerrainPolyline(points);
+    ctx.strokeStyle = "rgba(97,255,126,0.09)";
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([8, 9]);
+    drawTerrainPolyline(points.map((point) => ({ x: point.x, y: point.y + 10 })));
+    ctx.setLineDash([]);
+    const rng = makeCampaignRng(`ridge:${ridge.seed || 1}`);
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const a = points[i];
+      const b = points[i + 1];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const nx = -dy / length;
+      const ny = dx / length;
+      const hatchCount = Math.max(2, Math.floor(length / 26));
+      for (let h = 0; h < hatchCount; h += 1) {
+        if (rng() < 0.18) continue;
+        const t = (h + 0.22 + rng() * 0.34) / hatchCount;
+        const x = a.x + dx * t;
+        const y = a.y + dy * t;
+        const hatch = 7 + rng() * 10;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + nx * hatch, y + ny * hatch);
+        ctx.stroke();
+      }
+    }
+  } else {
+    for (const lane of ridge.lanes || []) {
+      ctx.strokeStyle = "rgba(185,255,189,0.095)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      lane.forEach((lanePoint, index) => {
+        const point = campaignWorldToScreen(campaign, lanePoint.x, lanePoint.y);
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
+    }
   }
+  ctx.restore();
+}
+
+function drawCampaignCoastFeature(campaign, coast) {
+  const points = (coast.points || []).map((point) => campaignWorldToScreen(campaign, point.x, point.y));
+  if (points.length < 2 || !screenPolylineNearView(points, 120)) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(181,255,111,0.13)";
+  ctx.lineWidth = 1.1;
+  drawTerrainPolyline(points);
+  ctx.strokeStyle = "rgba(124,232,255,0.06)";
+  ctx.lineWidth = 4.5;
+  drawTerrainPolyline(points.map((point, index) => ({
+    x: point.x + (coast.vertical ? 10 + index % 2 * 3 : 0),
+    y: point.y + (coast.vertical ? 0 : 10 + index % 2 * 3)
+  })));
+  ctx.strokeStyle = "rgba(181,255,111,0.09)";
+  ctx.lineWidth = 0.7;
+  ctx.setLineDash([6, 9]);
+  drawTerrainPolyline(points.map((point) => ({ x: point.x + 6, y: point.y + 6 })));
   ctx.restore();
 }
 
 function drawSurveyTickFeature(campaign, ticks) {
   if (!worldFeatureNearView(campaign, ticks.x, ticks.y, 120)) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(124,232,255,0.045)";
+  ctx.strokeStyle = "rgba(124,232,255,0.065)";
   ctx.lineWidth = 1;
   for (const mark of ticks.marks || []) {
     const a = campaignWorldToScreen(campaign, mark.x, mark.y);
@@ -370,6 +413,389 @@ function drawSurveyTickFeature(campaign, ticks) {
     ctx.stroke();
   }
   ctx.restore();
+}
+
+function drawCachedTerrainGlyph(campaign, feature, type, baseWidth, baseHeight, drawGlyph, alpha = 1) {
+  if (!feature || !Number.isFinite(feature.x) || !Number.isFinite(feature.y)) return;
+  const width = Math.max(32, Math.round(feature.width || baseWidth * (feature.scale || 1)));
+  const height = Math.max(28, Math.round(feature.height || baseHeight * (feature.scale || 1)));
+  const radius = Math.max(width, height) * 0.72 + 70;
+  if (!worldFeatureNearView(campaign, feature.x, feature.y, radius)) return;
+  const screen = campaignWorldToScreen(campaign, feature.x, feature.y);
+  const cacheKey = [
+    "topo",
+    type,
+    feature.seed || 0,
+    feature.variant || 0,
+    width,
+    height,
+    feature.count || 0
+  ].join(":");
+  let sprite = terrainGlyphCache.get(cacheKey);
+  if (sprite) {
+    terrainGlyphCache.delete(cacheKey);
+    terrainGlyphCache.set(cacheKey, sprite);
+  } else {
+    sprite = createTerrainGlyphSprite(type, feature, width, height, drawGlyph);
+    terrainGlyphCache.set(cacheKey, sprite);
+    while (terrainGlyphCache.size > TERRAIN_GLYPH_CACHE_LIMIT) {
+      terrainGlyphCache.delete(terrainGlyphCache.keys().next().value);
+    }
+  }
+  ctx.save();
+  ctx.translate(screen.x, screen.y);
+  ctx.rotate(feature.rotation || 0);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(sprite.canvas, -sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height);
+  ctx.restore();
+}
+
+function createTerrainGlyphSprite(type, feature, width, height, drawGlyph) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * TERRAIN_GLYPH_PIXEL_SCALE);
+  canvas.height = Math.ceil(height * TERRAIN_GLYPH_PIXEL_SCALE);
+  const g = canvas.getContext("2d");
+  g.setTransform(
+    TERRAIN_GLYPH_PIXEL_SCALE,
+    0,
+    0,
+    TERRAIN_GLYPH_PIXEL_SCALE,
+    width * TERRAIN_GLYPH_PIXEL_SCALE / 2,
+    height * TERRAIN_GLYPH_PIXEL_SCALE / 2
+  );
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  g.shadowColor = "rgba(148,255,88,0.23)";
+  g.shadowBlur = type === "structure" ? 2 : 5;
+  const rng = makeCampaignRng(`${type}:${feature.seed || 1}:${feature.variant || 0}`);
+  drawGlyph(g, width, height, feature, rng);
+  return { canvas, width, height };
+}
+
+function topoStroke(g, alpha, width = 1, color = "181,255,111") {
+  g.strokeStyle = `rgba(${color},${alpha})`;
+  g.lineWidth = width;
+}
+
+function topoFill(g, alpha, color = "97,255,126") {
+  g.fillStyle = `rgba(${color},${alpha})`;
+}
+
+function drawLocalPolyline(g, points, close = false) {
+  if (!points.length) return;
+  g.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) g.moveTo(point.x, point.y);
+    else g.lineTo(point.x, point.y);
+  });
+  if (close) g.closePath();
+  g.stroke();
+}
+
+function drawLocalIrregularRing(g, rng, rx, ry, jitter, steps = 34) {
+  const points = [];
+  const phaseA = rng() * Math.PI * 2;
+  const phaseB = rng() * Math.PI * 2;
+  for (let i = 0; i < steps; i += 1) {
+    const t = i / steps * Math.PI * 2;
+    const wobble = 1 + Math.sin(t * 3 + phaseA) * jitter + Math.cos(t * 5 + phaseB) * jitter * 0.55;
+    points.push({ x: Math.cos(t) * rx * wobble, y: Math.sin(t) * ry * wobble });
+  }
+  drawLocalPolyline(g, points, true);
+}
+
+function drawMountainGlyph(g, width, height, feature, rng) {
+  const variant = feature.variant || 0;
+  if (variant === 1 || variant === 5) {
+    drawVolcanicMountainGlyph(g, width, height, rng);
+    return;
+  }
+  const baseY = height * 0.28;
+  const left = -width * 0.41;
+  const right = width * 0.41;
+  const peakCount = 2 + (variant % 3);
+  const peaks = [];
+  for (let i = 0; i < peakCount; i += 1) {
+    const t = peakCount === 1 ? 0.5 : i / (peakCount - 1);
+    const centerBias = 1 - Math.abs(t - 0.5) * 0.9;
+    const x = left + (right - left) * t + (rng() - 0.5) * width * 0.08;
+    const y = -height * (0.28 + centerBias * 0.2 + rng() * 0.12);
+    peaks.push({ x, y });
+  }
+  topoFill(g, 0.018);
+  g.beginPath();
+  g.moveTo(left, baseY);
+  peaks.forEach((peak, index) => {
+    const shoulder = {
+      x: peak.x + (index % 2 === 0 ? -1 : 1) * width * (0.08 + rng() * 0.04),
+      y: -height * (0.06 + rng() * 0.08)
+    };
+    g.lineTo(shoulder.x, shoulder.y);
+    g.lineTo(peak.x, peak.y);
+    g.lineTo(peak.x + (rng() - 0.5) * width * 0.08, -height * (0.07 + rng() * 0.08));
+  });
+  g.lineTo(right, baseY);
+  g.closePath();
+  g.fill();
+
+  for (const [index, peak] of peaks.entries()) {
+    const span = width * (0.14 + rng() * 0.08);
+    const leftBase = { x: Math.max(left, peak.x - span * (1.1 + rng() * 0.5)), y: baseY + (rng() - 0.5) * height * 0.06 };
+    const rightBase = { x: Math.min(right, peak.x + span * (1.1 + rng() * 0.5)), y: baseY + (rng() - 0.5) * height * 0.06 };
+    topoStroke(g, 0.34, 1.02);
+    drawLocalPolyline(g, [leftBase, peak, rightBase]);
+    topoStroke(g, index === 1 ? 0.48 : 0.36, 0.62, "216,255,127");
+    drawLocalPolyline(g, [
+      { x: peak.x - span * 0.18, y: peak.y + height * 0.06 },
+      peak,
+      { x: peak.x + span * 0.22, y: peak.y + height * 0.08 }
+    ]);
+    const baseA = { x: peak.x - span * (0.45 + rng() * 0.38), y: baseY - height * (0.02 + rng() * 0.08) };
+    const baseB = { x: peak.x + span * (0.38 + rng() * 0.42), y: baseY - height * (0.03 + rng() * 0.07) };
+    topoStroke(g, 0.25, 0.88);
+    drawLocalPolyline(g, [peak, baseA]);
+    topoStroke(g, 0.18, 0.72);
+    drawLocalPolyline(g, [peak, baseB]);
+    for (let rib = 0; rib < 3; rib += 1) {
+      const side = rib % 2 === 0 ? -1 : 1;
+      const startY = peak.y + height * (0.2 + rng() * 0.22);
+      const start = { x: peak.x + side * (6 + rng() * span * 0.45), y: startY };
+      const end = { x: start.x + side * span * (0.32 + rng() * 0.36), y: startY + height * (0.08 + rng() * 0.12) };
+      topoStroke(g, 0.16, 0.58);
+      drawLocalPolyline(g, [start, end]);
+    }
+  }
+
+  topoStroke(g, 0.18, 0.72);
+  for (let lane = 0; lane < 2; lane += 1) {
+    const y = baseY + lane * height * 0.08;
+    const points = [];
+    for (let i = 0; i <= 12; i += 1) {
+      const t = i / 12;
+      points.push({
+        x: left + (right - left) * t,
+        y: y + Math.sin(t * Math.PI * 3 + lane) * height * 0.02 + (rng() - 0.5) * 1.5
+      });
+    }
+    drawLocalPolyline(g, points);
+  }
+}
+
+function drawVolcanicMountainGlyph(g, width, height, rng) {
+  const baseY = height * 0.24;
+  const rx = width * 0.39;
+  const ry = height * 0.12;
+  topoFill(g, 0.016);
+  g.beginPath();
+  g.ellipse(0, baseY, rx, ry, 0, 0, Math.PI * 2);
+  g.fill();
+  g.save();
+  g.translate(0, baseY);
+  for (let ring = 0; ring < 4; ring += 1) {
+    topoStroke(g, ring === 0 ? 0.34 : 0.17, ring === 0 ? 1.08 : 0.7);
+    drawLocalIrregularRing(g, rng, rx * (1 - ring * 0.17), ry * (1 - ring * 0.14), 0.045, 34);
+  }
+  g.restore();
+  topoStroke(g, 0.22, 0.72);
+  for (let i = 0; i < 18; i += 1) {
+    const a = i / 18 * Math.PI * 2;
+    const inner = { x: Math.cos(a) * rx * 0.18, y: Math.sin(a) * ry * 0.17 - height * 0.11 };
+    const outer = { x: Math.cos(a) * rx * (0.58 + rng() * 0.25), y: baseY + Math.sin(a) * ry * (0.58 + rng() * 0.2) };
+    drawLocalPolyline(g, [inner, outer]);
+  }
+  topoStroke(g, 0.45, 1, "216,255,127");
+  g.beginPath();
+  g.ellipse(0, -height * 0.12, rx * 0.16, ry * 0.36, 0, 0, Math.PI * 2);
+  g.stroke();
+}
+
+function drawPlateauGlyph(g, width, height, feature, rng) {
+  const variant = feature.variant || 0;
+  const rings = 4 + (variant % 3);
+  for (let ring = 0; ring < rings; ring += 1) {
+    const scale = 1 - ring * 0.15;
+    topoStroke(g, ring === 0 ? 0.32 : 0.18, ring === 0 ? 1.05 : 0.72);
+    drawLocalIrregularRing(g, rng, width * 0.42 * scale, height * 0.3 * scale, 0.055, 36);
+  }
+  topoStroke(g, 0.13, 0.7);
+  for (let i = 0; i < 16; i += 1) {
+    if (rng() < 0.25) continue;
+    const x = -width * 0.39 + i * width * 0.052 + (rng() - 0.5) * 5;
+    const y = height * 0.14 + rng() * height * 0.18;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + (rng() - 0.5) * 3, y + 7 + rng() * 9);
+    g.stroke();
+  }
+  topoStroke(g, 0.23, 0.8, "216,255,127");
+  g.beginPath();
+  g.ellipse(0, -height * 0.02, width * 0.11, height * 0.045, 0, 0, Math.PI * 2);
+  g.stroke();
+}
+
+function drawForestGlyph(g, width, height, feature, rng) {
+  const count = feature.count || 24;
+  const trees = [];
+  for (let i = 0; i < count; i += 1) {
+    const angle = rng() * Math.PI * 2;
+    const radius = Math.sqrt(rng());
+    trees.push({
+      x: Math.cos(angle) * radius * width * 0.42 + (rng() - 0.5) * 8,
+      y: Math.sin(angle) * radius * height * 0.32 + (rng() - 0.5) * 6,
+      size: 5.5 + rng() * 8.5
+    });
+  }
+  trees.sort((a, b) => a.y - b.y);
+  topoStroke(g, 0.11, 0.7);
+  drawLocalIrregularRing(g, rng, width * 0.42, height * 0.3, 0.08, 28);
+  for (const tree of trees) {
+    drawPineSymbol(g, tree.x, tree.y, tree.size, rng);
+  }
+  topoStroke(g, 0.18, 0.68, "216,255,127");
+  for (let i = 0; i < Math.min(8, count / 4); i += 1) {
+    const tree = trees[Math.floor(rng() * trees.length)];
+    drawPineSymbol(g, tree.x, tree.y, tree.size * 0.78, rng, true);
+  }
+}
+
+function drawPineSymbol(g, x, y, size, rng, bright = false) {
+  topoStroke(g, bright ? 0.34 : 0.22, bright ? 0.82 : 0.66, bright ? "216,255,127" : "181,255,111");
+  for (let tier = 0; tier < 3; tier += 1) {
+    const yTop = y - size + tier * size * 0.32;
+    const half = size * (0.35 + tier * 0.22);
+    g.beginPath();
+    g.moveTo(x, yTop);
+    g.lineTo(x - half, yTop + size * 0.48);
+    g.lineTo(x + half, yTop + size * 0.48);
+    g.closePath();
+    g.stroke();
+  }
+  g.beginPath();
+  g.moveTo(x, y + size * 0.2);
+  g.lineTo(x, y + size * (0.72 + rng() * 0.18));
+  g.stroke();
+}
+
+function drawWaterGlyph(g, width, height, feature, rng) {
+  topoFill(g, 0.022, "124,232,255");
+  g.beginPath();
+  drawLocalIrregularRing(g, rng, width * 0.39, height * 0.31, 0.08, 36);
+  g.fill();
+  for (let ring = 0; ring < 3; ring += 1) {
+    topoStroke(g, ring === 0 ? 0.18 : 0.1, ring === 0 ? 0.95 : 0.65, ring === 0 ? "124,232,255" : "181,255,111");
+    drawLocalIrregularRing(g, rng, width * (0.4 - ring * 0.06), height * (0.31 - ring * 0.04), 0.075, 34);
+  }
+  topoStroke(g, 0.13, 0.72, "124,232,255");
+  for (let i = -3; i <= 3; i += 1) {
+    const y = i * height * 0.075 + (rng() - 0.5) * 3;
+    const span = width * (0.24 + rng() * 0.16) * (1 - Math.abs(i) * 0.11);
+    drawLocalPolyline(g, [
+      { x: -span, y },
+      { x: -span * 0.3, y: y + (rng() - 0.5) * 3 },
+      { x: span * 0.42, y: y + (rng() - 0.5) * 3 },
+      { x: span, y: y + (rng() - 0.5) * 2 }
+    ]);
+  }
+}
+
+function drawMarshGlyph(g, width, height, feature, rng) {
+  topoStroke(g, 0.14, 0.76, "124,232,255");
+  for (let lane = 0; lane < 7; lane += 1) {
+    const y = -height * 0.27 + lane * height * 0.09 + (rng() - 0.5) * 4;
+    const span = width * (0.24 + rng() * 0.2);
+    drawLocalPolyline(g, [
+      { x: -span, y },
+      { x: -span * 0.35, y: y + Math.sin(lane) * 4 },
+      { x: span * 0.35, y: y + Math.cos(lane) * 3 },
+      { x: span, y: y + (rng() - 0.5) * 3 }
+    ]);
+  }
+  for (let i = 0; i < 28; i += 1) {
+    const x = (rng() - 0.5) * width * 0.72;
+    const y = (rng() - 0.5) * height * 0.52;
+    drawGrassTuft(g, x, y, 4 + rng() * 7, rng);
+  }
+  topoStroke(g, 0.11, 0.62);
+  drawLocalIrregularRing(g, rng, width * 0.39, height * 0.3, 0.12, 30);
+}
+
+function drawGrassTuft(g, x, y, size, rng) {
+  topoStroke(g, 0.2, 0.58, "181,255,111");
+  g.beginPath();
+  g.moveTo(x, y);
+  g.lineTo(x - size * 0.38, y - size * 0.72);
+  g.moveTo(x, y);
+  g.lineTo(x, y - size);
+  g.moveTo(x, y);
+  g.lineTo(x + size * 0.42, y - size * (0.62 + rng() * 0.25));
+  g.stroke();
+}
+
+function drawRocksGlyph(g, width, height, feature, rng) {
+  const count = 4 + (feature.variant || 0);
+  for (let i = 0; i < count; i += 1) {
+    const x = (rng() - 0.5) * width * 0.72;
+    const y = (rng() - 0.3) * height * 0.48;
+    const rx = width * (0.055 + rng() * 0.075);
+    const ry = height * (0.08 + rng() * 0.13);
+    drawBoulderSymbol(g, x, y, rx, ry, rng);
+  }
+}
+
+function drawBoulderSymbol(g, x, y, rx, ry, rng) {
+  const points = [];
+  for (let i = 0; i < 8; i += 1) {
+    const t = i / 8 * Math.PI * 2;
+    const wobble = 0.82 + rng() * 0.34;
+    points.push({ x: x + Math.cos(t) * rx * wobble, y: y + Math.sin(t) * ry * wobble });
+  }
+  topoFill(g, 0.015);
+  g.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) g.moveTo(point.x, point.y);
+    else g.lineTo(point.x, point.y);
+  });
+  g.closePath();
+  g.fill();
+  topoStroke(g, 0.28, 0.82);
+  drawLocalPolyline(g, points, true);
+  topoStroke(g, 0.15, 0.58, "216,255,127");
+  drawLocalPolyline(g, [
+    { x: x - rx * 0.42, y: y - ry * 0.12 },
+    { x: x + rx * 0.08, y: y - ry * 0.46 },
+    { x: x + rx * 0.46, y: y - ry * 0.12 }
+  ]);
+}
+
+function drawStructureGlyph(g, width, height, feature, rng) {
+  const variant = feature.variant || 0;
+  topoStroke(g, 0.11, 0.72, "124,232,255");
+  for (let row = 0; row < 4; row += 1) {
+    const y = -height * 0.28 + row * height * 0.18;
+    drawLocalPolyline(g, [
+      { x: -width * 0.42, y },
+      { x: -width * 0.19, y },
+      { x: -width * 0.08, y: y - height * 0.07 },
+      { x: width * 0.42, y: y - height * 0.07 }
+    ]);
+  }
+  topoStroke(g, 0.1, 0.68);
+  for (let i = 0; i < 24; i += 1) {
+    const x = -width * 0.36 + i % 8 * width * 0.09;
+    const y = -height * 0.1 + Math.floor(i / 8) * height * 0.14;
+    g.beginPath();
+    g.moveTo(x - 2, y);
+    g.lineTo(x + 2, y);
+    g.moveTo(x, y - 2);
+    g.lineTo(x, y + 2);
+    g.stroke();
+  }
+  if (variant > 1) {
+    topoStroke(g, 0.18, 0.85, "181,255,111");
+    g.strokeRect(width * 0.1, -height * 0.28, width * 0.18, height * 0.24);
+    g.strokeRect(width * 0.28, -height * 0.08, width * 0.16, height * 0.26);
+    g.strokeRect(width * 0.02, height * 0.04, width * 0.2, height * 0.2);
+  }
 }
 
 function drawRoundedOctagon(w, h, cut) {
