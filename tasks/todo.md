@@ -1,3 +1,28 @@
+# Selected Tower Tactical Panel
+
+## Spec
+
+- [x] When no tower is selected, keep the right Tactical Control section focused on enemy/wave intel.
+- [x] When a tower is selected, replace that tactical section with tower-specific information.
+- [x] Show a high-fidelity tower graphic, current tower stats, upgrade preview, upgrade affordability, target mode, and sell/refund value.
+- [x] Preserve the existing top command buttons and lower inspector behavior.
+- [x] Update the running design catalog, verify in browser, then commit and push.
+
+## Plan
+
+- [x] Inspect `syncSideTactics`, `syncInspector`, tower stats, and preview rendering.
+- [x] Add a selected-tower tactical renderer and tower schematic preview.
+- [x] Add focused CSS for the selected tower tactical panel.
+- [x] Update docs and task review.
+- [x] Run static checks and browser screenshot QA, then commit and push.
+
+## Review
+
+- Tactical Control now switches to a selected-tower command view when a tower is selected.
+- The selected view includes a large tower schematic, design/target/spent/sell chips, upgrade current-to-next rows, upgrade affordability, credits, recycle status, and combat-specific stat chips.
+- The existing no-selection state still shows enemy/wave intel, and the lower inspector remains available for compact tower details.
+- Verified with `node --check`, `git diff --check`, and browser QA on a placed Cryo Prism tower with no console errors.
+
 # Campaign Fog Of War
 
 ## Spec

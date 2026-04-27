@@ -170,6 +170,7 @@ Clear rewards:
 - Campaign map supports drag-to-pan and node selection.
 - Facility controls in the top center should show relevant gameplay controls: start/pause, upgrade, target mode, sell/refund, speed, auto advance, and sound.
 - Campaign map controls in the top center and top right should switch to campaign-relevant information instead of facility combat controls.
+- The right Tactical Control panel should show enemy/wave intel when no tower is selected, and switch to selected-tower command intel when a tower is selected.
 - Credits, system health, points, and time should be visible in the resource feed during play.
 - Sound effects must have an on/off toggle.
 

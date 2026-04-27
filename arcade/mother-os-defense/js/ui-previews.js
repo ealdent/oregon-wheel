@@ -53,6 +53,55 @@ function renderTowerPreview(canvas, tower) {
   p.restore();
 }
 
+function renderTowerDetailPreview(canvas, tower) {
+  if (!canvas || !tower) return;
+  const p = canvas.getContext("2d");
+  const def = towerById[tower.type];
+  if (!def) return;
+  p.clearRect(0, 0, canvas.width, canvas.height);
+  p.save();
+  p.fillStyle = "rgba(0,10,4,0.94)";
+  p.fillRect(0, 0, canvas.width, canvas.height);
+  p.strokeStyle = "rgba(97,255,126,0.14)";
+  p.lineWidth = 1;
+  for (let y = 12; y < canvas.height; y += 14) {
+    p.beginPath();
+    p.moveTo(8, y);
+    p.lineTo(canvas.width - 8, y);
+    p.stroke();
+  }
+  for (let x = 16; x < canvas.width; x += 24) {
+    p.beginPath();
+    p.moveTo(x, 10);
+    p.lineTo(x, canvas.height - 10);
+    p.stroke();
+  }
+  p.strokeStyle = "rgba(124,232,255,0.2)";
+  for (const [x, y, sx, sy] of [[16, 16, 1, 1], [canvas.width - 16, 16, -1, 1], [16, canvas.height - 16, 1, -1], [canvas.width - 16, canvas.height - 16, -1, -1]]) {
+    p.beginPath();
+    p.moveTo(x, y);
+    p.lineTo(x + sx * 24, y);
+    p.moveTo(x, y);
+    p.lineTo(x, y + sy * 18);
+    p.stroke();
+  }
+  p.restore();
+  p.save();
+  p.translate(canvas.width * 0.45, canvas.height * 0.64);
+  p.scale(2.12, 2.12);
+  drawTowerSchematic(p, tower.type, tower.level, tower.pulse || 0.5, def.color);
+  p.restore();
+  p.save();
+  p.font = "700 13px Courier New, monospace";
+  p.fillStyle = def.color;
+  p.textAlign = "right";
+  p.fillText(def.name.toUpperCase(), canvas.width - 12, 25);
+  p.font = "10px Courier New, monospace";
+  p.fillStyle = "rgba(185,255,189,0.62)";
+  p.fillText(`${def.code} / MK-${String(tower.level).padStart(2, "0")} / ${def.role.toUpperCase()}`, canvas.width - 12, 43);
+  p.restore();
+}
+
 function renderThreatPreview(canvas, type) {
   if (!canvas) return;
   const p = canvas.getContext("2d");
