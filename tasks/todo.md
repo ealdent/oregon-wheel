@@ -1,5 +1,30 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Facility Frame Proportion Pass
+
+### Spec
+
+- [x] Reduce facility building glyph scale so art has breathing room inside each campaign node.
+- [x] Make facility node frames taller and less squat, with a more vertical rectangular bracket aspect.
+- [x] Strengthen the side bracket effect while keeping the top and bottom as thinner, partial rails.
+- [x] Preserve cached facility glyph rendering and static no-build loading.
+- [x] Verify with static checks and browser campaign-map screenshots before committing and pushing.
+
+### Plan
+
+- [x] Adjust campaign node dimensions and grid spacing to support taller facility frames without crowding.
+- [x] Reduce cached facility glyph canvas size and reposition glyphs away from the text block.
+- [x] Rework `drawCampaignNodeBracketFrame` so side brackets dominate and top/bottom lines are partial and subtle.
+- [x] Run `node --check`, `git diff --check`, browser screenshot QA, then commit and push.
+
+### Review
+
+- Campaign facility nodes are now taller and less squat: `166x128`, with increased vertical grid spacing.
+- Facility glyphs render smaller in-frame with more top/text breathing room while preserving cached sprite reuse.
+- The node frame now emphasizes heavier vertical side brackets and diagonal corners, with only short partial top/bottom rails and a much fainter continuous outline.
+- Browser QA verified all 12 facility types still render clearly and facility glyph cache size stays stable while panning.
+- Verified with `node --check` across all Mother OS scripts and `git diff --check`.
+
 ## Campaign Facility Building Fidelity Pass
 
 ### Spec

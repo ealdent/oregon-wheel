@@ -1,10 +1,10 @@
 "use strict";
 
 const CAMPAIGN_MAP = {
-  nodeWidth: 176,
-  nodeHeight: 112,
+  nodeWidth: 166,
+  nodeHeight: 128,
   gridX: 245,
-  gridY: 162
+  gridY: 184
 };
 
 const CAMPAIGN_TERRAIN = {

@@ -25,3 +25,4 @@
 - Procedural tower-defense routes need multiple structural archetypes, not just randomized offsets on the same switchback. Tie path length and turn density to difficulty so layout variety also changes play pressure.
 - When a user provides a topographic symbol reference, copy the symbol vocabulary directly: mountain silhouettes, plateau contour rings, forests, streams, cliffs, rocks, marsh hatching, and terrain-context marks should be distinct reusable glyphs, not generic procedural squiggles.
 - Campaign facility art should use a real classification system with distinctive cached building silhouettes; tiny generic icons inside node boxes will not satisfy a high-fidelity facility reference.
+- Campaign facility nodes should leave breathing room around high-detail building art. Keep the frame tall and bracket-led, with strong side brackets and only partial top/bottom rails, instead of wrapping a heavy box tightly around the glyph.
