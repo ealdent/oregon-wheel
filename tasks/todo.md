@@ -1,3 +1,26 @@
+# Mother OS Design Catalog Documentation
+
+## Spec
+
+- [x] Create a canonical running design document for Mother OS Defense.
+- [x] Catalog every implemented facility type, tower, non-boss enemy, and boss with unique graphics.
+- [x] Document current gameplay decisions, mechanics, UX rules, persistence, procedural generation, and performance constraints.
+- [x] Ground the document in the implemented JS source of truth rather than only conversation history.
+- [x] Verify markdown/staging cleanliness, then commit and push the checkpoint.
+
+## Plan
+
+- [x] Read the current config and gameplay source tables for assets, stats, and rules.
+- [x] Add `arcade/mother-os-defense/DESIGN_CATALOG.md` as the living design/catalog record.
+- [x] Include maintenance notes so future mechanics and art passes update the same document.
+- [x] Run `git diff --check`, commit, and push to `main`.
+
+## Review
+
+- Added a source-backed design catalog covering static runtime requirements, campaign flow, facility sectors, procedural terrain/path generation, economy, controls, asset graphics, and performance rules.
+- Cataloged 12 facility classifications, 5 towers, 10 non-boss enemies, and 4 bosses, including their current role/stat identities and unique art responsibilities.
+- Documented the file map that currently owns config, campaign, gameplay, rendering, and procedural art.
+
 # Mother OS Campaign Map Planning
 
 ## Campaign Facility Frame Proportion Pass
