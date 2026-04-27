@@ -1,5 +1,30 @@
 # Mother OS Campaign Map Planning
 
+## Campaign Terrain Visibility Balance
+
+### Spec
+
+- [x] Increase mountain and forest visibility enough to restore the immersive world-map feel.
+- [x] Reduce river dominance so rivers remain present without overpowering facilities and topography.
+- [x] Keep terrain marks intentional and cartographic, avoiding the previous circular squiggle issue.
+- [x] Preserve full-width campaign map scaling and static browser loading.
+- [x] Verify with static checks and a campaign screenshot before committing.
+
+### Plan
+
+- [x] Tune terrain layer alpha, stroke widths, density, and drawing order in the campaign renderer.
+- [x] Add slightly stronger mountain ridge details and forest silhouettes without making them noisy.
+- [x] Lower river glow/width while keeping a readable blue route through the landscape.
+- [x] Run `node --check`, `git diff --check`, and capture a campaign-map screenshot.
+- [ ] Commit and push the checkpoint.
+
+### Review
+
+- Mountains now render with stronger crest lines, secondary facet strokes, and brighter ridge contours.
+- Forest clusters have higher outline/fill contrast and a faint ground contour so they read as localized terrain features.
+- Rivers now use a narrower, lower-alpha glow and thinner core so they support the map without dominating it.
+- Verified with `node --check`, `git diff --check`, and a forced campaign-state Chrome screenshot.
+
 ## Campaign Map Bracket and Terrain Cleanup
 
 ### Spec
@@ -16,7 +41,7 @@
 - [x] Scale and constrain campaign facility icons, rebuilding any overshooting icon details inside a fixed schematic viewport.
 - [x] Replace circular contour clusters with faint ridge lines, forest pockets, and sparse survey ticks.
 - [x] Run `node --check`, `git diff --check`, and capture a campaign map screenshot.
-- [ ] Commit and push the completed checkpoint.
+- [x] Commit and push the completed checkpoint.
 
 ### Review
 

@@ -20,3 +20,4 @@
 - Filling a canvas horizontally must not use non-uniform X/Y scaling for schematic UI; preserve the drawing aspect ratio with a wider logical viewport so maps fill the frame without stretching icons, text, or grid cells.
 - Campaign-map facility nodes should read as bracketed tactical schematics, not filled plaques; keep fills faint, corner/side brackets dominant, and icon linework contained inside a clear schematic viewport.
 - Terrain detail must be recognizable cartography at a glance. Avoid generic ellipse contour clusters that look like accidental squiggles; use restrained ridge lines, forest symbols, river traces, and survey ticks instead.
+- Subtle terrain still needs enough contrast to survive grid lines, scanlines, route glow, and node masks; balance rivers downward only after mountains and forests remain visibly readable in a full-screen screenshot.

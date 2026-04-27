@@ -219,17 +219,17 @@ function drawCampaignTerrain(campaign) {
   const mapWidth = campaignViewportWidth();
   const mapHeight = campaignViewportHeight();
   drawCampaignRivers(campaign, rng);
-  for (let i = 0; i < 14; i += 1) {
+  for (let i = 0; i < 18; i += 1) {
     const x = campaignRandomInt(rng, -520, Math.round(mapWidth + 520));
     const y = campaignRandomInt(rng, -280, Math.round(mapHeight + 280));
     const width = campaignRandomInt(rng, 130, 360);
     const height = campaignRandomInt(rng, 24, 80);
     drawMountainRange(campaign, x, y, width, height, campaignRandomInt(rng, 6, 12), rng);
   }
-  for (let i = 0; i < 26; i += 1) {
+  for (let i = 0; i < 32; i += 1) {
     const x = campaignRandomInt(rng, -460, Math.round(mapWidth + 460));
     const y = campaignRandomInt(rng, -240, Math.round(mapHeight + 240));
-    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 4, 12), rng);
+    drawForestCluster(campaign, x, y, campaignRandomInt(rng, 6, 15), rng);
   }
   for (let i = 0; i < 24; i += 1) {
     const x = campaignRandomInt(rng, -480, Math.round(mapWidth + 480));
@@ -260,13 +260,13 @@ function drawCampaignRivers(campaign, rng) {
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "rgba(124,232,255,0.045)";
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = "rgba(124,232,255,0.028)";
+    ctx.lineWidth = 5.5;
     drawTerrainPolyline(points);
-    ctx.strokeStyle = "rgba(124,232,255,0.14)";
-    ctx.lineWidth = 1.7;
+    ctx.strokeStyle = "rgba(124,232,255,0.095)";
+    ctx.lineWidth = 1.15;
     drawTerrainPolyline(points);
-    ctx.strokeStyle = "rgba(185,255,189,0.08)";
+    ctx.strokeStyle = "rgba(185,255,189,0.05)";
     ctx.lineWidth = 1;
     ctx.setLineDash([10, 13]);
     drawTerrainPolyline(points);
@@ -292,21 +292,35 @@ function drawMountainRange(campaign, worldX, worldY, width, height, peaks, rng) 
   const start = campaignWorldToScreen(campaign, worldX - width / 2, worldY);
   if (start.x > mapWidth + width || start.x < -width || start.y > mapHeight + height || start.y < -height) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(97,255,126,0.074)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
+  const crest = [];
   for (let i = 0; i <= peaks; i += 1) {
     const x = worldX - width / 2 + (width / peaks) * i;
-    const peak = i % 2 === 0 ? rng() * height * 0.35 : height * (0.56 + rng() * 0.44);
-    const point = campaignWorldToScreen(campaign, x, worldY - peak);
-    if (i === 0) ctx.moveTo(point.x, point.y);
-    else ctx.lineTo(point.x, point.y);
+    const peak = i % 2 === 0 ? rng() * height * 0.35 : height * (0.58 + rng() * 0.42);
+    crest.push({ x, y: worldY - peak, high: i % 2 === 1 });
   }
+  ctx.strokeStyle = "rgba(97,255,126,0.145)";
+  ctx.lineWidth = 1.05;
+  ctx.beginPath();
+  crest.forEach((crestPoint, index) => {
+    const point = campaignWorldToScreen(campaign, crestPoint.x, crestPoint.y);
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
   ctx.stroke();
-  ctx.globalAlpha = 0.62;
+  ctx.strokeStyle = "rgba(185,255,189,0.08)";
+  for (const crestPoint of crest.filter((point) => point.high)) {
+    const peak = campaignWorldToScreen(campaign, crestPoint.x, crestPoint.y);
+    const base = campaignWorldToScreen(campaign, crestPoint.x + (rng() - 0.5) * width * 0.16, worldY + 8 + rng() * 12);
+    ctx.beginPath();
+    ctx.moveTo(peak.x, peak.y);
+    ctx.lineTo(base.x, base.y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.76;
+  ctx.strokeStyle = "rgba(97,255,126,0.108)";
   for (let contour = 0; contour < 3; contour += 1) {
     ctx.beginPath();
-    const offset = 12 + contour * 12;
+    const offset = 13 + contour * 12;
     for (let i = 0; i <= peaks; i += 1) {
       const x = worldX - width / 2 + (width / peaks) * i;
       const y = worldY + offset - Math.sin(i * 1.6 + contour) * height * 0.18;
@@ -325,13 +339,18 @@ function drawForestCluster(campaign, worldX, worldY, count, rng) {
   const center = campaignWorldToScreen(campaign, worldX, worldY);
   if (center.x > mapWidth + 80 || center.x < -80 || center.y > mapHeight + 80 || center.y < -80) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(133,255,145,0.07)";
-  ctx.fillStyle = "rgba(97,255,126,0.012)";
+  ctx.strokeStyle = "rgba(133,255,145,0.135)";
+  ctx.fillStyle = "rgba(97,255,126,0.028)";
   ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(center.x, center.y + 8, 48, 18, -0.08 + rng() * 0.16, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(97,255,126,0.05)";
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(133,255,145,0.135)";
   for (let i = 0; i < count; i += 1) {
     const x = center.x + (rng() - 0.5) * 120;
     const y = center.y + (rng() - 0.5) * 66;
-    const size = 4 + rng() * 7;
+    const size = 5 + rng() * 8;
     ctx.beginPath();
     ctx.moveTo(x, y - size);
     ctx.lineTo(x - size * 0.72, y + size * 0.38);
@@ -353,7 +372,7 @@ function drawSurveyRidgeField(campaign, worldX, worldY, width, lanes, rng) {
   const center = campaignWorldToScreen(campaign, worldX, worldY);
   if (center.x > mapWidth + width || center.x < -width || center.y > mapHeight + 120 || center.y < -120) return;
   ctx.save();
-  ctx.strokeStyle = "rgba(185,255,189,0.042)";
+  ctx.strokeStyle = "rgba(185,255,189,0.062)";
   ctx.lineWidth = 1;
   for (let lane = 0; lane < lanes; lane += 1) {
     const yBase = worldY + lane * 13 - lanes * 6;
