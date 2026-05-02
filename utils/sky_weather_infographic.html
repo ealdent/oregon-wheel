@@ -144,6 +144,7 @@
     }
     .btn:hover{ background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.22); }
     .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn.btn-sm{ padding: 6px 10px; font-size: 12px; font-weight: 600; }
 
     .grid{
       display:grid;
@@ -616,6 +617,7 @@
           <small>Updated</small>
           <span class="mono" id="updatedLine">-</span>
         </div>
+        <button class="btn btn-sm" id="timeFormatBtn" type="button" title="Toggle 12h / 24h time">24h</button>
         <button class="btn" id="refreshBtn" type="button">Refresh</button>
       </div>
     </div>
@@ -871,6 +873,10 @@
   // Current location state (will be updated by geolocation)
   let LOCATION = { name: 'Loading...', lat: DEFAULT_LOCATION.lat, lon: DEFAULT_LOCATION.lon, tz: null };
 
+  // Time format toggle: true = 24-hour, false = 12-hour AM/PM
+  let use24Hour = true;
+  let lastUpdatedAt = null;
+
   // Store astronomical data for clock visualization
   let clockData = {
     sunrise: null,
@@ -923,7 +929,7 @@
   function createDateFormatters() {
     const tz = LOCATION.tz;
     return {
-      dtfTime: new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      dtfTime: new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: !use24Hour }),
       dtfDate: new Intl.DateTimeFormat(undefined, { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
       dtfYMD: new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' })
     };
@@ -968,6 +974,13 @@
 
   function fmtClock(date) { return formatters.dtfTime.format(date); }
   function fmtDate(date) { return formatters.dtfDate.format(date); }
+
+  function fmtHM(date) {
+    if (!date || isNaN(date.getTime())) return '-';
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone: LOCATION.tz, hour: '2-digit', minute: '2-digit', hour12: !use24Hour
+    }).format(date);
+  }
 
   function setText(id, value) {
     const el = $(id);
@@ -1164,19 +1177,14 @@
     const sunrise = r.sunrise ? new Date(r.sunrise) : null;
     const sunset  = r.sunset  ? new Date(r.sunset)  : null;
 
-    const fmt = (d) => {
-      if (!d || isNaN(d.getTime())) return '-';
-      return new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour: '2-digit', minute:'2-digit', hour12: false }).format(d);
-    };
-
-    setText('sunrise', fmt(sunrise));
-    setText('sunset', fmt(sunset));
-    setText('civilBegin', fmt(r.civil_twilight_begin ? new Date(r.civil_twilight_begin) : null));
-    setText('civilEnd', fmt(r.civil_twilight_end ? new Date(r.civil_twilight_end) : null));
-    setText('nauticalBegin', fmt(r.nautical_twilight_begin ? new Date(r.nautical_twilight_begin) : null));
-    setText('nauticalEnd', fmt(r.nautical_twilight_end ? new Date(r.nautical_twilight_end) : null));
-    setText('astroBegin', fmt(r.astronomical_twilight_begin ? new Date(r.astronomical_twilight_begin) : null));
-    setText('astroEnd', fmt(r.astronomical_twilight_end ? new Date(r.astronomical_twilight_end) : null));
+    setText('sunrise', fmtHM(sunrise));
+    setText('sunset', fmtHM(sunset));
+    setText('civilBegin', fmtHM(r.civil_twilight_begin ? new Date(r.civil_twilight_begin) : null));
+    setText('civilEnd', fmtHM(r.civil_twilight_end ? new Date(r.civil_twilight_end) : null));
+    setText('nauticalBegin', fmtHM(r.nautical_twilight_begin ? new Date(r.nautical_twilight_begin) : null));
+    setText('nauticalEnd', fmtHM(r.nautical_twilight_end ? new Date(r.nautical_twilight_end) : null));
+    setText('astroBegin', fmtHM(r.astronomical_twilight_begin ? new Date(r.astronomical_twilight_begin) : null));
+    setText('astroEnd', fmtHM(r.astronomical_twilight_end ? new Date(r.astronomical_twilight_end) : null));
 
     // Store for clock visualization
     clockData.sunrise = sunrise;
@@ -1218,12 +1226,9 @@
     const set = pick(moondata, 'set');
     const riseDate = parseUSNOTime(rise, now);
     const setDate = parseUSNOTime(set, now);
-    const fmt24 = (d) => (d && !isNaN(d.getTime()))
-      ? new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
-      : '-';
 
-    setText('moonrise', fmt24(riseDate));
-    setText('moonset', fmt24(setDate));
+    setText('moonrise', fmtHM(riseDate));
+    setText('moonset', fmtHM(setDate));
     setText('moonPhaseSub', curphase ? `Current: ${curphase}` : '-');
     setText('moonIllum', fracillum ? fracillum : '-');
 
@@ -1627,8 +1632,10 @@
       if (isMainHour) {
         const labelR = outerR + 28;
         const p = pointOnCircle(cx, cy, labelR, angle);
-        // Noon at top, 18:00 right, midnight bottom, 06:00 left
-        const label = String(hour).padStart(2, '0') + ':00';
+        // Noon at top, 6PM/18:00 right, midnight bottom, 6AM/06:00 left
+        const label = use24Hour
+          ? String(hour).padStart(2, '0') + ':00'
+          : (hour === 12 ? '12PM' : hour === 18 ? '6PM' : hour === 0 ? '12AM' : '6AM');
         hourMarkers += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="middle"
           fill="rgba(255,255,255,.7)" font-size="11" font-weight="600">${label}</text>`;
       }
@@ -1770,8 +1777,27 @@
   }
 
   function stampUpdated(now) {
-    const t = new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false }).format(now);
+    lastUpdatedAt = now;
+    const t = new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: !use24Hour }).format(now);
     setText('updatedLine', t);
+  }
+
+  function applyTimeFormat() {
+    $('timeFormatBtn').textContent = use24Hour ? '24h' : '12h';
+    if (LOCATION.tz) formatters = createDateFormatters();
+    setText('sunrise', fmtHM(clockData.sunrise));
+    setText('sunset', fmtHM(clockData.sunset));
+    setText('civilBegin', fmtHM(clockData.civilBegin));
+    setText('civilEnd', fmtHM(clockData.civilEnd));
+    setText('nauticalBegin', fmtHM(clockData.nauticalBegin));
+    setText('nauticalEnd', fmtHM(clockData.nauticalEnd));
+    setText('astroBegin', fmtHM(clockData.astroBegin));
+    setText('astroEnd', fmtHM(clockData.astroEnd));
+    setText('moonrise', fmtHM(clockData.moonrise));
+    setText('moonset', fmtHM(clockData.moonset));
+    if (lastUpdatedAt) stampUpdated(lastUpdatedAt);
+    lastClockDrawSecond = -1;
+    if (formatters) updateClock();
   }
 
   async function refreshAll() {
@@ -1919,6 +1945,10 @@
     updateClock();
     setInterval(updateClock, 1000);
     $('refreshBtn').addEventListener('click', () => refreshAll());
+    $('timeFormatBtn').addEventListener('click', () => {
+      use24Hour = !use24Hour;
+      applyTimeFormat();
+    });
     refreshAll();
   }
 
