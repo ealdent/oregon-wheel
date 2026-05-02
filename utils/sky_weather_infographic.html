@@ -923,7 +923,7 @@
   function createDateFormatters() {
     const tz = LOCATION.tz;
     return {
-      dtfTime: new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      dtfTime: new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
       dtfDate: new Intl.DateTimeFormat(undefined, { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
       dtfYMD: new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' })
     };
@@ -1166,7 +1166,7 @@
 
     const fmt = (d) => {
       if (!d || isNaN(d.getTime())) return '-';
-      return new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour: '2-digit', minute:'2-digit' }).format(d);
+      return new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour: '2-digit', minute:'2-digit', hour12: false }).format(d);
     };
 
     setText('sunrise', fmt(sunrise));
@@ -1216,15 +1216,20 @@
     // Phenomenon labels vary; "rise"/"set" matching is robust enough.
     const rise = pick(moondata, 'rise');
     const set = pick(moondata, 'set');
+    const riseDate = parseUSNOTime(rise, now);
+    const setDate = parseUSNOTime(set, now);
+    const fmt24 = (d) => (d && !isNaN(d.getTime()))
+      ? new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+      : '-';
 
-    setText('moonrise', rise || '-');
-    setText('moonset', set || '-');
+    setText('moonrise', fmt24(riseDate));
+    setText('moonset', fmt24(setDate));
     setText('moonPhaseSub', curphase ? `Current: ${curphase}` : '-');
     setText('moonIllum', fracillum ? fracillum : '-');
 
-    // Store for clock visualization - parse time strings like "6:35 AM" to Date objects
-    clockData.moonrise = parseUSNOTime(rise, now);
-    clockData.moonset = parseUSNOTime(set, now);
+    // Store for clock visualization
+    clockData.moonrise = riseDate;
+    clockData.moonset = setDate;
     clockData.moonPhase = curphase;
     clockData.moonIllum = fracillum;
   }
@@ -1622,8 +1627,8 @@
       if (isMainHour) {
         const labelR = outerR + 28;
         const p = pointOnCircle(cx, cy, labelR, angle);
-        // Noon at top, 6PM right, midnight bottom, 6AM left
-        const label = hour === 12 ? '12PM' : hour === 18 ? '6PM' : hour === 0 ? '12AM' : '6AM';
+        // Noon at top, 18:00 right, midnight bottom, 06:00 left
+        const label = String(hour).padStart(2, '0') + ':00';
         hourMarkers += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="middle"
           fill="rgba(255,255,255,.7)" font-size="11" font-weight="600">${label}</text>`;
       }
@@ -1765,7 +1770,7 @@
   }
 
   function stampUpdated(now) {
-    const t = new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(now);
+    const t = new Intl.DateTimeFormat(undefined, { timeZone: LOCATION.tz, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false }).format(now);
     setText('updatedLine', t);
   }
 
