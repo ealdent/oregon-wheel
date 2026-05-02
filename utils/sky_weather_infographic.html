@@ -617,7 +617,10 @@
           <small>Updated</small>
           <span class="mono" id="updatedLine">-</span>
         </div>
-        <button class="btn btn-sm" id="timeFormatBtn" type="button" title="Toggle 12h / 24h time">24h</button>
+        <button class="btn btn-sm" id="timeFormatBtn" type="button"
+                title="Toggle 12h / 24h time"
+                aria-pressed="true"
+                aria-label="Time format: 24-hour. Click to switch.">24h</button>
         <button class="btn" id="refreshBtn" type="button">Refresh</button>
       </div>
     </div>
@@ -876,6 +879,7 @@
   // Time format toggle: true = 24-hour, false = 12-hour AM/PM
   let use24Hour = true;
   let lastUpdatedAt = null;
+  let lastObservedTime = null;
 
   // Store astronomical data for clock visualization
   let clockData = {
@@ -980,6 +984,22 @@
     return new Intl.DateTimeFormat(undefined, {
       timeZone: LOCATION.tz, hour: '2-digit', minute: '2-digit', hour12: !use24Hour
     }).format(date);
+  }
+
+  // Format an open-meteo wall-clock string (YYYY-MM-DDTHH:MM, no offset)
+  // honoring the 12h/24h toggle.
+  function fmtObserved(timeStr) {
+    if (!timeStr) return '';
+    const [datePart, timePart] = timeStr.split('T');
+    if (!timePart) return `Observed @ ${timeStr}`;
+    const [hhRaw, mm] = timePart.split(':');
+    let hour = parseInt(hhRaw, 10);
+    if (use24Hour) {
+      return `Observed @ ${datePart} ${String(hour).padStart(2, '0')}:${mm}`;
+    }
+    const period = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return `Observed @ ${datePart} ${hour}:${mm} ${period}`;
   }
 
   function setText(id, value) {
@@ -1153,7 +1173,8 @@
 
     setText('temp', (c.temperature_2m == null) ? '-' : `${Math.round(c.temperature_2m)}F`);
     setText('wxDesc', label);
-    setText('wxSmall', (c.time ? `Observed @ ${c.time.replace('T',' ')}` : ''));
+    lastObservedTime = c.time || null;
+    setText('wxSmall', fmtObserved(lastObservedTime));
     setText('feels', (c.apparent_temperature == null) ? '-' : `${Math.round(c.apparent_temperature)}F`);
     setText('hum', (c.relative_humidity_2m == null) ? '-' : `${Math.round(c.relative_humidity_2m)}%`);
     setText('wind', (c.wind_speed_10m == null) ? '-' : `${Math.round(c.wind_speed_10m)} mph`);
@@ -1783,7 +1804,10 @@
   }
 
   function applyTimeFormat() {
-    $('timeFormatBtn').textContent = use24Hour ? '24h' : '12h';
+    const btn = $('timeFormatBtn');
+    btn.textContent = use24Hour ? '24h' : '12h';
+    btn.setAttribute('aria-pressed', String(use24Hour));
+    btn.setAttribute('aria-label', `Time format: ${use24Hour ? '24-hour' : '12-hour'}. Click to switch.`);
     if (LOCATION.tz) formatters = createDateFormatters();
     setText('sunrise', fmtHM(clockData.sunrise));
     setText('sunset', fmtHM(clockData.sunset));
@@ -1795,6 +1819,7 @@
     setText('astroEnd', fmtHM(clockData.astroEnd));
     setText('moonrise', fmtHM(clockData.moonrise));
     setText('moonset', fmtHM(clockData.moonset));
+    if (lastObservedTime) setText('wxSmall', fmtObserved(lastObservedTime));
     if (lastUpdatedAt) stampUpdated(lastUpdatedAt);
     lastClockDrawSecond = -1;
     if (formatters) updateClock();
