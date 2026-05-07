@@ -239,6 +239,18 @@
       color: #61ff7e;
     }
 
+    .card-neonascent {
+      --accent: #00f0ff;
+    }
+    .card-neonascent:hover {
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
+      border-color: rgba(0, 240, 255, 0.4);
+    }
+    .card-neonascent .card-tag {
+      background: rgba(0, 240, 255, 0.15);
+      color: #00f0ff;
+    }
+
     footer {
       text-align: center;
       margin-top: clamp(2.5rem, 5vw, 4rem);
@@ -269,6 +281,13 @@
         <span class="card-title">Mother OS Defense</span>
         <span class="card-desc">A green-screen tactical tower defense with unlimited waves, upgrades, and enemy intel.</span>
         <span class="card-tag">tower defense</span>
+      </a>
+
+      <a href="neon-ascent.html" class="game-card card-neonascent">
+        <span class="card-icon">▲</span>
+        <span class="card-title">Neon Ascent</span>
+        <span class="card-desc">Bounce up an endless cyberpunk tower. Steer with mouse, arrows, or touch — collect shards, dodge drones.</span>
+        <span class="card-tag">arcade</span>
       </a>
 
       <a href="genesis-colony/index.html" class="game-card card-genesis">
