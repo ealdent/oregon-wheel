@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greenhouse To-Do</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Crosshair -->
+    <div id="crosshair"></div>
+
+    <!-- Start / Instruction Screen -->
+    <div id="blocker">
+        <div id="instructions">
+            <h1>Greenhouse To-Do</h1>
+            <p>
+                Click to enter the greenhouse.<br/>
+                WASD to move, Mouse to look around.<br/>
+                Aim at a plant and click to manage the to-do.<br/>
+                Press ESC to show the mouse and menu.
+            </p>
+        </div>
+    </div>
+
+    <!-- UI Container (Shown when unlocked / ESC pressed) -->
+    <div id="ui-container" style="display: none;">
+        <div class="panel">
+            <h2>Add New To-Do</h2>
+            <form id="add-todo-form">
+                <input type="text" id="todo-title" placeholder="To-Do Title" required>
+                <textarea id="todo-desc" placeholder="Description"></textarea>
+                <select id="todo-urgency">
+                    <option value="1">Low Urgency</option>
+                    <option value="2" selected>Medium Urgency</option>
+                    <option value="3">High Urgency</option>
+                </select>
+                <button type="submit">Plant Seed</button>
+            </form>
+
+            <hr>
+
+            <button id="fast-forward-btn" class="secondary-btn">Fast Forward Time (1 day)</button>
+            <button id="resume-btn">Resume Walking</button>
+        </div>
+    </div>
+
+    <!-- To-Do Details Modal -->
+    <div id="todo-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn" id="close-modal">&times;</span>
+            <h2 id="modal-title">To-Do Title</h2>
+            <p id="modal-desc">Description goes here.</p>
+            <p><strong>Health:</strong> <span id="modal-health">100%</span></p>
+            <p><strong>Urgency:</strong> <span id="modal-urgency">Medium</span></p>
+
+            <div class="modal-actions">
+                <button id="btn-acknowledge" class="action-btn">Acknowledge / Water</button>
+                <button id="btn-complete" class="success-btn">Mark Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js and PointerLockControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
