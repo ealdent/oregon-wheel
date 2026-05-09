@@ -1,2 +1,3 @@
 - Always properly dispose Three.js meshes, materials, and geometries when removing objects from the scene to prevent memory leaks in long-running apps.
 - When maintaining a finite number of positions for objects (like task slots), implement an array or stack of available indices and ensure indices are reclaimed when objects are removed.
+- In JavaScript, especially when dealing with global arrays populated by functions called on initialization (like Three.js scenes), always declare and initialize those global arrays *before* calling the initialization functions. Using `const` and `let` doesn't hoist their initialization to the top, which can lead to "Cannot access before initialization" errors.

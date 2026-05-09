@@ -22,6 +22,10 @@ const instructions = document.getElementById('instructions');
 const uiContainer = document.getElementById('ui-container');
 const resumeBtn = document.getElementById('resume-btn');
 
+// --- Plant Generation Logic Variables ---
+const tablePositions = []; // To track where to put next plant
+const availablePositions = []; // Stack of available indices
+
 init();
 animate();
 
@@ -142,8 +146,6 @@ function init() {
 }
 
 // --- Plant Generation Logic ---
-const tablePositions = []; // To track where to put next plant
-const availablePositions = []; // Stack of available indices
 
 function buildGreenhouse() {
     // Collect table positions for plant placement
