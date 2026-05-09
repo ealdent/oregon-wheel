@@ -59,7 +59,7 @@ function init() {
     // 1. Scene setup
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB); // Sky blue
-    scene.fog = new THREE.Fog(0x87CEEB, 0, 50);
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.02);
 
     // 2. Camera setup
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -174,6 +174,117 @@ function init() {
     window.addEventListener('resize', onWindowResize);
 }
 
+// --- Texture Generation ---
+function createWoodTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = "#8b5a2b";
+    ctx.fillRect(0, 0, 512, 512);
+    for(let i = 0; i < 200; i++) {
+        ctx.fillStyle = "rgba(0, 0, 0, " + (Math.random() * 0.1) + ")";
+        ctx.fillRect(Math.random() * 512, 0, Math.random() * 10, 512);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    return texture;
+}
+
+function createDirtTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = "#3d2817";
+    ctx.fillRect(0, 0, 512, 512);
+    for(let i = 0; i < 5000; i++) {
+        const shade = Math.random() > 0.5 ? 0 : 255;
+        ctx.fillStyle = "rgba(" + shade + "," + shade + "," + shade + "," + (Math.random() * 0.05) + ")";
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(20, 20); // Tile it a bit
+    return texture;
+}
+
+function createGlassTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = "rgba(200, 230, 255, 0.1)";
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Add glass panel lines/frames
+    ctx.strokeStyle = "rgba(50, 50, 50, 0.8)";
+    ctx.lineWidth = 10;
+    ctx.strokeRect(0, 0, 512, 512);
+
+    // Smudges
+    for(let i = 0; i < 20; i++) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.beginPath();
+        ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 50, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 4); // Tile the glass panels
+    return texture;
+}
+
+function createLeafTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = "#2ecc71"; // Base green
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Veins
+    ctx.strokeStyle = "#27ae60";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(128, 0);
+    ctx.lineTo(128, 256); // center vein
+
+    // Side veins
+    for(let i = 0; i < 8; i++) {
+        let y = i * 30 + 15;
+        ctx.moveTo(128, y);
+        ctx.lineTo(128 + 60, y - 40);
+        ctx.moveTo(128, y);
+        ctx.lineTo(128 - 60, y - 40);
+    }
+    ctx.stroke();
+    return new THREE.CanvasTexture(canvas);
+}
+
+function createLeafAlphaTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Black background (transparent)
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, 256, 256);
+
+    // White leaf shape (opaque)
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.ellipse(128, 128, 60, 120, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    return new THREE.CanvasTexture(canvas);
+}
+
 // --- Plant Generation Logic ---
 const tablePositions = []; // To track where to put next plant
 
@@ -205,8 +316,8 @@ function buildGreenhouse() {
     // Floor
     const floorGeometry = new THREE.PlaneGeometry(100, 100);
     const floorMaterial = new THREE.MeshStandardMaterial({
-        color: 0x3d2817, // Dirt color
-        roughness: 0.8
+        map: createDirtTexture(),
+        roughness: 1.0
     });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
@@ -214,7 +325,7 @@ function buildGreenhouse() {
     scene.add(floor);
 
     // Tables (Procedural layout along a central aisle)
-    const tableMaterial = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
+    const tableMaterial = new THREE.MeshStandardMaterial({ map: createWoodTexture() });
     const numTables = 10;
     const tableSpacing = 4;
 
@@ -227,6 +338,54 @@ function buildGreenhouse() {
         // Right table
         createTable(3, zPos, tableMaterial);
     }
+
+    // Greenhouse Structure
+    const glassMat = new THREE.MeshPhysicalMaterial({
+        map: createGlassTexture(),
+        transmission: 0.9,
+        opacity: 1,
+        transparent: true,
+        roughness: 0.1,
+        metalness: 0.1
+    });
+
+    const ghGroup = new THREE.Group();
+
+    // Left Wall
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 6, 50), glassMat);
+    leftWall.position.set(-8, 3, -20);
+    ghGroup.add(leftWall);
+
+    // Right Wall
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 6, 50), glassMat);
+    rightWall.position.set(8, 3, -20);
+    ghGroup.add(rightWall);
+
+    // Front Wall (Far end)
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 0.2), glassMat);
+    frontWall.position.set(0, 3, -45);
+    ghGroup.add(frontWall);
+
+    // Back Wall (Near end, behind spawn)
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 0.2), glassMat);
+    backWall.position.set(0, 3, 5);
+    ghGroup.add(backWall);
+
+    // Pitched Roof
+    const roofGeom = new THREE.CylinderGeometry(8, 8, 50, 3, 1, false, 0, Math.PI);
+    const roof = new THREE.Mesh(roofGeom, glassMat);
+    roof.rotation.x = -Math.PI / 2;
+    roof.rotation.y = -Math.PI / 2;
+    roof.position.set(0, 6, -20);
+    ghGroup.add(roof);
+
+    // Door at the back wall (entrance)
+    const doorMat = new THREE.MeshStandardMaterial({ map: createWoodTexture() });
+    const door = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 0.3), doorMat);
+    door.position.set(0, 2, 5.05); // Slightly offset from back wall
+    ghGroup.add(door);
+
+    scene.add(ghGroup);
 }
 
 function createTable(x, z, material) {
@@ -356,16 +515,25 @@ function createPlant(todoData, isLoad = false) {
         plantGroup.add(stem);
 
         // 4. Leaves (attached to stem)
-        const leafGeom = new THREE.SphereGeometry(0.08, 8, 8);
-        leafGeom.scale(1, 0.2, 1);
+        const leafGeom = new THREE.PlaneGeometry(0.16, 0.16);
+        if (!window.sharedLeafMat) {
+            window.sharedLeafMat = new THREE.MeshStandardMaterial({
+                map: createLeafTexture(),
+                alphaMap: createLeafAlphaTexture(),
+                transparent: true,
+                side: THREE.DoubleSide,
+                alphaTest: 0.5
+            });
+        }
+        const leafMat = window.sharedLeafMat;
 
-        const leaf1 = new THREE.Mesh(leafGeom, plantMat);
+        const leaf1 = new THREE.Mesh(leafGeom, leafMat);
         leaf1.position.set(0.05, 0.2, 0);
         leaf1.rotation.z = -Math.PI / 4;
         leaf1.name = "leaf1";
         stem.add(leaf1);
 
-        const leaf2 = new THREE.Mesh(leafGeom, plantMat);
+        const leaf2 = new THREE.Mesh(leafGeom, leafMat);
         leaf2.position.set(-0.05, 0.3, 0);
         leaf2.rotation.z = Math.PI / 4;
         leaf2.name = "leaf2";
