@@ -217,13 +217,25 @@ function createGlassTexture() {
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = "rgba(200, 230, 255, 0.1)";
+
+    // Tinted green background
+    ctx.fillStyle = "rgba(180, 240, 200, 0.2)";
     ctx.fillRect(0, 0, 512, 512);
 
-    // Add glass panel lines/frames
-    ctx.strokeStyle = "rgba(50, 50, 50, 0.8)";
-    ctx.lineWidth = 10;
+    // Add metal scaffolding lines
+    ctx.strokeStyle = "#405040"; // Dark greenish-grey metal
+    ctx.lineWidth = 16;
+
+    // Border
     ctx.strokeRect(0, 0, 512, 512);
+
+    // Crossbars for scaffolding
+    ctx.beginPath();
+    ctx.moveTo(256, 0);
+    ctx.lineTo(256, 512);
+    ctx.moveTo(0, 256);
+    ctx.lineTo(512, 256);
+    ctx.stroke();
 
     // Smudges
     for(let i = 0; i < 20; i++) {
@@ -342,48 +354,133 @@ function buildGreenhouse() {
     // Greenhouse Structure
     const glassMat = new THREE.MeshPhysicalMaterial({
         map: createGlassTexture(),
+        color: 0xaaffaa, // Pale green tint
         transmission: 0.9,
         opacity: 1,
         transparent: true,
         roughness: 0.1,
-        metalness: 0.1
+        metalness: 0.1,
+        side: THREE.DoubleSide
     });
 
     const ghGroup = new THREE.Group();
 
-    // Left Wall
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 6, 50), glassMat);
-    leftWall.position.set(-8, 3, -20);
+    const woodMat = new THREE.MeshStandardMaterial({ map: createWoodTexture() });
+
+    // Waist-level Wood Bases
+    const baseHeight = 1.2;
+    const wallHeight = 4.8; // Total height 6m before roof
+    const totalLength = 50;
+    const totalWidth = 16;
+    const zCenter = -20;
+
+    // Wood Bases
+    const leftBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, baseHeight, totalLength), woodMat);
+    leftBase.position.set(-8, baseHeight / 2, zCenter);
+    ghGroup.add(leftBase);
+
+    const rightBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, baseHeight, totalLength), woodMat);
+    rightBase.position.set(8, baseHeight / 2, zCenter);
+    ghGroup.add(rightBase);
+
+    const frontBase = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, baseHeight, 0.2), woodMat);
+    frontBase.position.set(0, baseHeight / 2, -45);
+    ghGroup.add(frontBase);
+
+    // Back base with a gap for the door
+    const doorWidth = 2.0;
+    const backBaseLeftWidth = (totalWidth - doorWidth) / 2;
+
+    const backBaseLeft = new THREE.Mesh(new THREE.BoxGeometry(backBaseLeftWidth, baseHeight, 0.2), woodMat);
+    backBaseLeft.position.set(-doorWidth / 2 - backBaseLeftWidth / 2, baseHeight / 2, 5);
+    ghGroup.add(backBaseLeft);
+
+    const backBaseRight = new THREE.Mesh(new THREE.BoxGeometry(backBaseLeftWidth, baseHeight, 0.2), woodMat);
+    backBaseRight.position.set(doorWidth / 2 + backBaseLeftWidth / 2, baseHeight / 2, 5);
+    ghGroup.add(backBaseRight);
+
+    // Glass Walls (above the wood base)
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, wallHeight, totalLength), glassMat);
+    leftWall.position.set(-8, baseHeight + wallHeight / 2, zCenter);
     ghGroup.add(leftWall);
 
-    // Right Wall
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 6, 50), glassMat);
-    rightWall.position.set(8, 3, -20);
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, wallHeight, totalLength), glassMat);
+    rightWall.position.set(8, baseHeight + wallHeight / 2, zCenter);
     ghGroup.add(rightWall);
 
-    // Front Wall (Far end)
-    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 0.2), glassMat);
-    frontWall.position.set(0, 3, -45);
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(totalWidth, wallHeight, 0.2), glassMat);
+    frontWall.position.set(0, baseHeight + wallHeight / 2, -45);
     ghGroup.add(frontWall);
 
-    // Back Wall (Near end, behind spawn)
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 0.2), glassMat);
-    backWall.position.set(0, 3, 5);
-    ghGroup.add(backWall);
+    // Back Wall Glass (also with a gap for the door)
+    const backWallLeft = new THREE.Mesh(new THREE.BoxGeometry(backBaseLeftWidth, wallHeight, 0.2), glassMat);
+    backWallLeft.position.set(-doorWidth / 2 - backBaseLeftWidth / 2, baseHeight + wallHeight / 2, 5);
+    ghGroup.add(backWallLeft);
 
-    // Pitched Roof
-    const roofGeom = new THREE.CylinderGeometry(8, 8, 50, 3, 1, false, 0, Math.PI);
+    const backWallRight = new THREE.Mesh(new THREE.BoxGeometry(backBaseLeftWidth, wallHeight, 0.2), glassMat);
+    backWallRight.position.set(doorWidth / 2 + backBaseLeftWidth / 2, baseHeight + wallHeight / 2, 5);
+    ghGroup.add(backWallRight);
+
+    // Top glass above the door
+    const doorHeight = 4.0;
+    if (baseHeight + wallHeight > doorHeight) {
+        const topGlassHeight = (baseHeight + wallHeight) - doorHeight;
+        const topGlass = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, topGlassHeight, 0.2), glassMat);
+        topGlass.position.set(0, doorHeight + topGlassHeight / 2, 5);
+        ghGroup.add(topGlass);
+    }
+
+    // Curved Arch Roof
+    const roofGeom = new THREE.CylinderGeometry(8, 8, totalLength, 12, 1, false, 0, Math.PI);
     const roof = new THREE.Mesh(roofGeom, glassMat);
     roof.rotation.x = -Math.PI / 2;
     roof.rotation.y = -Math.PI / 2;
-    roof.position.set(0, 6, -20);
+    roof.position.set(0, baseHeight + wallHeight, zCenter);
     ghGroup.add(roof);
 
-    // Door at the back wall (entrance)
-    const doorMat = new THREE.MeshStandardMaterial({ map: createWoodTexture() });
-    const door = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 0.3), doorMat);
-    door.position.set(0, 2, 5.05); // Slightly offset from back wall
-    ghGroup.add(door);
+    // Front and Back Glass Half-Circles (filling the arches)
+    const archGeom = new THREE.CylinderGeometry(8, 8, 0.2, 12, 1, false, 0, Math.PI);
+
+    const frontArch = new THREE.Mesh(archGeom, glassMat);
+    frontArch.rotation.x = -Math.PI / 2;
+    frontArch.position.set(0, baseHeight + wallHeight, -45);
+    ghGroup.add(frontArch);
+
+    const backArch = new THREE.Mesh(archGeom, glassMat);
+    backArch.rotation.x = -Math.PI / 2;
+    backArch.position.set(0, baseHeight + wallHeight, 5);
+    ghGroup.add(backArch);
+
+    // Glass Door at the back wall (entrance)
+    const doorGroup = new THREE.Group();
+    doorGroup.position.set(0, doorHeight / 2, 5.05); // Slightly offset from back wall
+
+    // Door Frame
+    const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x405040 }); // Dark metal frame
+    const doorFrameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, doorHeight, 0.25), doorFrameMat);
+    doorFrameLeft.position.set(-doorWidth / 2 + 0.05, 0, 0);
+    doorGroup.add(doorFrameLeft);
+
+    const doorFrameRight = new THREE.Mesh(new THREE.BoxGeometry(0.1, doorHeight, 0.25), doorFrameMat);
+    doorFrameRight.position.set(doorWidth / 2 - 0.05, 0, 0);
+    doorGroup.add(doorFrameRight);
+
+    const doorFrameTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, 0.1, 0.25), doorFrameMat);
+    doorFrameTop.position.set(0, doorHeight / 2 - 0.05, 0);
+    doorGroup.add(doorFrameTop);
+
+    // Glass Pane
+    const doorGlass = new THREE.Mesh(new THREE.BoxGeometry(doorWidth - 0.2, doorHeight - 0.1, 0.1), glassMat);
+    doorGlass.position.set(0, -0.05, 0);
+    doorGroup.add(doorGlass);
+
+    // Door handle
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), handleMat);
+    handle.position.set(doorWidth / 2 - 0.2, 0, 0.15);
+    doorGroup.add(handle);
+
+    ghGroup.add(doorGroup);
 
     scene.add(ghGroup);
 }
@@ -637,6 +734,13 @@ function animate() {
 
         controls.moveRight(-velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
+
+        // Boundary collision detection (keep player inside greenhouse)
+        const pos = controls.getObject().position;
+        if (pos.x < -7.5) pos.x = -7.5;
+        if (pos.x > 7.5) pos.x = 7.5;
+        if (pos.z < -44.5) pos.z = -44.5;
+        if (pos.z > 4.5) pos.z = 4.5;
 
         // Hover raycasting
         raycaster.setFromCamera(mouse, camera);
