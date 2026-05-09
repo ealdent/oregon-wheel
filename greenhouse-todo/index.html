@@ -11,6 +11,9 @@
     <!-- Crosshair -->
     <div id="crosshair"></div>
 
+    <!-- Hover Tooltip -->
+    <div id="hover-tooltip" style="display: none;"></div>
+
     <!-- Start / Instruction Screen -->
     <div id="blocker">
         <div id="instructions">
@@ -27,6 +30,16 @@
     <!-- UI Container (Shown when unlocked / ESC pressed) -->
     <div id="ui-container" style="display: none;">
         <div class="panel">
+            <button id="fast-forward-btn" class="secondary-btn">Fast Forward Time (1 day)</button>
+            <button id="clear-save-btn" class="secondary-btn" style="background-color: #e74c3c;">Clear Save Data</button>
+            <button id="resume-btn">Resume Walking</button>
+        </div>
+    </div>
+
+    <!-- Add To-Do Modal -->
+    <div id="add-todo-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn" id="close-add-modal">&times;</span>
             <h2>Add New To-Do</h2>
             <form id="add-todo-form">
                 <input type="text" id="todo-title" placeholder="To-Do Title" required>
@@ -38,11 +51,6 @@
                 </select>
                 <button type="submit">Plant Seed</button>
             </form>
-
-            <hr>
-
-            <button id="fast-forward-btn" class="secondary-btn">Fast Forward Time (1 day)</button>
-            <button id="resume-btn">Resume Walking</button>
         </div>
     </div>
 
@@ -54,9 +62,26 @@
             <p id="modal-desc">Description goes here.</p>
             <p><strong>Health:</strong> <span id="modal-health">100%</span></p>
             <p><strong>Urgency:</strong> <span id="modal-urgency">Medium</span></p>
+            <p><strong>Status:</strong> <span id="modal-status">Not Started</span></p>
+
+            <div class="status-actions" style="display: flex; gap: 5px; margin-bottom: 15px;">
+                <button id="btn-status-procrastinating" class="action-btn" style="font-size: 0.8rem; background-color: #e67e22;">Procrastinating</button>
+                <button id="btn-status-inprogress" class="action-btn" style="font-size: 0.8rem; background-color: #3498db;">In Progress</button>
+                <button id="btn-status-almostdone" class="action-btn" style="font-size: 0.8rem; background-color: #f1c40f; color: #333;">Almost Done</button>
+            </div>
+
+            <div class="checkin-section" style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <p style="margin-top: 0; margin-bottom: 5px;"><strong>Daily Check-in</strong></p>
+                <select id="todo-effort" style="width: 100%; margin-bottom: 10px;">
+                    <option value="0">No Effort</option>
+                    <option value="30">Some Effort</option>
+                    <option value="60">Good Effort</option>
+                    <option value="100">Herculean Effort</option>
+                </select>
+                <button id="btn-checkin" class="action-btn" style="width: 100%;">Check-in</button>
+            </div>
 
             <div class="modal-actions">
-                <button id="btn-acknowledge" class="action-btn">Acknowledge / Water</button>
                 <button id="btn-complete" class="success-btn">Mark Complete</button>
             </div>
         </div>
