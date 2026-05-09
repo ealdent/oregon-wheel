@@ -22,9 +22,6 @@ const instructions = document.getElementById('instructions');
 const uiContainer = document.getElementById('ui-container');
 const resumeBtn = document.getElementById('resume-btn');
 
-init();
-animate();
-
 function init() {
     // 1. Scene setup
     scene = new THREE.Scene();
@@ -534,6 +531,9 @@ document.getElementById('btn-acknowledge').addEventListener('click', function() 
         closeTodoModal();
     }
 });
+
+init();
+animate();
 
 document.getElementById('btn-complete').addEventListener('click', function() {
     if (activeTodo) {
