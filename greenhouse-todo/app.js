@@ -2,10 +2,43 @@ let camera, scene, renderer, controls;
 let raycaster, mouse;
 
 const objects = []; // Interactable objects (plants)
-const todos = []; // Data for todos
+let todos = []; // Data for todos
 
 // Time tracking
 let simulatedTimeOffset = 0; // Fast forward offset in ms
+
+// Local Storage keys
+const STORAGE_KEY = 'greenhouse-todos-data';
+
+function saveTodosToLocal() {
+    // Only save the data, not the THREE.js meshes
+    const dataToSave = todos.map(t => {
+        const { mesh, ...rest } = t;
+        return rest;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        todos: dataToSave,
+        simulatedTimeOffset: simulatedTimeOffset
+    }));
+}
+
+function loadTodosFromLocal() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            todos = data.todos || [];
+            simulatedTimeOffset = data.simulatedTimeOffset || 0;
+
+            // Rebuild plants for each loaded todo
+            todos.forEach(todo => {
+                createPlant(todo, true);
+            });
+        } catch (e) {
+            console.error("Failed to parse saved data:", e);
+        }
+    }
+}
 
 // Movement state
 let moveForward = false;
@@ -134,13 +167,15 @@ function init() {
     // 8. Build Greenhouse Environment
     buildGreenhouse();
 
+    // 9. Load Saved Data
+    loadTodosFromLocal();
+
     // Window resize handler
     window.addEventListener('resize', onWindowResize);
 }
 
 // --- Plant Generation Logic ---
 const tablePositions = []; // To track where to put next plant
-const availablePositions = []; // Stack of available indices
 
 function buildGreenhouse() {
     // Collect table positions for plant placement
@@ -162,12 +197,10 @@ function buildGreenhouse() {
         }
     }
 
-    // Initialize available positions with all indices
+    // Instantiate empty pots at all positions
     for (let i = 0; i < tablePositions.length; i++) {
-        availablePositions.push(i);
+        createEmptyPot(i, tablePositions[i]);
     }
-    // Reverse so we pop from the beginning (index 0 first)
-    availablePositions.reverse();
 
     // Floor
     const floorGeometry = new THREE.PlaneGeometry(100, 100);
@@ -225,29 +258,63 @@ function createTable(x, z, material) {
     scene.add(tableGroup);
 }
 
-function createPlant(todoData) {
-    if (availablePositions.length === 0) {
-        console.warn("Greenhouse is full! Cannot add more plants.");
-        alert("Greenhouse is full! Complete some tasks first.");
+function createEmptyPot(index, pos) {
+    const potGroup = new THREE.Group();
+    potGroup.position.copy(pos);
+    potGroup.userData = {
+        isEmpty: true,
+        positionIndex: index
+    };
+
+    const potGeom = new THREE.CylinderGeometry(0.15, 0.1, 0.2, 16);
+    const potMat = new THREE.MeshStandardMaterial({ color: 0xcd5c5c, roughness: 0.9 });
+    const pot = new THREE.Mesh(potGeom, potMat);
+    pot.position.y = 0.1;
+    pot.castShadow = true;
+    potGroup.add(pot);
+
+    const dirtGeom = new THREE.CylinderGeometry(0.14, 0.14, 0.05, 16);
+    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0b });
+    const dirt = new THREE.Mesh(dirtGeom, dirtMat);
+    dirt.position.y = 0.18;
+    potGroup.add(dirt);
+
+    objects.push(potGroup);
+    scene.add(potGroup);
+}
+
+function createPlant(todoData, isLoad = false) {
+    let positionIndex = todoData.positionIndex;
+    if (positionIndex === undefined) {
+        console.error("No position index provided for plant.");
         return false;
     }
 
-    const positionIndex = availablePositions.pop();
     const pos = tablePositions[positionIndex];
+
+    // Find and remove the existing empty pot or plant at this position
+    const existingObjIndex = objects.findIndex(obj => obj.userData.positionIndex === positionIndex);
+    if (existingObjIndex > -1) {
+        const existingObj = objects[existingObjIndex];
+        scene.remove(existingObj);
+        disposeHierarchy(existingObj);
+        objects.splice(existingObjIndex, 1);
+    }
 
     // Plant Group
     const plantGroup = new THREE.Group();
     plantGroup.position.copy(pos);
     plantGroup.userData = {
         id: todoData.id,
-        positionIndex: positionIndex
-    }; // Link to data
+        positionIndex: positionIndex,
+        isEmpty: false
+    };
 
     // 1. Pot
     const potGeom = new THREE.CylinderGeometry(0.15, 0.1, 0.2, 16);
-    const potMat = new THREE.MeshStandardMaterial({ color: 0xcd5c5c, roughness: 0.9 }); // Terracotta
+    const potMat = new THREE.MeshStandardMaterial({ color: 0xcd5c5c, roughness: 0.9 });
     const pot = new THREE.Mesh(potGeom, potMat);
-    pot.position.y = 0.1; // Rest on table
+    pot.position.y = 0.1;
     pot.castShadow = true;
     plantGroup.add(pot);
 
@@ -258,32 +325,52 @@ function createPlant(todoData) {
     dirt.position.y = 0.18;
     plantGroup.add(dirt);
 
-    // 3. Stem (will bend based on health)
-    const stemGeom = new THREE.CylinderGeometry(0.015, 0.02, 0.4, 8);
-    // Move pivot point to bottom of stem
-    stemGeom.translate(0, 0.2, 0);
-    const plantMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
-    const stem = new THREE.Mesh(stemGeom, plantMat);
-    stem.position.y = 0.2; // Start at dirt level
-    stem.castShadow = true;
-    stem.name = "stem";
-    plantGroup.add(stem);
+    if (todoData.completed) {
+        // Render as blooming flower
+        const stemGeom = new THREE.CylinderGeometry(0.015, 0.02, 0.4, 8);
+        stemGeom.translate(0, 0.2, 0);
+        const plantMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
+        const stem = new THREE.Mesh(stemGeom, plantMat);
+        stem.position.y = 0.2;
+        stem.castShadow = true;
+        plantGroup.add(stem);
 
-    // 4. Leaves (attached to stem)
-    const leafGeom = new THREE.SphereGeometry(0.08, 8, 8);
-    leafGeom.scale(1, 0.2, 1);
+        const flowerGeom = new THREE.DodecahedronGeometry(0.1);
+        const flowerMat = new THREE.MeshStandardMaterial({ color: 0xff69b4, roughness: 0.4 }); // Hot pink bloom
+        const flower = new THREE.Mesh(flowerGeom, flowerMat);
+        flower.position.y = 0.4; // Top of stem
+        stem.add(flower);
 
-    const leaf1 = new THREE.Mesh(leafGeom, plantMat);
-    leaf1.position.set(0.05, 0.2, 0);
-    leaf1.rotation.z = -Math.PI / 4;
-    leaf1.name = "leaf1";
-    stem.add(leaf1);
+        // Droop slightly less
+        stem.rotation.x = Math.PI / 8;
+    } else {
+        // 3. Stem (will bend based on health)
+        const stemGeom = new THREE.CylinderGeometry(0.015, 0.02, 0.4, 8);
+        // Move pivot point to bottom of stem
+        stemGeom.translate(0, 0.2, 0);
+        const plantMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
+        const stem = new THREE.Mesh(stemGeom, plantMat);
+        stem.position.y = 0.2; // Start at dirt level
+        stem.castShadow = true;
+        stem.name = "stem";
+        plantGroup.add(stem);
 
-    const leaf2 = new THREE.Mesh(leafGeom, plantMat);
-    leaf2.position.set(-0.05, 0.3, 0);
-    leaf2.rotation.z = Math.PI / 4;
-    leaf2.name = "leaf2";
-    stem.add(leaf2);
+        // 4. Leaves (attached to stem)
+        const leafGeom = new THREE.SphereGeometry(0.08, 8, 8);
+        leafGeom.scale(1, 0.2, 1);
+
+        const leaf1 = new THREE.Mesh(leafGeom, plantMat);
+        leaf1.position.set(0.05, 0.2, 0);
+        leaf1.rotation.z = -Math.PI / 4;
+        leaf1.name = "leaf1";
+        stem.add(leaf1);
+
+        const leaf2 = new THREE.Mesh(leafGeom, plantMat);
+        leaf2.position.set(-0.05, 0.3, 0);
+        leaf2.rotation.z = Math.PI / 4;
+        leaf2.name = "leaf2";
+        stem.add(leaf2);
+    }
 
     // Save reference for interaction and updates
     objects.push(plantGroup);
@@ -291,6 +378,10 @@ function createPlant(todoData) {
 
     // Bind mesh to data
     todoData.mesh = plantGroup;
+
+    if (!todoData.completed) {
+        updatePlantVisual(todoData);
+    }
 
     return true;
 }
@@ -326,6 +417,11 @@ document.getElementById('add-todo-form').addEventListener('submit', function(e) 
     const desc = document.getElementById('todo-desc').value;
     const urgency = parseInt(document.getElementById('todo-urgency').value);
 
+    if (activePotIndex === null) {
+        console.error("No pot selected to plant seed.");
+        return;
+    }
+
     const newTodo = {
         id: Date.now(),
         title: title,
@@ -333,15 +429,17 @@ document.getElementById('add-todo-form').addEventListener('submit', function(e) 
         urgency: urgency,
         createdAt: Date.now(),
         lastUpdated: Date.now(),
-        health: 100 // 0 to 100
+        health: 100, // 0 to 100
+        positionIndex: activePotIndex,
+        status: "Not Started",
+        completed: false
     };
 
-    // Only add if there is space
     if (createPlant(newTodo)) {
         todos.push(newTodo);
-        // Reset form
+        saveTodosToLocal();
         this.reset();
-        document.getElementById('todo-title').focus();
+        closeAddTodoModal();
     }
 });
 
@@ -371,6 +469,50 @@ function animate() {
 
         controls.moveRight(-velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
+
+        // Hover raycasting
+        raycaster.setFromCamera(mouse, camera);
+        const intersectableMeshes = [];
+        objects.forEach(group => {
+            group.children.forEach(child => intersectableMeshes.push(child));
+        });
+
+        const intersects = raycaster.intersectObjects(intersectableMeshes);
+        const tooltip = document.getElementById('hover-tooltip');
+
+        if (intersects.length > 0) {
+            let target = intersects[0].object;
+            while (target && target.userData && target.userData.id === undefined && target.userData.isEmpty === undefined) {
+                target = target.parent;
+                if (target === scene) break;
+            }
+
+            if (target && target.userData) {
+                if (target.userData.isEmpty) {
+                    tooltip.textContent = "Click to plant a new to-do";
+                    tooltip.style.display = 'block';
+                } else if (target.userData.id) {
+                    const todo = todos.find(t => t.id === target.userData.id);
+                    if (todo) {
+                        if (todo.completed) {
+                            tooltip.textContent = `Completed: ${todo.title}`;
+                        } else {
+                            const statusText = todo.status || "Not Started";
+                            tooltip.textContent = `${todo.title}\n[${statusText}]`;
+                        }
+                        tooltip.style.display = 'block';
+                    }
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            } else {
+                tooltip.style.display = 'none';
+            }
+        } else {
+            tooltip.style.display = 'none';
+        }
+    } else {
+        document.getElementById('hover-tooltip').style.display = 'none';
     }
 
     // Update plant decay
@@ -391,6 +533,8 @@ function updateDecay() {
     const currentTime = getCurrentSimulatedTime();
 
     todos.forEach(todo => {
+        if (todo.completed) return; // No decay for completed/blooming plants
+
         // Calculate time since last update in ms
         const timeElapsed = currentTime - todo.lastUpdated;
 
@@ -458,8 +602,16 @@ document.getElementById('fast-forward-btn').addEventListener('click', function()
     console.log("Fast forwarded 1 day. Current offset:", simulatedTimeOffset);
 });
 
+document.getElementById('clear-save-btn').addEventListener('click', function() {
+    if (confirm("Are you sure you want to delete all your plants and clear save data?")) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+    }
+});
+
 // --- Interaction Logic ---
 let activeTodo = null;
+let activePotIndex = null;
 
 // Add click listener for raycasting
 document.addEventListener('click', function() {
@@ -478,22 +630,40 @@ document.addEventListener('click', function() {
         if (intersects.length > 0) {
             // Find the parent group which holds the userData
             let target = intersects[0].object;
-            while(target && !target.userData.id) {
+            while (target && target.userData && target.userData.id === undefined && target.userData.isEmpty === undefined) {
                 target = target.parent;
                 if(target === scene) break; // sanity check
             }
 
-            if (target && target.userData.id) {
-                const todoId = target.userData.id;
-                const todo = todos.find(t => t.id === todoId);
+            if (target && target.userData) {
+                if (target.userData.isEmpty) {
+                    activePotIndex = target.userData.positionIndex;
+                    openAddTodoModal();
+                } else if (target.userData.id) {
+                    const todoId = target.userData.id;
+                    const todo = todos.find(t => t.id === todoId);
 
-                if (todo) {
-                    openTodoModal(todo);
+                    if (todo && !todo.completed) {
+                        openTodoModal(todo);
+                    }
                 }
             }
         }
     }
 });
+
+function openAddTodoModal() {
+    controls.unlock();
+    document.getElementById('add-todo-modal').style.display = 'flex';
+}
+
+function closeAddTodoModal() {
+    document.getElementById('add-todo-modal').style.display = 'none';
+    activePotIndex = null;
+    controls.lock();
+}
+
+document.getElementById('close-add-modal').addEventListener('click', closeAddTodoModal);
 
 function openTodoModal(todo) {
     activeTodo = todo;
@@ -502,11 +672,14 @@ function openTodoModal(todo) {
     document.getElementById('modal-title').textContent = todo.title;
     document.getElementById('modal-desc').textContent = todo.desc;
     document.getElementById('modal-health').textContent = Math.round(todo.health) + '%';
+    document.getElementById('modal-status').textContent = todo.status || "Not Started";
 
     let urgencyText = "Medium";
     if (todo.urgency === 1) urgencyText = "Low";
     if (todo.urgency === 3) urgencyText = "High";
     document.getElementById('modal-urgency').textContent = urgencyText;
+
+    document.getElementById('todo-effort').value = "0";
 
     document.getElementById('todo-modal').style.display = 'flex';
 }
@@ -519,15 +692,31 @@ function closeTodoModal() {
 
 document.getElementById('close-modal').addEventListener('click', closeTodoModal);
 
-document.getElementById('btn-acknowledge').addEventListener('click', function() {
+// Status buttons
+const statusButtons = [
+    { id: 'btn-status-procrastinating', text: 'Procrastinating' },
+    { id: 'btn-status-inprogress', text: 'In Progress' },
+    { id: 'btn-status-almostdone', text: 'Almost Done' }
+];
+
+statusButtons.forEach(btnInfo => {
+    document.getElementById(btnInfo.id).addEventListener('click', () => {
+        if (activeTodo) {
+            activeTodo.status = btnInfo.text;
+            document.getElementById('modal-status').textContent = btnInfo.text;
+            saveTodosToLocal();
+        }
+    });
+});
+
+document.getElementById('btn-checkin').addEventListener('click', function() {
     if (activeTodo) {
-        // Reset health to 100% and update time
-        activeTodo.health = 100;
+        const effortBoost = parseInt(document.getElementById('todo-effort').value);
+        activeTodo.health = Math.min(100, activeTodo.health + effortBoost);
         activeTodo.lastUpdated = getCurrentSimulatedTime();
 
-        // Update visually immediately
         updatePlantVisual(activeTodo);
-
+        saveTodosToLocal();
         closeTodoModal();
     }
 });
@@ -537,29 +726,14 @@ animate();
 
 document.getElementById('btn-complete').addEventListener('click', function() {
     if (activeTodo) {
-        // Remove from data
-        const index = todos.indexOf(activeTodo);
-        if (index > -1) {
-            todos.splice(index, 1);
-        }
+        activeTodo.completed = true;
+        activeTodo.health = 100;
+        activeTodo.status = "Completed";
 
-        // Reclaim the position
-        if (activeTodo.mesh && activeTodo.mesh.userData.positionIndex !== undefined) {
-            availablePositions.push(activeTodo.mesh.userData.positionIndex);
-            // Re-sort descending so we pop the lowest available index next
-            availablePositions.sort((a, b) => b - a);
-        }
+        saveTodosToLocal();
 
-        // Remove mesh from scene
-        if (activeTodo.mesh) {
-            scene.remove(activeTodo.mesh);
-            disposeHierarchy(activeTodo.mesh);
-
-            const objIndex = objects.indexOf(activeTodo.mesh);
-            if(objIndex > -1) {
-                objects.splice(objIndex, 1);
-            }
-        }
+        // Recreate the plant visually to show the flower
+        createPlant(activeTodo);
 
         closeTodoModal();
     }
