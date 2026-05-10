@@ -6,6 +6,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 THREE.Cache.enabled = true;
 
@@ -26,6 +27,11 @@ let lastSunUpdate = 0;
 // Instanced empty pots — one InstancedMesh per pot piece, hidden per-slot when planted
 let emptyPotInstances = null;
 const emptyPotOccupied = [];
+
+// Forest + atmosphere
+let treeMaterial = null;     // tree billboard material with onBeforeCompile-injected wind
+let currentDayness = 1;      // 1 = full day, 0 = full night (set by updateSunAndLighting)
+const eyePairs = [];         // glowing-red eye pair state machines
 
 const objects = []; // Interactable objects (plants)
 let todos = []; // Data for todos
@@ -213,6 +219,10 @@ function init() {
 
     // 8. Build Greenhouse Environment
     buildGreenhouse();
+
+    // 8b. Haunted forest backdrop + glowing eyes
+    buildHauntedForest();
+    buildHauntedEyes();
 
     // 9. Initial sun + lighting (uses real Eastern Time)
     updateSunAndLighting();
@@ -671,6 +681,284 @@ function createLeafMaterial() {
         transparent: true,
         alphaTest: 0.45
     });
+}
+
+// --- Haunted forest backdrop ---
+
+function createDeadTreeTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 256, 512);
+    ctx.strokeStyle = '#0a0604';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Recursive gnarled branch generator
+    function drawBranch(x1, y1, x2, y2, w, depth) {
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        const cx = (x1 + x2) / 2 + (Math.random() - 0.5) * w * 4;
+        const cy = (y1 + y2) / 2 + (Math.random() - 0.5) * 8;
+        ctx.quadraticCurveTo(cx, cy, x2, y2);
+        ctx.stroke();
+        if (depth <= 0 || w < 1.6) return;
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const branches = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < branches; i++) {
+            const ba = angle + (Math.random() - 0.5) * 1.4;
+            const bl = len * (0.45 + Math.random() * 0.35);
+            drawBranch(
+                x2, y2,
+                x2 + Math.cos(ba) * bl,
+                y2 + Math.sin(ba) * bl,
+                w * 0.55, depth - 1
+            );
+        }
+    }
+
+    // Trunk (roots near bottom, taper toward top)
+    drawBranch(128, 510, 128 + (Math.random() - 0.5) * 20, 80, 18, 4);
+
+    // Side branches off the trunk
+    const sideCount = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < sideCount; i++) {
+        const yStart = 380 - i * (260 / sideCount);
+        const isLeft = Math.random() > 0.5;
+        const dx = (isLeft ? -1 : 1) * (40 + Math.random() * 70);
+        const dy = -20 - Math.random() * 60;
+        drawBranch(128, yStart, 128 + dx, yStart + dy, 5 + Math.random() * 4, 3);
+    }
+
+    return new THREE.CanvasTexture(canvas);
+}
+
+function buildHauntedForest() {
+    if (sharedAssets.treeTex === undefined) {
+        sharedAssets.treeTex = createDeadTreeTexture();
+        sharedAssets.treeTex.colorSpace = THREE.SRGBColorSpace;
+    }
+
+    // Crossed planes per tree → merged into one BufferGeometry, instanced.
+    const treeWidth = 5;
+    const treeHeight = 10;
+    const plane1 = new THREE.PlaneGeometry(treeWidth, treeHeight);
+    plane1.translate(0, treeHeight / 2, 0);
+    const plane2 = plane1.clone();
+    plane2.rotateY(Math.PI / 2);
+    const treeGeom = mergeGeometries([plane1, plane2]);
+
+    treeMaterial = new THREE.MeshStandardMaterial({
+        map: sharedAssets.treeTex,
+        color: 0x1c1814,
+        roughness: 1,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        transparent: true,
+        alphaTest: 0.5
+    });
+
+    // Inject GPU-only wind sway. Top of tree displaces in local x/z based on time
+    // and per-instance origin so trees don't all sway in unison.
+    treeMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uTime = { value: 0 };
+        shader.uniforms.uWindStrength = { value: 0 };
+        shader.vertexShader = shader.vertexShader
+            .replace('#include <common>', `
+                #include <common>
+                uniform float uTime;
+                uniform float uWindStrength;
+            `)
+            .replace('#include <begin_vertex>', `
+                #include <begin_vertex>
+                #ifdef USE_INSTANCING
+                    vec4 _instOrigin = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+                    float _phase = uTime + _instOrigin.x * 0.3 + _instOrigin.z * 0.21;
+                #else
+                    float _phase = uTime;
+                #endif
+                float _swayFactor = smoothstep(0.0, 7.0, position.y);
+                float _swayX = sin(_phase) * uWindStrength * _swayFactor;
+                float _swayZ = sin(_phase * 0.8 + 1.2) * uWindStrength * 0.5 * _swayFactor;
+                transformed.x += _swayX;
+                transformed.z += _swayZ;
+            `);
+        treeMaterial.userData.shader = shader;
+    };
+
+    // Place ~80 trees in a strip 10–28 m beyond the greenhouse glass
+    const trees = [];
+    const treeCount = 80;
+    for (let i = 0; i < treeCount; i++) {
+        const side = i % 4;
+        const dist = 10 + Math.random() * 18;
+        let x, z;
+        if (side === 0)      { x = -8 - dist; z = -55 + Math.random() * 70; }
+        else if (side === 1) { x =  8 + dist; z = -55 + Math.random() * 70; }
+        else if (side === 2) { x = -28 + Math.random() * 56; z = -45 - dist; }
+        else                 { x = -28 + Math.random() * 56; z =   5 + dist; }
+        trees.push({
+            x, z,
+            scale: 0.7 + Math.random() * 0.7,
+            rotY: Math.random() * Math.PI * 2
+        });
+    }
+
+    const treesMesh = new THREE.InstancedMesh(treeGeom, treeMaterial, treeCount);
+    const _m = new THREE.Matrix4();
+    const _q = new THREE.Quaternion();
+    const _yAxis = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < treeCount; i++) {
+        const t = trees[i];
+        _q.setFromAxisAngle(_yAxis, t.rotY);
+        _m.compose(new THREE.Vector3(t.x, 0, t.z), _q, new THREE.Vector3(t.scale, t.scale, t.scale));
+        treesMesh.setMatrixAt(i, _m);
+    }
+    treesMesh.instanceMatrix.needsUpdate = true;
+    // Trees are far away — no shadow casting, no frustum culling on the
+    // (incorrectly tiny) per-instance bounds.
+    treesMesh.castShadow = false;
+    treesMesh.receiveShadow = false;
+    treesMesh.frustumCulled = false;
+    scene.add(treesMesh);
+}
+
+// --- Glowing red eyes at the forest edge (night only) ---
+
+function createEyeTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
+    grad.addColorStop(0,   'rgba(255, 120, 60, 1)');
+    grad.addColorStop(0.3, 'rgba(255, 30, 0, 0.85)');
+    grad.addColorStop(0.7, 'rgba(180, 0, 0, 0.25)');
+    grad.addColorStop(1,   'rgba(120, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(canvas);
+}
+
+function buildHauntedEyes() {
+    const tex = createEyeTexture();
+    const PAIRS = 6;
+    for (let i = 0; i < PAIRS; i++) {
+        const mat = new THREE.SpriteMaterial({
+            map: tex,
+            color: 0xff2200,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            fog: false
+        });
+        const left = new THREE.Sprite(mat);
+        const right = new THREE.Sprite(mat);
+        left.scale.set(0.16, 0.16, 1);
+        right.scale.set(0.16, 0.16, 1);
+        left.visible = false;
+        right.visible = false;
+        scene.add(left);
+        scene.add(right);
+        eyePairs.push({
+            material: mat,
+            left, right,
+            state: 'off',
+            // Stagger initial appearance so they don't all spawn together
+            nextEvent: performance.now() + 4000 + Math.random() * 30000,
+            transitionStart: 0,
+            transitionEnd: 0
+        });
+    }
+}
+
+function pickEyeForestPoint() {
+    const side = Math.floor(Math.random() * 4);
+    const dist = 11 + Math.random() * 9;
+    const y = 1.3 + Math.random() * 0.5;
+    if (side === 0) return new THREE.Vector3(-8 - dist, y, -50 + Math.random() * 60);
+    if (side === 1) return new THREE.Vector3( 8 + dist, y, -50 + Math.random() * 60);
+    if (side === 2) return new THREE.Vector3(-25 + Math.random() * 50, y, -45 - dist);
+    return                new THREE.Vector3(-25 + Math.random() * 50, y,   5 + dist);
+}
+
+function updateHauntedEyes(now) {
+    const isNight = currentDayness < 0.4;
+    for (const pair of eyePairs) {
+        if (!isNight) {
+            if (pair.state !== 'off') {
+                pair.state = 'off';
+                pair.left.visible = false;
+                pair.right.visible = false;
+                pair.material.opacity = 0;
+                pair.nextEvent = now + 5000 + Math.random() * 10000;
+            }
+            continue;
+        }
+        switch (pair.state) {
+            case 'off':
+                if (now >= pair.nextEvent) {
+                    const c = pickEyeForestPoint();
+                    pair.left.position.set(c.x - 0.05, c.y, c.z);
+                    pair.right.position.set(c.x + 0.05, c.y, c.z);
+                    pair.left.visible = true;
+                    pair.right.visible = true;
+                    pair.state = 'fadeIn';
+                    pair.transitionStart = now;
+                    pair.transitionEnd = now + 1000 + Math.random() * 1200;
+                }
+                break;
+            case 'fadeIn': {
+                const t = (now - pair.transitionStart) / (pair.transitionEnd - pair.transitionStart);
+                pair.material.opacity = Math.min(t, 1);
+                if (t >= 1) {
+                    pair.state = 'hold';
+                    pair.nextEvent = now + 2000 + Math.random() * 4500;
+                }
+                break;
+            }
+            case 'hold':
+                if (now >= pair.nextEvent) {
+                    pair.state = 'fadeOut';
+                    pair.transitionStart = now;
+                    pair.transitionEnd = now + 700 + Math.random() * 700;
+                }
+                break;
+            case 'fadeOut': {
+                const t = (now - pair.transitionStart) / (pair.transitionEnd - pair.transitionStart);
+                pair.material.opacity = Math.max(1 - t, 0);
+                if (t >= 1) {
+                    pair.state = 'off';
+                    pair.left.visible = false;
+                    pair.right.visible = false;
+                    pair.nextEvent = now + 5000 + Math.random() * 18000;
+                }
+                break;
+            }
+        }
+    }
+}
+
+function updateTreeWind(now) {
+    if (!treeMaterial || !treeMaterial.userData.shader) return;
+    const u = treeMaterial.userData.shader.uniforms;
+    u.uTime.value = now / 1000;
+
+    if (currentDayness < 0.5) {
+        u.uWindStrength.value = 0;
+        return;
+    }
+    // Roughly every 22 s, a 5 s gust during the day
+    const cycle = (now / 1000) % 22;
+    if (cycle < 5) {
+        const t = cycle / 5;
+        u.uWindStrength.value = Math.sin(t * Math.PI) * 0.09 + 0.004;
+    } else {
+        u.uWindStrength.value = 0.004;
+    }
 }
 
 function buildFlower() {
@@ -1442,6 +1730,7 @@ function updateSunAndLighting() {
     // dayness: 1 fully day, 0 fully night, smooth between altitude -6° → +5°
     const dayness = THREE.MathUtils.clamp((altDeg + 6) / 11, 0, 1);
     const nightness = 1 - dayness;
+    currentDayness = dayness;
 
     sunLight.intensity = 3.0 * dayness;
     skyFill.intensity = 0.45 * dayness + 0.04 * nightness;
@@ -1619,6 +1908,10 @@ function animate() {
         lastSunUpdate = time;
         updateSunAndLighting();
     }
+
+    // Atmosphere — wind sway (GPU-side, just a uniform write) + glowing eyes state
+    updateTreeWind(time);
+    updateHauntedEyes(time);
 
     prevTime = time;
 
