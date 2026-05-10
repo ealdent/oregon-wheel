@@ -108,6 +108,7 @@ function init() {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.95;
+    renderer.setClearColor(0x05070a, 1); // night-friendly background when sky mesh is hidden
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
@@ -238,9 +239,9 @@ function init() {
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.15, // strength — light bloom for highlights only
-        0.6,  // radius
-        0.96  // threshold (only true highlights bloom)
+        0.10, // strength — gentle bloom so it doesn't fake ambient brightness
+        0.55, // radius
+        0.97  // threshold (only true highlights bloom)
     );
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -1466,7 +1467,9 @@ function buildGreenhouse() {
     const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffaa55 });
 
     // Visible light-shaft cone below each lamp — additive, fades in at night.
-    const SPOT_ANGLE = Math.PI / 3.5; // ~51° half-angle
+    // Narrower cone (~28° half-angle, ~56° full) so each lamp casts a distinct pool
+    // of light rather than flooding the whole aisle.
+    const SPOT_ANGLE = Math.PI / 6.4;
     const shaftHeight = bulbY;        // bulb down to the floor
     const shaftBottomR = Math.tan(SPOT_ANGLE) * shaftHeight;
 
@@ -1502,7 +1505,9 @@ function buildGreenhouse() {
         ghGroup.add(filament);
 
         // SpotLight pointing straight down from inside the hood.
-        const spot = new THREE.SpotLight(0xffaa55, 0, 9, SPOT_ANGLE, 0.55, 2);
+        // Tighter penumbra, shorter range, faster decay so the floor pool is well-defined
+        // and the area around it stays dark.
+        const spot = new THREE.SpotLight(0xffaa55, 0, 7, SPOT_ANGLE, 0.35, 2.2);
         spot.position.set(0, bulbY, bz);
         const spotTarget = new THREE.Object3D();
         spotTarget.position.set(0, 0, bz);
@@ -1862,31 +1867,36 @@ function updateSunAndLighting() {
     currentDayness = dayness;
 
     sunLight.intensity = 3.0 * dayness;
-    skyFill.intensity = 0.45 * dayness + 0.005 * nightness; // near-zero at night
+    skyFill.intensity = 0.45 * dayness;                     // off entirely at night
     warmFill.intensity = 0.6 * dayness;                     // off entirely at night
 
-    // Global IBL multiplier — kills "ambient" PBR fill at night so the only real
-    // light is the lamp cones.
-    scene.environmentIntensity = 0.05 + 0.95 * dayness;
+    // Global IBL multiplier — collapses ambient PBR fill to near-zero at night so
+    // only direct lamp cones illuminate anything.
+    scene.environmentIntensity = 0.005 + 0.995 * dayness;
 
-    // Atmosphere: thinner Rayleigh and lower turbidity at night → darker sky
-    sky.material.uniforms.rayleigh.value = 1.4 * dayness + 0.18 * nightness;
-    sky.material.uniforms.turbidity.value = 6 * dayness + 1.0 * nightness;
+    // Renderer exposure also dips at night so any stray brightness stays muted.
+    renderer.toneMappingExposure = 0.95 * dayness + 0.45 * nightness;
+
+    // Atmosphere: collapse rayleigh/turbidity at night and hide the Sky mesh entirely
+    // when fully night — its pre-dawn glow was leaking through the windows.
+    sky.material.uniforms.rayleigh.value = 1.4 * dayness + 0.04 * nightness;
+    sky.material.uniforms.turbidity.value = 6 * dayness + 0.6 * nightness;
+    sky.visible = dayness > 0.05;
 
     // Edison bulbs glow at night. Setting visible=false prunes them from the
     // PBR shader's light list entirely — big win during the day.
     const bulbsOn = nightness > 0.01;
     bulbLights.forEach(light => {
         light.visible = bulbsOn;
-        light.intensity = nightness * 11; // boosted — they're now the main light
+        light.intensity = nightness * 9;
     });
     bulbMeshes.forEach(mesh => {
-        mesh.material.emissiveIntensity = nightness * 2.2;
+        mesh.material.emissiveIntensity = nightness * 1.8;
     });
 
     // Light shafts: fade in at night, hide entirely during day.
     shaftMeshes.forEach(shaft => {
-        shaft.material.opacity = nightness * 0.18;
+        shaft.material.opacity = nightness * 0.15;
         shaft.visible = bulbsOn;
     });
 }
