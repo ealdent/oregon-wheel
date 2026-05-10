@@ -343,16 +343,16 @@ function makeWoodMaterial({ repeat = [1, 1], roughness = 0.85, color = 0xffffff 
 
 function getGlassMaterial() {
     if (sharedAssets.glass) return sharedAssets.glass;
-    // MeshStandardMaterial (no transmission render pass) — much cheaper than Physical+transmission.
-    sharedAssets.glass = new THREE.MeshStandardMaterial({
-        color: 0x88c890,
-        metalness: 0,
-        roughness: 0.22,
+    // MeshBasicMaterial — unlit, so glass tint is constant from every angle. No envMap
+    // reflections, no specular glare, no view-dependent color. Slight green tint with
+    // ~28% opacity reads as "foggy old greenhouse glass".
+    sharedAssets.glass = new THREE.MeshBasicMaterial({
+        color: 0xc0dcc4,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.28,
         side: THREE.DoubleSide,
-        envMapIntensity: 0.7,
-        depthWrite: false
+        depthWrite: false,
+        fog: true
     });
     return sharedAssets.glass;
 }
@@ -814,14 +814,15 @@ function createOldGrowthTreeTexture() {
 }
 
 function makeWindyTreeMaterial(texture, color) {
-    const mat = new THREE.MeshStandardMaterial({
+    // MeshBasicMaterial — flat silhouette, identical from any angle. No per-side
+    // lighting variance, no sun shading, no IBL pulling color around as you turn.
+    const mat = new THREE.MeshBasicMaterial({
         map: texture,
         color,
-        roughness: 1,
-        metalness: 0,
         side: THREE.DoubleSide,
         transparent: true,
-        alphaTest: 0.5
+        alphaTest: 0.5,
+        fog: true
     });
     // GPU-only wind sway — uniforms are written from updateTreeWind once per frame.
     mat.onBeforeCompile = (shader) => {
