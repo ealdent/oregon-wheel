@@ -94,7 +94,6 @@ const direction = new THREE.Vector3();
 const blocker = document.getElementById('blocker');
 const instructions = document.getElementById('instructions');
 const uiContainer = document.getElementById('ui-container');
-const resumeBtn = document.getElementById('resume-btn');
 
 function init() {
     // 1. Scene
@@ -156,7 +155,8 @@ function init() {
     controls = new PointerLockControls(camera, document.body);
 
     instructions.addEventListener('click', startExploring);
-    resumeBtn.addEventListener('click', startExploring);
+    // Click anywhere on the pause overlay → resume.
+    uiContainer.addEventListener('click', startExploring);
 
     controls.addEventListener('lock', function () {
         blocker.style.display = 'none';
@@ -164,10 +164,11 @@ function init() {
     });
 
     controls.addEventListener('unlock', function () {
-        // Only show main UI if modal isn't open
-        if (document.getElementById('todo-modal').style.display === 'none') {
-            uiContainer.style.display = 'block';
-            blocker.style.display = 'none'; // Keep blocker hidden when UI is open, rely on UI bg
+        const todoModalOpen = document.getElementById('todo-modal').style.display !== 'none';
+        const addTodoModalOpen = document.getElementById('add-todo-modal').style.display !== 'none';
+        if (!todoModalOpen && !addTodoModalOpen) {
+            uiContainer.style.display = 'flex';
+            blocker.style.display = 'none';
         }
     });
 
@@ -223,6 +224,28 @@ function init() {
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+
+    // Global Escape behaviour:
+    //   - If a modal is open, close it AND resume walking.
+    //   - If pointer-lock is engaged (walking), let the browser release it; the
+    //     'unlock' event shows the pause overlay.
+    //   - If pause overlay or home blocker is showing, resume walking.
+    document.addEventListener('keydown', (event) => {
+        if (event.code !== 'Escape') return;
+        const todoModal = document.getElementById('todo-modal');
+        const addTodoModal = document.getElementById('add-todo-modal');
+        if (todoModal.style.display !== 'none') {
+            closeTodoModal();
+            return;
+        }
+        if (addTodoModal.style.display !== 'none') {
+            closeAddTodoModal();
+            return;
+        }
+        if (controls.isLocked) return; // browser will release lock and unlock fires
+        // Otherwise we're on the pause overlay or home blocker — resume.
+        startExploring();
+    });
 
     // 7. Raycaster
     raycaster = new THREE.Raycaster();
@@ -2269,6 +2292,27 @@ function classifyHit(hit) {
     return { kind: null };
 }
 
+// Table collision — block walking into or through any of the 20 tables.
+// Tables are 2m (x) × 3m (z) tops centered at x = ±3, z = 0, -4, ..., -36.
+// We treat them as 2D AABBs in the XZ plane plus a small player radius.
+const TABLE_HALF_X = 1.0;
+const TABLE_HALF_Z = 1.5;
+const PLAYER_RADIUS = 0.35;
+function collidesWithTable(x, z) {
+    if (z > 1.6 || z < -38) return false; // quick reject outside table row span
+    if (Math.abs(x) > 4.5) return false;  // quick reject outside table x band
+    for (let i = 0; i < 10; i++) {
+        const tz = -i * 4;
+        const dz = Math.abs(z - tz);
+        if (dz > TABLE_HALF_Z + PLAYER_RADIUS) continue;
+        for (const tx of [-3, 3]) {
+            const dx = Math.abs(x - tx);
+            if (dx < TABLE_HALF_X + PLAYER_RADIUS && dz < TABLE_HALF_Z + PLAYER_RADIUS) return true;
+        }
+    }
+    return false;
+}
+
 // Helper to clean up 3D objects
 function disposeHierarchy(node) {
     if (!node) return;
@@ -2312,7 +2356,8 @@ document.getElementById('add-todo-form').addEventListener('submit', function(e) 
         urgency: urgency,
         createdAt: Date.now(),
         lastUpdated: Date.now(),
-        health: 100, // 0 to 100
+        health: 100,
+        healthAtLastUpdate: 100, // anchor for half-life decay
         positionIndex: activePotIndex,
         status: "Not Started",
         completed: false
@@ -2351,11 +2396,17 @@ function animate() {
         if (moveForward || moveBackward) velocity.z -= direction.z * 40.0 * delta;
         if (moveLeft || moveRight) velocity.x -= direction.x * 40.0 * delta;
 
-        controls.moveRight(-velocity.x * delta);
-        controls.moveForward(-velocity.z * delta);
-
-        // Boundary collision detection (keep player inside greenhouse)
+        // Move axis-by-axis so we can selectively revert each axis on collision
+        // (lets the player slide along table edges instead of getting stuck).
         const pos = controls.getObject().position;
+        const startX = pos.x;
+        const startZ = pos.z;
+        controls.moveRight(-velocity.x * delta);
+        if (collidesWithTable(pos.x, pos.z)) pos.x = startX;
+        controls.moveForward(-velocity.z * delta);
+        if (collidesWithTable(pos.x, pos.z)) pos.z = startZ;
+
+        // Greenhouse wall boundary
         if (pos.x < -7.5) pos.x = -7.5;
         if (pos.x > 7.5) pos.x = 7.5;
         if (pos.z < -44.5) pos.z = -44.5;
@@ -2412,36 +2463,34 @@ function getCurrentSimulatedTime() {
     return Date.now() + simulatedTimeOffset;
 }
 
+// Half-life decay: every `halfLifeDays` since the last check-in, the plant's
+// health is cut in half. Urgency picks the half-life:
+//   high   (3) -> 1 day
+//   medium (2) -> 2 days
+//   low    (1) -> 4 days
+function halfLifeDaysFor(urgency) {
+    if (urgency === 3) return 1;
+    if (urgency === 1) return 4;
+    return 2;
+}
+
 function updateDecay() {
     const currentTime = getCurrentSimulatedTime();
 
     todos.forEach(todo => {
-        if (todo.completed) return; // No decay for completed/blooming plants
+        if (todo.completed) return;
 
-        // Calculate time since last update in ms
-        const timeElapsed = currentTime - todo.lastUpdated;
+        const daysElapsed = (currentTime - todo.lastUpdated) / 86400000;
+        if (daysElapsed < 0) return;
 
-        // Convert to "days" for calculation (e.g., 1 day real-time = decay by X)
-        // For testing, let's say 1 "real" day = 86400000 ms.
-        // We will speed it up for visual purposes if not using fast forward,
-        // but fast forward jumps time by 1 day.
-        // Base decay rate: loose 20% health per day.
-        const daysElapsed = timeElapsed / (1000 * 60 * 60 * 24);
+        // Health at the last update (creation or check-in). Fall back to 100 for
+        // legacy todos that predate this field.
+        const baseHealth = typeof todo.healthAtLastUpdate === 'number'
+            ? todo.healthAtLastUpdate
+            : 100;
+        const decay = Math.pow(0.5, daysElapsed / halfLifeDaysFor(todo.urgency));
+        todo.health = Math.max(0, baseHealth * decay);
 
-        // Urgency multiplier:
-        // Low (1) = 0.5x (decay slower)
-        // Medium (2) = 1.0x (normal)
-        // High (3) = 2.0x (decay faster)
-        let multiplier = 1.0;
-        if (todo.urgency === 1) multiplier = 0.5;
-        if (todo.urgency === 3) multiplier = 2.0;
-
-        // Calculate new health
-        // E.g., drops 20 health per day * multiplier
-        let healthLoss = daysElapsed * 20 * multiplier;
-        todo.health = Math.max(0, 100 - healthLoss);
-
-        // Update visual
         updatePlantVisual(todo);
     });
 }
@@ -2452,45 +2501,41 @@ function updatePlantVisual(todo) {
     const stem = todo.mesh.getObjectByName("stem");
     if (!stem) return;
 
-    // Health is 0 to 100
-    const healthRatio = todo.health / 100;
+    const r = Math.max(0, Math.min(1, todo.health / 100));
 
-    // Color transition: Green (0x2ecc71) to Brown/Yellow (0x8b8000 / 0x8b4513)
-    const healthyColor = new THREE.Color(0x2ecc71);
-    const deadColor = new THREE.Color(0x8b4513);
-    const currentColor = healthyColor.clone().lerp(deadColor, 1 - healthRatio);
+    // Two-stop color lerp: vibrant green -> mustard yellow -> dry brown.
+    // More lifelike wilt than the previous green-to-brown linear lerp.
+    const greenC = new THREE.Color(0x2ecc71);
+    const yellowC = new THREE.Color(0xb89020);
+    const brownC = new THREE.Color(0x5a3a20);
+    const color = r > 0.5
+        ? greenC.clone().lerp(yellowC, (1 - r) * 2)
+        : yellowC.clone().lerp(brownC, (0.5 - r) * 2);
 
-    // Update materials
-    stem.material.color.copy(currentColor);
+    stem.material.color.copy(color);
+    // Leaves on a plant share one cloned material, so a single color write tints all leaves.
+    const anyLeaf = stem.getObjectByName("leaf1");
+    if (anyLeaf) anyLeaf.material.color.copy(color);
 
-    const leaf1 = stem.getObjectByName("leaf1");
-    if (leaf1) leaf1.material.color.copy(currentColor);
-
-    const leaf2 = stem.getObjectByName("leaf2");
-    if (leaf2) leaf2.material.color.copy(currentColor);
-
-    // Drooping effect (rotate stem based on health)
-    // 100 health = 0 rotation, 0 health = Math.PI / 2.5 (bent over)
-    const targetRotationX = (1 - healthRatio) * (Math.PI / 2.5);
-    stem.rotation.x = targetRotationX;
-
-    // Scale effect (shrinks slightly as it dies)
-    const targetScale = 0.5 + (healthRatio * 0.5);
-    stem.scale.set(1, targetScale, 1);
+    // Droop stronger as health drops (max ~80° bend at zero health).
+    stem.rotation.x = (1 - r) * (Math.PI / 2.2);
+    // Stem shrinks vertically as it dies; leaves squash with it.
+    stem.scale.set(1, 0.55 + r * 0.45, 1);
 }
 
-document.getElementById('fast-forward-btn').addEventListener('click', function() {
-    // Jump forward 1 day (86400000 ms)
-    simulatedTimeOffset += 86400000;
-    console.log("Fast forwarded 1 day. Current offset:", simulatedTimeOffset);
-});
-
-document.getElementById('clear-save-btn').addEventListener('click', function() {
-    if (confirm("Are you sure you want to delete all your plants and clear save data?")) {
+// Console-accessible debug helpers (UI buttons were removed from the pause overlay):
+//   greenhouseDev.fastForwardDays(n)  — jump n days into the future
+//   greenhouseDev.clearSave()         — wipe local save and reload
+window.greenhouseDev = {
+    fastForwardDays(n = 1) {
+        simulatedTimeOffset += n * 86400000;
+        console.log(`Fast forwarded ${n} day(s). Offset is now ${simulatedTimeOffset / 86400000} days.`);
+    },
+    clearSave() {
         localStorage.removeItem(STORAGE_KEY);
         location.reload();
     }
-});
+};
 
 // --- Interaction Logic ---
 let activeTodo = null;
@@ -2568,15 +2613,37 @@ statusButtons.forEach(btnInfo => {
 });
 
 document.getElementById('btn-checkin').addEventListener('click', function() {
-    if (activeTodo) {
-        const effortBoost = parseInt(document.getElementById('todo-effort').value);
-        activeTodo.health = Math.min(100, activeTodo.health + effortBoost);
-        activeTodo.lastUpdated = getCurrentSimulatedTime();
+    if (!activeTodo) return;
+    const effortBoost = parseInt(document.getElementById('todo-effort').value);
+    const oldHealth = activeTodo.health;
+    const newHealth = Math.min(100, activeTodo.health + effortBoost);
 
-        updatePlantVisual(activeTodo);
-        saveTodosToLocal();
-        closeTodoModal();
+    // Apply health + anchor decay base to the new value, then save.
+    activeTodo.health = newHealth;
+    activeTodo.healthAtLastUpdate = newHealth;
+    activeTodo.lastUpdated = getCurrentSimulatedTime();
+    updatePlantVisual(activeTodo);
+    saveTodosToLocal();
+
+    // Count-up animation on the health display (~1s), then auto-close at 2s.
+    const healthEl = document.getElementById('modal-health');
+    const checkinBtn = this;
+    checkinBtn.disabled = true;
+    const ANIM_MS = 1000;
+    const t0 = performance.now();
+    function tickHealth(now) {
+        const t = Math.min((now - t0) / ANIM_MS, 1);
+        const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        const v = oldHealth + (newHealth - oldHealth) * eased;
+        healthEl.textContent = Math.round(v) + '%';
+        if (t < 1) requestAnimationFrame(tickHealth);
     }
+    requestAnimationFrame(tickHealth);
+
+    setTimeout(() => {
+        checkinBtn.disabled = false;
+        closeTodoModal();
+    }, 2000);
 });
 
 init();
@@ -2635,7 +2702,7 @@ function showMobileMenu() {
     mobileActive = false;
     resetMovement();
     document.getElementById('mobile-controls').classList.remove('active');
-    uiContainer.style.display = 'block';
+    uiContainer.style.display = 'flex';
 }
 
 function setupTouchControls() {

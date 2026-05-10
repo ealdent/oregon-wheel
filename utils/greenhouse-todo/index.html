@@ -34,12 +34,25 @@
         </div>
     </div>
 
-    <!-- UI Container (Shown when unlocked / ESC pressed) -->
+    <!-- Pause overlay (shown when ESC is pressed in walking mode) -->
     <div id="ui-container" style="display: none;">
-        <div class="panel">
-            <button id="fast-forward-btn" class="secondary-btn">Fast Forward Time (1 day)</button>
-            <button id="clear-save-btn" class="secondary-btn" style="background-color: #e74c3c;">Clear Save Data</button>
-            <button id="resume-btn">Resume Walking</button>
+        <div class="pause-card">
+            <h1>Paused</h1>
+            <ul class="key-hints desktop-pause">
+                <li><kbd>WASD</kbd><span>Move</span></li>
+                <li><kbd>Mouse</kbd><span>Look around</span></li>
+                <li><kbd>Click</kbd><span>Interact with plant</span></li>
+                <li><kbd>F</kbd><span>Toggle FPS overlay</span></li>
+                <li><kbd>ESC</kbd><span>Pause / Resume</span></li>
+            </ul>
+            <ul class="key-hints mobile-pause">
+                <li><span>Joystick</span><span>Move</span></li>
+                <li><span>Drag</span><span>Look around</span></li>
+                <li><span>Tap a plant</span><span>Interact</span></li>
+                <li><span>Menu button</span><span>Pause / Resume</span></li>
+            </ul>
+            <p class="resume-hint desktop-pause">Press <kbd>ESC</kbd> or click to resume</p>
+            <p class="resume-hint mobile-pause">Tap anywhere to resume</p>
         </div>
     </div>
 

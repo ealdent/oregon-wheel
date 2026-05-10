@@ -85,24 +85,83 @@ body {
 
 #ui-container {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.55);
+    display: flex;
+    justify-content: center;
+    align-items: center;
     z-index: 15;
-    pointer-events: auto;
+    color: white;
+    cursor: pointer;
 }
 
-.panel {
-    background-color: rgba(255, 255, 255, 0.9);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    width: 300px;
+.pause-card {
+    background-color: rgba(20, 26, 32, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 32px 40px;
+    border-radius: 10px;
+    text-align: center;
+    max-width: 360px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-.panel h2 {
-    margin-top: 0;
-    font-size: 1.5rem;
-    color: #2c3e50;
+.pause-card h1 {
+    margin: 0 0 18px 0;
+    font-size: 2rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #d2dde6;
+}
+
+.key-hints {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px 0;
+    text-align: left;
+}
+
+.key-hints li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 0;
+    color: #c0cdd6;
+    font-size: 0.95rem;
+}
+
+.key-hints kbd {
+    display: inline-block;
+    min-width: 60px;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+    font-family: 'Segoe UI', monospace;
+    font-size: 0.85rem;
+    color: #f0f4f7;
+    text-align: center;
+}
+
+.key-hints li > span:first-child:not(:last-child) {
+    min-width: 110px;
+    color: #f0f4f7;
+    font-weight: 600;
+}
+
+.resume-hint {
+    margin: 16px 0 0 0;
+    color: #8a99a3;
+    font-size: 0.85rem;
+}
+
+.resume-hint kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    font-size: 0.8rem;
 }
 
 #add-todo-form {
@@ -223,6 +282,8 @@ hr {
 
 body:not(.touch) .mobile-instructions { display: none; }
 body.touch .desktop-instructions { display: none; }
+body:not(.touch) .mobile-pause { display: none; }
+body.touch .desktop-pause { display: none; }
 body.touch #crosshair { display: none; }
 body.touch #hover-tooltip { display: none !important; }
 
