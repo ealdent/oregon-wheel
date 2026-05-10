@@ -29,7 +29,8 @@ let emptyPotInstances = null;
 const emptyPotOccupied = [];
 
 // Forest + atmosphere
-let treeMaterial = null;     // tree billboard material with onBeforeCompile-injected wind
+const treeMaterials = [];    // tree billboard materials (one per type) with onBeforeCompile-injected wind
+const shaftMeshes = [];      // additive light-shaft cones below each lamp (night only)
 let currentDayness = 1;      // 1 = full day, 0 = full night (set by updateSunAndLighting)
 const eyePairs = [];         // glowing-red eye pair state machines
 
@@ -736,34 +737,74 @@ function createDeadTreeTexture() {
     return new THREE.CanvasTexture(canvas);
 }
 
-function buildHauntedForest() {
-    if (sharedAssets.treeTex === undefined) {
-        sharedAssets.treeTex = createDeadTreeTexture();
-        sharedAssets.treeTex.colorSpace = THREE.SRGBColorSpace;
+// Leafy old-growth tree silhouette — thicker trunk, dense canopy with internal texture.
+function createOldGrowthTreeTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 256, 512);
+
+    // Thick trunk
+    ctx.strokeStyle = '#2a1a0e';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 24;
+    ctx.beginPath();
+    ctx.moveTo(128 + (Math.random() - 0.5) * 8, 510);
+    ctx.bezierCurveTo(132, 380, 122, 280, 128, 220);
+    ctx.stroke();
+
+    // Major branches into the canopy
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(128, 290); ctx.lineTo(80, 230); ctx.lineTo(50, 180);
+    ctx.moveTo(128, 290); ctx.lineTo(180, 230); ctx.lineTo(210, 180);
+    ctx.moveTo(128, 230); ctx.lineTo(100, 180); ctx.lineTo(80, 130);
+    ctx.moveTo(128, 230); ctx.lineTo(160, 180); ctx.lineTo(180, 130);
+    ctx.stroke();
+
+    // Canopy — dense overlapping foliage clumps
+    const clumps = 14 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < clumps; i++) {
+        const cx = 60 + Math.random() * 140;
+        const cy = 40 + Math.random() * 200;
+        const r = 32 + Math.random() * 38;
+        const shade = 8 + Math.floor(Math.random() * 22);
+        ctx.fillStyle = `rgb(${shade}, ${shade + 18}, ${shade + 4})`;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
     }
 
-    // Crossed planes per tree → merged into one BufferGeometry, instanced.
-    const treeWidth = 5;
-    const treeHeight = 10;
-    const plane1 = new THREE.PlaneGeometry(treeWidth, treeHeight);
-    plane1.translate(0, treeHeight / 2, 0);
-    const plane2 = plane1.clone();
-    plane2.rotateY(Math.PI / 2);
-    const treeGeom = mergeGeometries([plane1, plane2]);
+    // Texture: small dark/light specks for foliage detail
+    for (let i = 0; i < 160; i++) {
+        const cx = 50 + Math.random() * 156;
+        const cy = 35 + Math.random() * 220;
+        const r = 1 + Math.random() * 4;
+        const dark = Math.random() < 0.6;
+        ctx.fillStyle = dark
+            ? `rgba(2, 8, 4, ${0.5 + Math.random() * 0.4})`
+            : `rgba(60, 95, 50, ${0.35 + Math.random() * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-    treeMaterial = new THREE.MeshStandardMaterial({
-        map: sharedAssets.treeTex,
-        color: 0x1c1814,
+    return new THREE.CanvasTexture(canvas);
+}
+
+function makeWindyTreeMaterial(texture, color) {
+    const mat = new THREE.MeshStandardMaterial({
+        map: texture,
+        color,
         roughness: 1,
         metalness: 0,
         side: THREE.DoubleSide,
         transparent: true,
         alphaTest: 0.5
     });
-
-    // Inject GPU-only wind sway. Top of tree displaces in local x/z based on time
-    // and per-instance origin so trees don't all sway in unison.
-    treeMaterial.onBeforeCompile = (shader) => {
+    // GPU-only wind sway — uniforms are written from updateTreeWind once per frame.
+    mat.onBeforeCompile = (shader) => {
         shader.uniforms.uTime = { value: 0 };
         shader.uniforms.uWindStrength = { value: 0 };
         shader.vertexShader = shader.vertexShader
@@ -786,44 +827,75 @@ function buildHauntedForest() {
                 transformed.x += _swayX;
                 transformed.z += _swayZ;
             `);
-        treeMaterial.userData.shader = shader;
+        mat.userData.shader = shader;
     };
+    return mat;
+}
 
-    // Place ~80 trees in a strip 10–28 m beyond the greenhouse glass
+function buildHauntedForest() {
+    // Two textures for variation — bare gnarled and leafy old-growth.
+    const bareTex = createDeadTreeTexture();
+    bareTex.colorSpace = THREE.SRGBColorSpace;
+    const leafyTex = createOldGrowthTreeTexture();
+    leafyTex.colorSpace = THREE.SRGBColorSpace;
+
+    // Crossed planes per tree → merged into one BufferGeometry, instanced.
+    const treeWidth = 5;
+    const treeHeight = 10;
+    const plane1 = new THREE.PlaneGeometry(treeWidth, treeHeight);
+    plane1.translate(0, treeHeight / 2, 0);
+    const plane2 = plane1.clone();
+    plane2.rotateY(Math.PI / 2);
+    const treeGeom = mergeGeometries([plane1, plane2]);
+
+    const bareMat = makeWindyTreeMaterial(bareTex, 0x1c1814);
+    const leafyMat = makeWindyTreeMaterial(leafyTex, 0x141a14);
+    treeMaterials.push(bareMat, leafyMat);
+
+    // Place 240 trees in a 10–40 m strip beyond the greenhouse glass.
+    // Closer = larger; mostly leafy with bare interspersed.
     const trees = [];
-    const treeCount = 80;
-    for (let i = 0; i < treeCount; i++) {
+    const TOTAL = 240;
+    for (let i = 0; i < TOTAL; i++) {
         const side = i % 4;
-        const dist = 10 + Math.random() * 18;
+        const dist = 10 + Math.random() * 30;
         let x, z;
         if (side === 0)      { x = -8 - dist; z = -55 + Math.random() * 70; }
         else if (side === 1) { x =  8 + dist; z = -55 + Math.random() * 70; }
         else if (side === 2) { x = -28 + Math.random() * 56; z = -45 - dist; }
         else                 { x = -28 + Math.random() * 56; z =   5 + dist; }
+        const closeness = 1 - Math.min(dist, 30) / 60;
         trees.push({
             x, z,
-            scale: 0.7 + Math.random() * 0.7,
-            rotY: Math.random() * Math.PI * 2
+            scale: 0.65 + Math.random() * 0.6 + closeness * 0.45,
+            rotY: Math.random() * Math.PI * 2,
+            type: Math.random() < 0.62 ? 1 : 0 // 62% leafy, 38% bare
         });
     }
 
-    const treesMesh = new THREE.InstancedMesh(treeGeom, treeMaterial, treeCount);
+    // Split into two InstancedMesh per type (still 2 draw calls total).
     const _m = new THREE.Matrix4();
     const _q = new THREE.Quaternion();
     const _yAxis = new THREE.Vector3(0, 1, 0);
-    for (let i = 0; i < treeCount; i++) {
-        const t = trees[i];
-        _q.setFromAxisAngle(_yAxis, t.rotY);
-        _m.compose(new THREE.Vector3(t.x, 0, t.z), _q, new THREE.Vector3(t.scale, t.scale, t.scale));
-        treesMesh.setMatrixAt(i, _m);
-    }
-    treesMesh.instanceMatrix.needsUpdate = true;
-    // Trees are far away — no shadow casting, no frustum culling on the
-    // (incorrectly tiny) per-instance bounds.
-    treesMesh.castShadow = false;
-    treesMesh.receiveShadow = false;
-    treesMesh.frustumCulled = false;
-    scene.add(treesMesh);
+    [
+        { mat: bareMat, type: 0 },
+        { mat: leafyMat, type: 1 }
+    ].forEach(({ mat, type }) => {
+        const subset = trees.filter(t => t.type === type);
+        if (subset.length === 0) return;
+        const mesh = new THREE.InstancedMesh(treeGeom, mat, subset.length);
+        for (let i = 0; i < subset.length; i++) {
+            const t = subset[i];
+            _q.setFromAxisAngle(_yAxis, t.rotY);
+            _m.compose(new THREE.Vector3(t.x, 0, t.z), _q, new THREE.Vector3(t.scale, t.scale, t.scale));
+            mesh.setMatrixAt(i, _m);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        mesh.frustumCulled = false; // bounding sphere doesn't account for scattered instances
+        scene.add(mesh);
+    });
 }
 
 // --- Glowing red eyes at the forest edge (night only) ---
@@ -943,21 +1015,26 @@ function updateHauntedEyes(now) {
 }
 
 function updateTreeWind(now) {
-    if (!treeMaterial || !treeMaterial.userData.shader) return;
-    const u = treeMaterial.userData.shader.uniforms;
-    u.uTime.value = now / 1000;
+    if (treeMaterials.length === 0) return;
 
+    let strength;
     if (currentDayness < 0.5) {
-        u.uWindStrength.value = 0;
-        return;
-    }
-    // Roughly every 22 s, a 5 s gust during the day
-    const cycle = (now / 1000) % 22;
-    if (cycle < 5) {
-        const t = cycle / 5;
-        u.uWindStrength.value = Math.sin(t * Math.PI) * 0.09 + 0.004;
+        strength = 0;
     } else {
-        u.uWindStrength.value = 0.004;
+        // Roughly every 22 s, a 5 s gust during the day
+        const cycle = (now / 1000) % 22;
+        if (cycle < 5) {
+            const t = cycle / 5;
+            strength = Math.sin(t * Math.PI) * 0.09 + 0.004;
+        } else {
+            strength = 0.004;
+        }
+    }
+
+    for (const mat of treeMaterials) {
+        if (!mat.userData.shader) continue;
+        mat.userData.shader.uniforms.uTime.value = now / 1000;
+        mat.userData.shader.uniforms.uWindStrength.value = strength;
     }
 }
 
@@ -1357,35 +1434,64 @@ function buildGreenhouse() {
         ghGroup.add(diag);
     }
 
-    // Edison-style bulbs hanging from the trellis (one every 6m → ~9 bulbs)
+    // Edison-style hooded pendant lamps (one every 6 m → ~9 lamps)
     const bulbSpacing = 6;
     const bulbCount = Math.floor((totalLength - 4) / bulbSpacing) + 1;
-    const cordMat = new THREE.MeshBasicMaterial({ color: 0x2b1f17 });
-    const socketMat = new THREE.MeshStandardMaterial({ color: 0x363330, roughness: 0.55, metalness: 0.6 });
-    const cordGeom = new THREE.CylinderGeometry(0.008, 0.008, 0.5, 6);
-    const socketGeom = new THREE.CylinderGeometry(0.04, 0.045, 0.07, 10);
+
+    // Geometry / position constants
+    const cordHeight = 0.3;
+    const cordCenterY = trellisY - cordHeight / 2;        // cord midpoint
+    const cordBottomY = trellisY - cordHeight;            // hood top
+    const hoodHeight = 0.18;
+    const hoodCenterY = cordBottomY - hoodHeight / 2;     // hood midpoint
+    const hoodBottomY = cordBottomY - hoodHeight;         // hood opening
+    const bulbY = hoodBottomY - 0.02;                     // bulb peeks from opening
+
+    const cordMat = new THREE.MeshBasicMaterial({ color: 0x1f140b });
+    const socketMat = new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 0.55, metalness: 0.7 });
+    // Aged copper hood — frustum (open top + bottom) with darker outside, two-sided so
+    // the inside catches the bulb glow.
+    const hoodMat = new THREE.MeshStandardMaterial({
+        color: 0x3a2515,
+        roughness: 0.4,
+        metalness: 0.7,
+        side: THREE.DoubleSide
+    });
+    const cordGeom = new THREE.CylinderGeometry(0.008, 0.008, cordHeight, 6);
+    const socketGeom = new THREE.CylinderGeometry(0.038, 0.046, 0.07, 12);
+    const hoodGeom = new THREE.CylinderGeometry(0.04, 0.18, hoodHeight, 18, 1, true);
     const bulbGeom = new THREE.SphereGeometry(0.05, 12, 10);
     bulbGeom.scale(1, 1.25, 1);
     const filamentGeom = new THREE.TorusGeometry(0.012, 0.002, 4, 10);
     const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffaa55 });
+
+    // Visible light-shaft cone below each lamp — additive, fades in at night.
+    const SPOT_ANGLE = Math.PI / 3.5; // ~51° half-angle
+    const shaftHeight = bulbY;        // bulb down to the floor
+    const shaftBottomR = Math.tan(SPOT_ANGLE) * shaftHeight;
 
     for (let i = 0; i < bulbCount; i++) {
         const bz = slatStartZ + 1 + i * bulbSpacing;
         if (bz > 5 - 2) break;
 
         const cord = new THREE.Mesh(cordGeom, cordMat);
-        cord.position.set(0, trellisY - 0.25, bz);
+        cord.position.set(0, cordCenterY, bz);
         cord.userData.detail = true;
         ghGroup.add(cord);
 
         const socket = new THREE.Mesh(socketGeom, socketMat);
-        socket.position.set(0, trellisY - 0.5, bz);
+        socket.position.set(0, cordBottomY + 0.03, bz);
         socket.userData.detail = true;
         ghGroup.add(socket);
 
+        const hood = new THREE.Mesh(hoodGeom, hoodMat);
+        hood.position.set(0, hoodCenterY, bz);
+        hood.userData.detail = true;
+        ghGroup.add(hood);
+
         const bulbMat = makeBulbMaterial();
         const bulb = new THREE.Mesh(bulbGeom, bulbMat);
-        bulb.position.set(0, trellisY - 0.6, bz);
+        bulb.position.set(0, bulbY, bz);
         bulb.userData.detail = true;
         ghGroup.add(bulb);
         bulbMeshes.push(bulb);
@@ -1395,11 +1501,34 @@ function buildGreenhouse() {
         filament.userData.detail = true;
         ghGroup.add(filament);
 
-        const light = new THREE.PointLight(0xffaa55, 0, 6, 2);
-        light.position.set(0, trellisY - 0.6, bz);
-        light.castShadow = false;
-        ghGroup.add(light);
-        bulbLights.push(light);
+        // SpotLight pointing straight down from inside the hood.
+        const spot = new THREE.SpotLight(0xffaa55, 0, 9, SPOT_ANGLE, 0.55, 2);
+        spot.position.set(0, bulbY, bz);
+        const spotTarget = new THREE.Object3D();
+        spotTarget.position.set(0, 0, bz);
+        ghGroup.add(spotTarget);
+        spot.target = spotTarget;
+        spot.castShadow = false;
+        ghGroup.add(spot);
+        bulbLights.push(spot);
+
+        // Subtle additive light-shaft cone — visible "ray" volume below each lamp.
+        const shaftGeom = new THREE.CylinderGeometry(0.02, shaftBottomR, shaftHeight, 18, 1, true);
+        const shaftMat = new THREE.MeshBasicMaterial({
+            color: 0xffb070,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            fog: false
+        });
+        const shaft = new THREE.Mesh(shaftGeom, shaftMat);
+        shaft.position.set(0, bulbY - shaftHeight / 2, bz);
+        shaft.userData.detail = true;
+        shaft.visible = false;
+        ghGroup.add(shaft);
+        shaftMeshes.push(shaft);
     }
 
     // Selectively set shadow casting/receiving:
@@ -1733,22 +1862,32 @@ function updateSunAndLighting() {
     currentDayness = dayness;
 
     sunLight.intensity = 3.0 * dayness;
-    skyFill.intensity = 0.45 * dayness + 0.04 * nightness;
-    warmFill.intensity = 0.6 * dayness + 0.05 * nightness;
+    skyFill.intensity = 0.45 * dayness + 0.005 * nightness; // near-zero at night
+    warmFill.intensity = 0.6 * dayness;                     // off entirely at night
+
+    // Global IBL multiplier — kills "ambient" PBR fill at night so the only real
+    // light is the lamp cones.
+    scene.environmentIntensity = 0.05 + 0.95 * dayness;
 
     // Atmosphere: thinner Rayleigh and lower turbidity at night → darker sky
-    sky.material.uniforms.rayleigh.value = 1.4 * dayness + 0.25 * nightness;
-    sky.material.uniforms.turbidity.value = 6 * dayness + 1.2 * nightness;
+    sky.material.uniforms.rayleigh.value = 1.4 * dayness + 0.18 * nightness;
+    sky.material.uniforms.turbidity.value = 6 * dayness + 1.0 * nightness;
 
     // Edison bulbs glow at night. Setting visible=false prunes them from the
     // PBR shader's light list entirely — big win during the day.
     const bulbsOn = nightness > 0.01;
     bulbLights.forEach(light => {
         light.visible = bulbsOn;
-        light.intensity = nightness * 4.5;
+        light.intensity = nightness * 11; // boosted — they're now the main light
     });
     bulbMeshes.forEach(mesh => {
-        mesh.material.emissiveIntensity = nightness * 1.6;
+        mesh.material.emissiveIntensity = nightness * 2.2;
+    });
+
+    // Light shafts: fade in at night, hide entirely during day.
+    shaftMeshes.forEach(shaft => {
+        shaft.material.opacity = nightness * 0.18;
+        shaft.visible = bulbsOn;
     });
 }
 
