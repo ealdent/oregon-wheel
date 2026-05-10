@@ -816,11 +816,15 @@ function createOldGrowthTreeTexture() {
 function makeWindyTreeMaterial(texture, color) {
     // MeshBasicMaterial — flat silhouette, identical from any angle. No per-side
     // lighting variance, no sun shading, no IBL pulling color around as you turn.
+    // transparent:false + alphaTest puts trees in the OPAQUE pass so they write
+    // proper depth; the transparent glass then composites over them deterministically
+    // (otherwise the transparent-sort order flips as you move and the glass tint
+    // appears/disappears on the same trees).
     const mat = new THREE.MeshBasicMaterial({
         map: texture,
         color,
         side: THREE.DoubleSide,
-        transparent: true,
+        transparent: false,
         alphaTest: 0.5,
         fog: true
     });
