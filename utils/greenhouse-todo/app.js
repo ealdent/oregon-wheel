@@ -2049,9 +2049,10 @@ function createPlant(todoData, isLoad = false) {
     buildPotMeshes(plantGroup);
 
     if (todoData.completed) {
-        // Render as blooming flower
-        const stemGeom = new THREE.CylinderGeometry(0.014, 0.022, 0.4, 12);
-        stemGeom.translate(0, 0.2, 0);
+        // Short thin stem — flower is the star, not the stalk.
+        const stemHeight = 0.18;
+        const stemGeom = new THREE.CylinderGeometry(0.011, 0.017, stemHeight, 10);
+        stemGeom.translate(0, stemHeight / 2, 0);
         const plantMat = new THREE.MeshStandardMaterial({
             color: 0x4caf50,
             roughness: 0.7,
@@ -2069,17 +2070,18 @@ function createPlant(todoData, isLoad = false) {
             ? todoData.flowerVariant
             : Math.abs(todoData.id || 0);
         const flower = buildFlowerByVariant(variantIdx);
-        flower.position.y = 0.42;
+        flower.position.y = stemHeight + 0.015;
+        flower.scale.setScalar(1.55);
         stem.add(flower);
 
         // Slight bend
-        stem.rotation.x = Math.PI / 12;
-        stem.rotation.z = (Math.random() - 0.5) * 0.15;
+        stem.rotation.x = Math.PI / 14;
+        stem.rotation.z = (Math.random() - 0.5) * 0.12;
     } else {
-        // 3. Stem (will bend based on health)
-        const stemGeom = new THREE.CylinderGeometry(0.014, 0.022, 0.4, 12);
-        // Move pivot point to bottom of stem
-        stemGeom.translate(0, 0.2, 0);
+        // Shorter thinner stem for growing plants too.
+        const stemHeight = 0.22;
+        const stemGeom = new THREE.CylinderGeometry(0.011, 0.018, stemHeight, 10);
+        stemGeom.translate(0, stemHeight / 2, 0);
         const plantMat = new THREE.MeshStandardMaterial({
             color: 0x4caf50,
             roughness: 0.7,
@@ -2096,12 +2098,13 @@ function createPlant(todoData, isLoad = false) {
         const perPlantLeafMat = sharedLeafMat.clone(); // clone so we can color independently
         const leafGeom = createLeafGeometry();
 
+        // Leaf positions rescaled to fit the shorter stem; sizes nudged down slightly.
         const leafConfigs = [
-            { y: 0.18, ry: 0,           rz: -Math.PI / 3.2, scale: 1.0 },
-            { y: 0.22, ry: Math.PI / 2, rz: -Math.PI / 3.2, scale: 0.95 },
-            { y: 0.28, ry: Math.PI / 4, rz:  Math.PI / 3.2, scale: 1.05 },
-            { y: 0.32, ry: Math.PI * 0.75, rz: -Math.PI / 4, scale: 0.9 },
-            { y: 0.36, ry: Math.PI * 1.2, rz:  Math.PI / 3.5, scale: 0.85 }
+            { y: 0.07, ry: 0,              rz: -Math.PI / 3.2, scale: 0.92 },
+            { y: 0.10, ry: Math.PI / 2,    rz: -Math.PI / 3.2, scale: 0.88 },
+            { y: 0.14, ry: Math.PI / 4,    rz:  Math.PI / 3.2, scale: 0.95 },
+            { y: 0.17, ry: Math.PI * 0.75, rz: -Math.PI / 4,   scale: 0.82 },
+            { y: 0.20, ry: Math.PI * 1.2,  rz:  Math.PI / 3.5, scale: 0.78 }
         ];
 
         leafConfigs.forEach((cfg, i) => {
