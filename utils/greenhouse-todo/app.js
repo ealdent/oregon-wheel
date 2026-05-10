@@ -7,6 +7,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import Stats from 'three/addons/libs/stats.module.js';
 
 THREE.Cache.enabled = true;
 
@@ -33,6 +34,9 @@ const treeMaterials = [];    // tree billboard materials (one per type) with onB
 const shaftMeshes = [];      // additive light-shaft cones below each lamp (night only)
 let currentDayness = 1;      // 1 = full day, 0 = full night (set by updateSunAndLighting)
 const eyePairs = [];         // glowing-red eye pair state machines
+
+// FPS / stats overlay (toggled with F)
+let stats = null;
 
 const objects = []; // Interactable objects (plants)
 let todos = []; // Data for todos
@@ -188,6 +192,11 @@ function init() {
             case 'KeyD':
                 moveRight = true;
                 break;
+            case 'KeyF':
+                if (stats) {
+                    stats.dom.style.display = stats.dom.style.display === 'none' ? 'block' : 'none';
+                }
+                break;
         }
     };
 
@@ -218,6 +227,16 @@ function init() {
     // 7. Raycaster
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2(0, 0); // Always center for crosshair
+
+    // 7b. FPS / stats overlay (hidden by default; F toggles)
+    stats = new Stats();
+    stats.dom.style.position = 'fixed';
+    stats.dom.style.top = 'auto';
+    stats.dom.style.bottom = '0px';
+    stats.dom.style.left = '0px';
+    stats.dom.style.zIndex = '100';
+    stats.dom.style.display = 'none';
+    document.body.appendChild(stats.dom);
 
     // 8. Build Greenhouse Environment
     buildGreenhouse();
@@ -853,25 +872,30 @@ function buildHauntedForest() {
     const leafyMat = makeWindyTreeMaterial(leafyTex, 0x141a14);
     treeMaterials.push(bareMat, leafyMat);
 
-    // Place 240 trees in a 10–40 m strip beyond the greenhouse glass.
-    // Closer = larger; mostly leafy with bare interspersed.
+    // Three distance bands of dense trees so the back rows form a wall and you
+    // can't see through to infinity. Far band is heavily packed silhouettes.
     const trees = [];
-    const TOTAL = 240;
-    for (let i = 0; i < TOTAL; i++) {
-        const side = i % 4;
-        const dist = 10 + Math.random() * 30;
-        let x, z;
-        if (side === 0)      { x = -8 - dist; z = -55 + Math.random() * 70; }
-        else if (side === 1) { x =  8 + dist; z = -55 + Math.random() * 70; }
-        else if (side === 2) { x = -28 + Math.random() * 56; z = -45 - dist; }
-        else                 { x = -28 + Math.random() * 56; z =   5 + dist; }
-        const closeness = 1 - Math.min(dist, 30) / 60;
-        trees.push({
-            x, z,
-            scale: 0.65 + Math.random() * 0.6 + closeness * 0.45,
-            rotY: Math.random() * Math.PI * 2,
-            type: Math.random() < 0.62 ? 1 : 0 // 62% leafy, 38% bare
-        });
+    const bands = [
+        { distMin: 10, distMax: 20, count: 120, scaleMin: 0.85, scaleMax: 1.55 },
+        { distMin: 18, distMax: 32, count: 180, scaleMin: 0.7,  scaleMax: 1.25 },
+        { distMin: 30, distMax: 55, count: 260, scaleMin: 0.55, scaleMax: 1.00 }
+    ];
+    for (const band of bands) {
+        for (let i = 0; i < band.count; i++) {
+            const side = i % 4;
+            const dist = band.distMin + Math.random() * (band.distMax - band.distMin);
+            let x, z;
+            if (side === 0)      { x = -8 - dist; z = -60 + Math.random() * 80; }
+            else if (side === 1) { x =  8 + dist; z = -60 + Math.random() * 80; }
+            else if (side === 2) { x = -32 + Math.random() * 64; z = -45 - dist; }
+            else                 { x = -32 + Math.random() * 64; z =   5 + dist; }
+            trees.push({
+                x, z,
+                scale: band.scaleMin + Math.random() * (band.scaleMax - band.scaleMin),
+                rotY: Math.random() * Math.PI * 2,
+                type: Math.random() < 0.6 ? 1 : 0 // 60% leafy, 40% bare
+            });
+        }
     }
 
     // Split into two InstancedMesh per type (still 2 draw calls total).
@@ -1427,6 +1451,17 @@ function buildGreenhouse() {
             slat.userData.detail = true;
             ghGroup.add(slat);
         }
+    }
+
+    // Wide wall-to-wall connector beams perpendicular to the main axis — one per
+    // lamp row, so each lamp cord visibly attaches to a beam.
+    const crossBeamGeom = new THREE.BoxGeometry(totalWidth - 0.2, 0.12, 0.12);
+    for (let i = 0; i < numTables; i++) {
+        const zPos = -i * tableSpacing;
+        const beam = new THREE.Mesh(crossBeamGeom, rafterMat);
+        beam.position.set(0, trellisY, zPos);
+        beam.userData.detail = true;
+        ghGroup.add(beam);
     }
 
     // ---- Hooded Edison pendant lamps: one over each table (20 total) ----
@@ -2073,6 +2108,8 @@ function animate() {
     } else {
         renderer.render(scene, camera);
     }
+
+    if (stats) stats.update();
 }
 
 // --- Decay Logic ---
