@@ -1,5 +1,31 @@
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+THREE.Cache.enabled = true;
+
 let camera, scene, renderer, controls;
 let raycaster, mouse;
+let composer; // post-processing composer
+let sharedLeafMat; // shared leaf material across plants
+const textureLoader = new THREE.TextureLoader();
+const sharedAssets = {}; // shared textures / materials
+
+// Sun + lighting (updated each tick)
+let sky, sunLight, skyFill, warmFill;
+const bulbLights = []; // PointLights inside Edison bulbs
+const bulbMeshes = []; // bulb glass meshes for emissive control
+const SUN_LOCATION = { lat: 40.7128, lng: -74.0060 }; // NYC — Eastern Time
+let lastSunUpdate = 0;
+
+// Instanced empty pots — one InstancedMesh per pot piece, hidden per-slot when planted
+let emptyPotInstances = null;
+const emptyPotOccupied = [];
 
 const objects = []; // Interactable objects (plants)
 let todos = []; // Data for todos
@@ -9,6 +35,10 @@ let simulatedTimeOffset = 0; // Fast forward offset in ms
 
 // Local Storage keys
 const STORAGE_KEY = 'greenhouse-todos-data';
+
+// Touch device detection (coarse pointer = primary input is touch)
+const isTouchDevice = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+let mobileActive = false; // True when exploring on a touch device
 
 function saveTodosToLocal() {
     // Only save the data, not the THREE.js meshes
@@ -56,48 +86,65 @@ const uiContainer = document.getElementById('ui-container');
 const resumeBtn = document.getElementById('resume-btn');
 
 function init() {
-    // 1. Scene setup
+    // 1. Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // Sky blue
-    scene.fog = new THREE.FogExp2(0x87CEEB, 0.02);
+    scene.fog = new THREE.FogExp2(0xc8dfee, 0.005); // soft humid haze
 
-    // 2. Camera setup
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.y = 1.6; // Average human height
+    // 2. Camera
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 2000);
+    camera.position.y = 1.6;
 
-    // 3. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 20, 10);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.camera.top = 20;
-    directionalLight.shadow.camera.bottom = -20;
-    directionalLight.shadow.camera.left = -20;
-    directionalLight.shadow.camera.right = 20;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    scene.add(directionalLight);
-
-    // 4. Renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // 3. Renderer (PBR pipeline)
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.95;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
 
+    // 4. Image-based lighting via procedural room environment (gives nice IBL on PBR materials)
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    // 5. Sky shader for outdoor backdrop
+    sky = new Sky();
+    sky.scale.setScalar(1500);
+    sky.material.uniforms.mieCoefficient.value = 0.005;
+    sky.material.uniforms.mieDirectionalG.value = 0.85;
+    scene.add(sky);
+
+    // 6. Lighting — sun (directional) + soft fill from sky
+    sunLight = new THREE.DirectionalLight(0xfff0d6, 0); // intensity set by updateSunAndLighting
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(1024, 1024);
+    sunLight.shadow.camera.left = -25;
+    sunLight.shadow.camera.right = 25;
+    sunLight.shadow.camera.top = 15;
+    sunLight.shadow.camera.bottom = -55;
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 120;
+    sunLight.shadow.bias = -0.0005;
+    sunLight.shadow.normalBias = 0.04;
+    sunLight.shadow.radius = 4;
+    scene.add(sunLight);
+
+    skyFill = new THREE.HemisphereLight(0xb6dbff, 0x4a3a2a, 0);
+    scene.add(skyFill);
+
+    // Warm interior fill — mimics light bouncing off the wood and floor
+    warmFill = new THREE.PointLight(0xffd9a0, 0, 30, 1.6);
+    warmFill.position.set(0, 3.5, -20);
+    scene.add(warmFill);
+
     // 5. Controls
-    controls = new THREE.PointerLockControls(camera, document.body);
+    controls = new PointerLockControls(camera, document.body);
 
-    instructions.addEventListener('click', function () {
-        controls.lock();
-    });
-
-    resumeBtn.addEventListener('click', function() {
-        controls.lock();
-    });
+    instructions.addEventListener('click', startExploring);
+    resumeBtn.addEventListener('click', startExploring);
 
     controls.addEventListener('lock', function () {
         blocker.style.display = 'none';
@@ -167,134 +214,510 @@ function init() {
     // 8. Build Greenhouse Environment
     buildGreenhouse();
 
-    // 9. Load Saved Data
+    // 9. Initial sun + lighting (uses real Eastern Time)
+    updateSunAndLighting();
+
+    // 10. Load Saved Data
     loadTodosFromLocal();
+
+    // 10. Post-processing — bloom for soft highlights through the glass
+    composer = new EffectComposer(renderer);
+    composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    composer.setSize(window.innerWidth, window.innerHeight);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.15, // strength — light bloom for highlights only
+        0.6,  // radius
+        0.96  // threshold (only true highlights bloom)
+    );
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
 
     // Window resize handler
     window.addEventListener('resize', onWindowResize);
-}
+    window.addEventListener('orientationchange', onWindowResize);
 
-// --- Texture Generation ---
-function createWoodTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = "#8b5a2b";
-    ctx.fillRect(0, 0, 512, 512);
-    for(let i = 0; i < 200; i++) {
-        ctx.fillStyle = "rgba(0, 0, 0, " + (Math.random() * 0.1) + ")";
-        ctx.fillRect(Math.random() * 512, 0, Math.random() * 10, 512);
+    // Mobile touch controls
+    if (isTouchDevice) {
+        document.body.classList.add('touch');
+        setupTouchControls();
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 1);
-    return texture;
 }
 
-function createDirtTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = "#3d2817";
-    ctx.fillRect(0, 0, 512, 512);
-    for(let i = 0; i < 5000; i++) {
-        const shade = Math.random() > 0.5 ? 0 : 255;
-        ctx.fillStyle = "rgba(" + shade + "," + shade + "," + shade + "," + (Math.random() * 0.05) + ")";
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+// --- PBR Texture / Material Helpers ---
+
+// Convert a heightmap canvas (grayscale brightness = height) into a normal map texture.
+// Runs once per texture at startup.
+function makeNormalMapFromCanvas(srcCanvas, scale = 1.0) {
+    const w = srcCanvas.width, h = srcCanvas.height;
+    const src = srcCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+    const out = new Uint8ClampedArray(w * h * 4);
+    const heightAt = (x, y) => {
+        const xi = ((x % w) + w) % w;
+        const yi = ((y % h) + h) % h;
+        const i = (yi * w + xi) * 4;
+        return (src[i] + src[i + 1] + src[i + 2]) / (3 * 255);
+    };
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const dx = (heightAt(x + 1, y) - heightAt(x - 1, y)) * scale;
+            const dy = (heightAt(x, y + 1) - heightAt(x, y - 1)) * scale;
+            const nx = -dx, ny = -dy, nz = 1.0;
+            const inv = 1 / Math.hypot(nx, ny, nz);
+            const i = (y * w + x) * 4;
+            out[i + 0] = (nx * inv * 0.5 + 0.5) * 255;
+            out[i + 1] = (ny * inv * 0.5 + 0.5) * 255;
+            out[i + 2] = (nz * inv * 0.5 + 0.5) * 255;
+            out[i + 3] = 255;
+        }
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(20, 20); // Tile it a bit
-    return texture;
+    const normCanvas = document.createElement('canvas');
+    normCanvas.width = w;
+    normCanvas.height = h;
+    normCanvas.getContext('2d').putImageData(new ImageData(out, w, h), 0, 0);
+    const tex = new THREE.CanvasTexture(normCanvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
 }
 
-function createGlassTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
+function configureRepeat(tex, repeat, srgb) {
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeat[0], repeat[1]);
+    tex.anisotropy = 8;
+    if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
 
-    // Tinted green background
-    ctx.fillStyle = "rgba(180, 240, 200, 0.2)";
-    ctx.fillRect(0, 0, 512, 512);
+// Real PBR wood from threejs.org's CDN. Each call returns a material with cloned-textures
+// so different surfaces can have their own UV repeats.
+function makeWoodMaterial({ repeat = [1, 1], roughness = 0.85, color = 0xffffff } = {}) {
+    const colorMap = textureLoader.load('https://threejs.org/examples/textures/hardwood2_diffuse.jpg');
+    const bumpMap = textureLoader.load('https://threejs.org/examples/textures/hardwood2_bump.jpg');
+    const roughMap = textureLoader.load('https://threejs.org/examples/textures/hardwood2_roughness.jpg');
+    configureRepeat(colorMap, repeat, true);
+    configureRepeat(bumpMap, repeat, false);
+    configureRepeat(roughMap, repeat, false);
+    return new THREE.MeshPhysicalMaterial({
+        color,
+        map: colorMap,
+        bumpMap: bumpMap,
+        bumpScale: 0.0015,
+        roughnessMap: roughMap,
+        roughness,
+        metalness: 0,
+        envMapIntensity: 0.7
+    });
+}
 
-    // Add metal scaffolding lines
-    ctx.strokeStyle = "#405040"; // Dark greenish-grey metal
-    ctx.lineWidth = 16;
+function getGlassMaterial() {
+    if (sharedAssets.glass) return sharedAssets.glass;
+    // MeshStandardMaterial (no transmission render pass) — much cheaper than Physical+transmission.
+    sharedAssets.glass = new THREE.MeshStandardMaterial({
+        color: 0x88c890,
+        metalness: 0,
+        roughness: 0.22,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide,
+        envMapIntensity: 0.7,
+        depthWrite: false
+    });
+    return sharedAssets.glass;
+}
 
-    // Border
-    ctx.strokeRect(0, 0, 512, 512);
+// Verdigris (oxidized) copper — patinated greenish-blue with mottled texture
+function getCopperMaterial() {
+    if (sharedAssets.copper) return sharedAssets.copper;
+    const SIZE = 256;
 
-    // Crossbars for scaffolding
-    ctx.beginPath();
-    ctx.moveTo(256, 0);
-    ctx.lineTo(256, 512);
-    ctx.moveTo(0, 256);
-    ctx.lineTo(512, 256);
-    ctx.stroke();
-
-    // Smudges
-    for(let i = 0; i < 20; i++) {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+    const colorCanvas = document.createElement('canvas');
+    colorCanvas.width = colorCanvas.height = SIZE;
+    const ctx = colorCanvas.getContext('2d');
+    // Base verdigris green
+    ctx.fillStyle = '#5a9b80';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    // Patina patches — varying greens and blues
+    for (let i = 0; i < 350; i++) {
+        const r = 60 + Math.random() * 50;
+        const g = 130 + Math.random() * 70;
+        const b = 100 + Math.random() * 60;
+        ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${0.25 + Math.random() * 0.45})`;
         ctx.beginPath();
-        ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 50, 0, Math.PI * 2);
+        ctx.arc(Math.random() * SIZE, Math.random() * SIZE, 3 + Math.random() * 12, 0, Math.PI * 2);
         ctx.fill();
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(4, 4); // Tile the glass panels
-    return texture;
-}
-
-function createLeafTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = "#2ecc71"; // Base green
-    ctx.fillRect(0, 0, 256, 256);
-
-    // Veins
-    ctx.strokeStyle = "#27ae60";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(128, 0);
-    ctx.lineTo(128, 256); // center vein
-
-    // Side veins
-    for(let i = 0; i < 8; i++) {
-        let y = i * 30 + 15;
-        ctx.moveTo(128, y);
-        ctx.lineTo(128 + 60, y - 40);
-        ctx.moveTo(128, y);
-        ctx.lineTo(128 - 60, y - 40);
+    // Exposed copper streaks (warmer reddish-brown)
+    for (let i = 0; i < 40; i++) {
+        const r = 140 + Math.random() * 60;
+        const g = 80 + Math.random() * 30;
+        const b = 40 + Math.random() * 20;
+        ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${0.35 + Math.random() * 0.35})`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * SIZE, Math.random() * SIZE, 1.5 + Math.random() * 4, 0, Math.PI * 2);
+        ctx.fill();
     }
-    ctx.stroke();
-    return new THREE.CanvasTexture(canvas);
+    // Dark crevices
+    for (let i = 0; i < 200; i++) {
+        ctx.fillStyle = `rgba(20,40,30,${0.15 + Math.random() * 0.25})`;
+        ctx.fillRect(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    const colorTex = new THREE.CanvasTexture(colorCanvas);
+    colorTex.colorSpace = THREE.SRGBColorSpace;
+    colorTex.wrapS = colorTex.wrapT = THREE.RepeatWrapping;
+
+    // Bumpy patina surface
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = heightCanvas.height = SIZE;
+    const hctx = heightCanvas.getContext('2d');
+    hctx.fillStyle = '#808080';
+    hctx.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 300; i++) {
+        const grey = 80 + Math.random() * 130;
+        hctx.fillStyle = `rgb(${grey|0},${grey|0},${grey|0})`;
+        hctx.beginPath();
+        hctx.arc(Math.random() * SIZE, Math.random() * SIZE, 2 + Math.random() * 6, 0, Math.PI * 2);
+        hctx.fill();
+    }
+    const normalTex = makeNormalMapFromCanvas(heightCanvas, 5);
+    normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
+
+    sharedAssets.copper = new THREE.MeshPhysicalMaterial({
+        map: colorTex,
+        normalMap: normalTex,
+        normalScale: new THREE.Vector2(1, 1),
+        color: 0xb0d8c0,
+        roughness: 0.55,
+        metalness: 0.35,
+        envMapIntensity: 0.85,
+        sheen: 0.25,
+        sheenColor: new THREE.Color(0x9adfba),
+        sheenRoughness: 0.7
+    });
+    return sharedAssets.copper;
 }
 
-function createLeafAlphaTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
+// Edison-style bulb glass with controllable emissive (off during day, glowing at night)
+function makeBulbMaterial() {
+    return new THREE.MeshStandardMaterial({
+        color: 0xffd29a,
+        emissive: 0xffaa55,
+        emissiveIntensity: 0,
+        roughness: 0.25,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.85
+    });
+}
 
-    // Black background (transparent)
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, 256, 256);
+function getMetalFrameMaterial() {
+    if (sharedAssets.frame) return sharedAssets.frame;
+    sharedAssets.frame = new THREE.MeshPhysicalMaterial({
+        color: 0x2c3a30,
+        metalness: 0.85,
+        roughness: 0.45,
+        envMapIntensity: 0.9
+    });
+    return sharedAssets.frame;
+}
 
-    // White leaf shape (opaque)
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.ellipse(128, 128, 60, 120, 0, 0, Math.PI * 2);
-    ctx.fill();
+function getDoorHandleMaterial() {
+    if (sharedAssets.handle) return sharedAssets.handle;
+    sharedAssets.handle = new THREE.MeshPhysicalMaterial({
+        color: 0xc8b870,
+        metalness: 0.95,
+        roughness: 0.18,
+        envMapIntensity: 1.2
+    });
+    return sharedAssets.handle;
+}
 
-    return new THREE.CanvasTexture(canvas);
+function getDirtFloorMaterial() {
+    if (sharedAssets.floor) return sharedAssets.floor;
+    const SIZE = 512;
+
+    // Color
+    const colorCanvas = document.createElement('canvas');
+    colorCanvas.width = colorCanvas.height = SIZE;
+    const cctx = colorCanvas.getContext('2d');
+    cctx.fillStyle = '#3a2718';
+    cctx.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 5000; i++) {
+        const r = 30 + Math.random() * 35;
+        const g = 18 + Math.random() * 25;
+        const b = 8 + Math.random() * 18;
+        cctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${0.15 + Math.random() * 0.45})`;
+        cctx.beginPath();
+        cctx.arc(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 3, 0, Math.PI * 2);
+        cctx.fill();
+    }
+    // Pebbles
+    for (let i = 0; i < 220; i++) {
+        const shade = 70 + Math.random() * 70;
+        cctx.fillStyle = `rgb(${shade|0},${(shade-12)|0},${(shade-22)|0})`;
+        cctx.beginPath();
+        cctx.arc(Math.random() * SIZE, Math.random() * SIZE, 1.5 + Math.random() * 4.5, 0, Math.PI * 2);
+        cctx.fill();
+    }
+    const colorTex = new THREE.CanvasTexture(colorCanvas);
+    configureRepeat(colorTex, [12, 12], true);
+
+    // Height
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = heightCanvas.height = SIZE;
+    const hctx = heightCanvas.getContext('2d');
+    hctx.fillStyle = '#3a3a3a';
+    hctx.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 1200; i++) {
+        const grey = 50 + Math.random() * 130;
+        hctx.fillStyle = `rgb(${grey|0},${grey|0},${grey|0})`;
+        hctx.beginPath();
+        hctx.arc(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 6, 0, Math.PI * 2);
+        hctx.fill();
+    }
+    const normalTex = makeNormalMapFromCanvas(heightCanvas, 8);
+    configureRepeat(normalTex, [12, 12], false);
+
+    sharedAssets.floor = new THREE.MeshPhysicalMaterial({
+        map: colorTex,
+        normalMap: normalTex,
+        normalScale: new THREE.Vector2(1.4, 1.4),
+        roughness: 0.95,
+        metalness: 0
+    });
+    return sharedAssets.floor;
+}
+
+function getPotMaterial() {
+    if (sharedAssets.pot) return sharedAssets.pot;
+    const SIZE = 256;
+    const colorCanvas = document.createElement('canvas');
+    colorCanvas.width = colorCanvas.height = SIZE;
+    const ctx = colorCanvas.getContext('2d');
+    // Terracotta base
+    const grad = ctx.createLinearGradient(0, 0, 0, SIZE);
+    grad.addColorStop(0, '#b06138');
+    grad.addColorStop(0.5, '#9a5331');
+    grad.addColorStop(1, '#7a3f24');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    // Variation specks
+    for (let i = 0; i < 600; i++) {
+        const r = 130 + Math.random() * 80;
+        const g = 60 + Math.random() * 40;
+        const b = 35 + Math.random() * 25;
+        ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${Math.random() * 0.45})`;
+        ctx.fillRect(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 4, 1 + Math.random() * 3);
+    }
+    // Subtle horizontal bands (throwing rings)
+    for (let y = 0; y < SIZE; y += 6 + Math.random() * 4) {
+        ctx.fillStyle = `rgba(40,20,10,${0.04 + Math.random() * 0.08})`;
+        ctx.fillRect(0, y, SIZE, 1);
+    }
+    const colorTex = new THREE.CanvasTexture(colorCanvas);
+    colorTex.colorSpace = THREE.SRGBColorSpace;
+
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = heightCanvas.height = SIZE;
+    const hctx = heightCanvas.getContext('2d');
+    hctx.fillStyle = '#808080';
+    hctx.fillRect(0, 0, SIZE, SIZE);
+    for (let y = 0; y < SIZE; y += 6 + Math.random() * 4) {
+        hctx.fillStyle = `rgba(40,40,40,0.6)`;
+        hctx.fillRect(0, y, SIZE, 1);
+    }
+    for (let i = 0; i < 240; i++) {
+        const grey = 110 + Math.random() * 100;
+        hctx.fillStyle = `rgb(${grey|0},${grey|0},${grey|0})`;
+        hctx.beginPath();
+        hctx.arc(Math.random() * SIZE, Math.random() * SIZE, 1 + Math.random() * 2.5, 0, Math.PI * 2);
+        hctx.fill();
+    }
+    const normalTex = makeNormalMapFromCanvas(heightCanvas, 4);
+
+    sharedAssets.pot = new THREE.MeshStandardMaterial({
+        map: colorTex,
+        normalMap: normalTex,
+        normalScale: new THREE.Vector2(0.6, 0.6),
+        roughness: 0.82,
+        metalness: 0
+    });
+    return sharedAssets.pot;
+}
+
+function getSoilMaterial() {
+    if (sharedAssets.soil) return sharedAssets.soil;
+    const SIZE = 128;
+    const colorCanvas = document.createElement('canvas');
+    colorCanvas.width = colorCanvas.height = SIZE;
+    const ctx = colorCanvas.getContext('2d');
+    ctx.fillStyle = '#1f1108';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 800; i++) {
+        const r = 30 + Math.random() * 40;
+        const g = 18 + Math.random() * 25;
+        const b = 8 + Math.random() * 18;
+        ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${0.4 + Math.random() * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * SIZE, Math.random() * SIZE, 0.8 + Math.random() * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    const colorTex = new THREE.CanvasTexture(colorCanvas);
+    colorTex.colorSpace = THREE.SRGBColorSpace;
+
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = heightCanvas.height = SIZE;
+    const hctx = heightCanvas.getContext('2d');
+    hctx.fillStyle = '#606060';
+    hctx.fillRect(0, 0, SIZE, SIZE);
+    for (let i = 0; i < 600; i++) {
+        const grey = 80 + Math.random() * 120;
+        hctx.fillStyle = `rgb(${grey|0},${grey|0},${grey|0})`;
+        hctx.beginPath();
+        hctx.arc(Math.random() * SIZE, Math.random() * SIZE, 0.8 + Math.random() * 2, 0, Math.PI * 2);
+        hctx.fill();
+    }
+    const normalTex = makeNormalMapFromCanvas(heightCanvas, 5);
+
+    sharedAssets.soil = new THREE.MeshPhysicalMaterial({
+        map: colorTex,
+        normalMap: normalTex,
+        normalScale: new THREE.Vector2(1, 1),
+        roughness: 1,
+        metalness: 0
+    });
+    return sharedAssets.soil;
+}
+
+function createLeafMaterial() {
+    const SIZE = 256;
+
+    const colorCanvas = document.createElement('canvas');
+    colorCanvas.width = colorCanvas.height = SIZE;
+    const cctx = colorCanvas.getContext('2d');
+    cctx.clearRect(0, 0, SIZE, SIZE);
+    const grad = cctx.createRadialGradient(SIZE / 2, SIZE * 0.55, 8, SIZE / 2, SIZE / 2, SIZE / 2);
+    grad.addColorStop(0, '#7ed47a');
+    grad.addColorStop(0.55, '#3da650');
+    grad.addColorStop(1, '#1f5a2c');
+    cctx.fillStyle = grad;
+    cctx.beginPath();
+    cctx.ellipse(SIZE / 2, SIZE / 2, SIZE / 2.45, SIZE / 2.05, 0, 0, Math.PI * 2);
+    cctx.fill();
+
+    cctx.strokeStyle = 'rgba(20, 60, 25, 0.5)';
+    cctx.lineWidth = 1.6;
+    cctx.beginPath();
+    cctx.moveTo(SIZE / 2, 8);
+    cctx.lineTo(SIZE / 2, SIZE - 8);
+    for (let i = 1; i < 9; i++) {
+        const t = i / 9;
+        const yPos = 12 + t * (SIZE - 24);
+        const len = (1 - Math.abs(t - 0.5) * 1.5) * SIZE / 2.6;
+        cctx.moveTo(SIZE / 2, yPos);
+        cctx.lineTo(SIZE / 2 + len, yPos - len * 0.4);
+        cctx.moveTo(SIZE / 2, yPos);
+        cctx.lineTo(SIZE / 2 - len, yPos - len * 0.4);
+    }
+    cctx.stroke();
+    const colorTex = new THREE.CanvasTexture(colorCanvas);
+    colorTex.colorSpace = THREE.SRGBColorSpace;
+
+    const alphaCanvas = document.createElement('canvas');
+    alphaCanvas.width = alphaCanvas.height = SIZE;
+    const actx = alphaCanvas.getContext('2d');
+    actx.fillStyle = '#000';
+    actx.fillRect(0, 0, SIZE, SIZE);
+    actx.fillStyle = '#fff';
+    actx.beginPath();
+    actx.ellipse(SIZE / 2, SIZE / 2, SIZE / 2.45, SIZE / 2.05, 0, 0, Math.PI * 2);
+    actx.fill();
+    const alphaTex = new THREE.CanvasTexture(alphaCanvas);
+
+    const heightCanvas = document.createElement('canvas');
+    heightCanvas.width = heightCanvas.height = SIZE;
+    const hctx = heightCanvas.getContext('2d');
+    hctx.fillStyle = '#7a7a7a';
+    hctx.fillRect(0, 0, SIZE, SIZE);
+    hctx.strokeStyle = '#a8a8a8';
+    hctx.lineWidth = 4;
+    hctx.beginPath();
+    hctx.moveTo(SIZE / 2, 8);
+    hctx.lineTo(SIZE / 2, SIZE - 8);
+    hctx.stroke();
+    hctx.strokeStyle = '#909090';
+    hctx.lineWidth = 2;
+    hctx.beginPath();
+    for (let i = 1; i < 9; i++) {
+        const t = i / 9;
+        const yPos = 12 + t * (SIZE - 24);
+        const len = (1 - Math.abs(t - 0.5) * 1.5) * SIZE / 2.6;
+        hctx.moveTo(SIZE / 2, yPos);
+        hctx.lineTo(SIZE / 2 + len, yPos - len * 0.4);
+        hctx.moveTo(SIZE / 2, yPos);
+        hctx.lineTo(SIZE / 2 - len, yPos - len * 0.4);
+    }
+    hctx.stroke();
+    const normalTex = makeNormalMapFromCanvas(heightCanvas, 6);
+
+    return new THREE.MeshStandardMaterial({
+        map: colorTex,
+        alphaMap: alphaTex,
+        normalMap: normalTex,
+        normalScale: new THREE.Vector2(0.6, 0.6),
+        roughness: 0.65,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        transparent: true,
+        alphaTest: 0.45
+    });
+}
+
+function buildFlower() {
+    const group = new THREE.Group();
+
+    if (!sharedAssets.flowerCenterMat) {
+        sharedAssets.flowerCenterMat = new THREE.MeshStandardMaterial({
+            color: 0xffd54f, roughness: 0.55, metalness: 0
+        });
+        sharedAssets.flowerPetalMat = new THREE.MeshStandardMaterial({
+            color: 0xff7eb6, roughness: 0.55, metalness: 0
+        });
+        sharedAssets.flowerCenterGeom = new THREE.SphereGeometry(0.03, 12, 10);
+        sharedAssets.flowerPetalGeom = new THREE.SphereGeometry(0.045, 12, 10);
+        sharedAssets.flowerPetalGeom.scale(1, 0.32, 1.3);
+    }
+
+    const center = new THREE.Mesh(sharedAssets.flowerCenterGeom, sharedAssets.flowerCenterMat);
+    group.add(center);
+
+    const petalCount = 6;
+    for (let i = 0; i < petalCount; i++) {
+        const petal = new THREE.Mesh(sharedAssets.flowerPetalGeom, sharedAssets.flowerPetalMat);
+        const a = (i / petalCount) * Math.PI * 2;
+        const r = 0.05;
+        petal.position.set(Math.cos(a) * r, -0.005, Math.sin(a) * r);
+        petal.rotation.y = a;
+        petal.rotation.x = -Math.PI / 9;
+        group.add(petal);
+    }
+
+    return group;
+}
+
+function createLeafGeometry() {
+    if (sharedAssets.leafGeom) return sharedAssets.leafGeom;
+    const geom = new THREE.PlaneGeometry(0.18, 0.22, 6, 8);
+    const pos = geom.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const z = -Math.pow(x / 0.09, 2) * 0.03 + Math.pow((y + 0.11) / 0.22, 1.5) * 0.022;
+        pos.setZ(i, z);
+    }
+    geom.computeVertexNormals();
+    sharedAssets.leafGeom = geom;
+    return geom;
 }
 
 // --- Plant Generation Logic ---
@@ -320,59 +743,77 @@ function buildGreenhouse() {
         }
     }
 
-    // Instantiate empty pots at all positions
-    for (let i = 0; i < tablePositions.length; i++) {
-        createEmptyPot(i, tablePositions[i]);
-    }
+    // Empty pots — InstancedMesh (one per pot piece) for all 120 positions
+    createEmptyPotsInstanced();
 
     // Floor
-    const floorGeometry = new THREE.PlaneGeometry(100, 100);
-    const floorMaterial = new THREE.MeshStandardMaterial({
-        map: createDirtTexture(),
-        roughness: 1.0
-    });
-    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    const floorGeometry = new THREE.PlaneGeometry(200, 200);
+    const floor = new THREE.Mesh(floorGeometry, getDirtFloorMaterial());
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Tables (Procedural layout along a central aisle)
-    const tableMaterial = new THREE.MeshStandardMaterial({ map: createWoodTexture() });
+    // Tables — InstancedMesh for tops + legs across all 20 tables
+    const tableMaterial = makeWoodMaterial({ repeat: [2, 3], roughness: 0.78 });
     const numTables = 10;
     const tableSpacing = 4;
+    const totalTables = numTables * 2;
 
+    const topGeom = new THREE.BoxGeometry(2, 0.1, 3);
+    const legGeom = new THREE.BoxGeometry(0.1, 1.0, 0.1);
+    const topsMesh = new THREE.InstancedMesh(topGeom, tableMaterial, totalTables);
+    const legsMesh = new THREE.InstancedMesh(legGeom, tableMaterial, totalTables * 4);
+    topsMesh.castShadow = topsMesh.receiveShadow = true;
+    legsMesh.castShadow = legsMesh.receiveShadow = true;
+
+    const _m = new THREE.Matrix4();
+    const _q = new THREE.Quaternion();
+    const _s = new THREE.Vector3(1, 1, 1);
+    const legOffsets = [
+        [-0.9, -1.4], [0.9, -1.4],
+        [-0.9, 1.4], [0.9, 1.4]
+    ];
+    let topIdx = 0;
+    let legIdx = 0;
     for (let i = 0; i < numTables; i++) {
         const zPos = -i * tableSpacing;
-
-        // Left table
-        createTable(-3, zPos, tableMaterial);
-
-        // Right table
-        createTable(3, zPos, tableMaterial);
+        for (const x of [-3, 3]) {
+            _m.compose(new THREE.Vector3(x, 1.0, zPos), _q, _s);
+            topsMesh.setMatrixAt(topIdx++, _m);
+            for (const [lx, lz] of legOffsets) {
+                _m.compose(new THREE.Vector3(x + lx, 0.5, zPos + lz), _q, _s);
+                legsMesh.setMatrixAt(legIdx++, _m);
+            }
+        }
     }
+    topsMesh.instanceMatrix.needsUpdate = true;
+    legsMesh.instanceMatrix.needsUpdate = true;
+    scene.add(topsMesh);
+    scene.add(legsMesh);
 
     // Greenhouse Structure
-    const glassMat = new THREE.MeshPhysicalMaterial({
-        map: createGlassTexture(),
-        color: 0xaaffaa, // Pale green tint
-        transmission: 0.9,
-        opacity: 1,
-        transparent: true,
-        roughness: 0.1,
-        metalness: 0.1,
-        side: THREE.DoubleSide
-    });
+    const glassMat = getGlassMaterial();
+    const copperMat = getCopperMaterial();
 
     const ghGroup = new THREE.Group();
 
-    const woodMat = new THREE.MeshStandardMaterial({ map: createWoodTexture() });
+    const woodMat = makeWoodMaterial({ repeat: [1, 8], roughness: 0.82, color: 0xc8a070 });
+    // Weathered wood for the rafters/trusses — darker, more saturated
+    const rafterMat = makeWoodMaterial({ repeat: [4, 1], roughness: 0.92, color: 0x8a6a48 });
 
     // Waist-level Wood Bases
     const baseHeight = 1.2;
-    const wallHeight = 4.8; // Total height 6m before roof
+    const wallHeight = 4.8; // glass section height (top of glass at y=6)
     const totalLength = 50;
     const totalWidth = 16;
     const zCenter = -20;
+    const wallTopY = baseHeight + wallHeight; // 6
+    const ridgeY = wallTopY + 5;               // 11 — peak of gable roof
+    const halfWidth = totalWidth / 2;          // 8
+    const slopeRise = ridgeY - wallTopY;       // 5
+    const slopeRun = halfWidth;                // 8
+    const slopeLength = Math.hypot(slopeRun, slopeRise); // ~9.434
+    const slopeAngle = Math.atan2(slopeRise, slopeRun);  // ~32°
 
     // Wood Bases
     const leftBase = new THREE.Mesh(new THREE.BoxGeometry(0.2, baseHeight, totalLength), woodMat);
@@ -430,33 +871,113 @@ function buildGreenhouse() {
         ghGroup.add(topGlass);
     }
 
-    // Curved Arch Roof
-    const roofGeom = new THREE.CylinderGeometry(8, 8, totalLength, 12, 1, false, 0, Math.PI);
-    const roof = new THREE.Mesh(roofGeom, glassMat);
-    roof.rotation.x = -Math.PI / 2;
-    roof.rotation.y = -Math.PI / 2;
-    roof.position.set(0, baseHeight + wallHeight, zCenter);
-    ghGroup.add(roof);
+    // ---- Steeple (gable) roof: two flat panels meeting at the ridge ----
+    const roofGeomBox = new THREE.BoxGeometry(slopeLength, 0.08, totalLength);
 
-    // Front and Back Glass Half-Circles (filling the arches)
-    const archGeom = new THREE.CylinderGeometry(8, 8, 0.2, 12, 1, false, 0, Math.PI);
+    const leftRoof = new THREE.Mesh(roofGeomBox, glassMat);
+    leftRoof.position.set(-halfWidth / 2, (wallTopY + ridgeY) / 2, zCenter);
+    leftRoof.rotation.z = slopeAngle;
+    ghGroup.add(leftRoof);
 
-    const frontArch = new THREE.Mesh(archGeom, glassMat);
-    frontArch.rotation.x = -Math.PI / 2;
-    frontArch.position.set(0, baseHeight + wallHeight, -45);
-    ghGroup.add(frontArch);
+    const rightRoof = new THREE.Mesh(roofGeomBox, glassMat);
+    rightRoof.position.set(halfWidth / 2, (wallTopY + ridgeY) / 2, zCenter);
+    rightRoof.rotation.z = -slopeAngle;
+    ghGroup.add(rightRoof);
 
-    const backArch = new THREE.Mesh(archGeom, glassMat);
-    backArch.rotation.x = -Math.PI / 2;
-    backArch.position.set(0, baseHeight + wallHeight, 5);
-    ghGroup.add(backArch);
+    // Triangular gable ends (front and back) — glass panes filling the gable
+    const gableShape = new THREE.Shape();
+    gableShape.moveTo(-halfWidth, 0);
+    gableShape.lineTo(halfWidth, 0);
+    gableShape.lineTo(0, slopeRise);
+    gableShape.closePath();
+    const gableGeom = new THREE.ExtrudeGeometry(gableShape, { depth: 0.1, bevelEnabled: false });
+
+    const frontGable = new THREE.Mesh(gableGeom, glassMat);
+    frontGable.position.set(0, wallTopY, -45);
+    frontGable.rotation.y = Math.PI; // face inward
+    ghGroup.add(frontGable);
+
+    const backGable = new THREE.Mesh(gableGeom, glassMat);
+    backGable.position.set(0, wallTopY, 5);
+    ghGroup.add(backGable);
+
+    // ---- Verdigris copper mullions (vertical bars dividing each glass wall into panes) ----
+    const mullionThickness = 0.06;
+    const mullionDepth = 0.08;
+
+    // Long-wall mullions (left & right). 8 panes per wall → 9 mullions each.
+    const longPanes = 8;
+    const longMullionGeom = new THREE.BoxGeometry(mullionDepth, wallHeight, mullionThickness);
+    for (let i = 0; i <= longPanes; i++) {
+        const z = -45 + (totalLength / longPanes) * i;
+        for (const x of [-halfWidth - 0.04, halfWidth + 0.04]) {
+            const m = new THREE.Mesh(longMullionGeom, copperMat);
+            m.position.set(x, wallTopY - wallHeight / 2, z);
+            m.userData.detail = true;
+            ghGroup.add(m);
+        }
+    }
+
+    // Short-wall mullions (front & back). 4 panes per wall → 5 mullions, but skip door area on back.
+    const shortPanes = 4;
+    const shortMullionGeom = new THREE.BoxGeometry(mullionThickness, wallHeight, mullionDepth);
+    for (let i = 0; i <= shortPanes; i++) {
+        const x = -halfWidth + (totalWidth / shortPanes) * i;
+        // Front wall (z = -45)
+        const fm = new THREE.Mesh(shortMullionGeom, copperMat);
+        fm.position.set(x, wallTopY - wallHeight / 2, -45 - 0.04);
+        fm.userData.detail = true;
+        ghGroup.add(fm);
+        // Back wall (z = 5) — skip if mullion would land in the door gap
+        if (Math.abs(x) > 1.05) {
+            const bm = new THREE.Mesh(shortMullionGeom, copperMat);
+            bm.position.set(x, wallTopY - wallHeight / 2, 5 + 0.04);
+            bm.userData.detail = true;
+            ghGroup.add(bm);
+        }
+    }
+
+    // Horizontal mid-rail along all four walls (one long rail per wall)
+    const midY = wallTopY - wallHeight / 2;
+    const longRailGeom = new THREE.BoxGeometry(mullionDepth, mullionThickness, totalLength);
+    for (const x of [-halfWidth - 0.04, halfWidth + 0.04]) {
+        const rail = new THREE.Mesh(longRailGeom, copperMat);
+        rail.position.set(x, midY, zCenter);
+        rail.userData.detail = true;
+        ghGroup.add(rail);
+    }
+    const frontRail = new THREE.Mesh(
+        new THREE.BoxGeometry(totalWidth, mullionThickness, mullionDepth),
+        copperMat
+    );
+    frontRail.position.set(0, midY, -45 - 0.04);
+    frontRail.userData.detail = true;
+    ghGroup.add(frontRail);
+
+    // Cap rail at top of glass walls (along all four walls) — copper
+    const longCapGeom = new THREE.BoxGeometry(0.12, 0.1, totalLength);
+    for (const x of [-halfWidth, halfWidth]) {
+        const cap = new THREE.Mesh(longCapGeom, copperMat);
+        cap.position.set(x, wallTopY, zCenter);
+        cap.userData.detail = true;
+        ghGroup.add(cap);
+    }
+    const shortCapGeom = new THREE.BoxGeometry(totalWidth, 0.1, 0.12);
+    const frontCap = new THREE.Mesh(shortCapGeom, copperMat);
+    frontCap.position.set(0, wallTopY, -45);
+    frontCap.userData.detail = true;
+    ghGroup.add(frontCap);
+    const backCap = new THREE.Mesh(shortCapGeom, copperMat);
+    backCap.position.set(0, wallTopY, 5);
+    backCap.userData.detail = true;
+    ghGroup.add(backCap);
 
     // Glass Door at the back wall (entrance)
     const doorGroup = new THREE.Group();
     doorGroup.position.set(0, doorHeight / 2, 5.05); // Slightly offset from back wall
 
     // Door Frame
-    const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x405040 }); // Dark metal frame
+    const doorFrameMat = getMetalFrameMaterial();
     const doorFrameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, doorHeight, 0.25), doorFrameMat);
     doorFrameLeft.position.set(-doorWidth / 2 + 0.05, 0, 0);
     doorGroup.add(doorFrameLeft);
@@ -475,12 +996,135 @@ function buildGreenhouse() {
     doorGroup.add(doorGlass);
 
     // Door handle
-    const handleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
+    const handleMat = getDoorHandleMaterial();
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), handleMat);
     handle.position.set(doorWidth / 2 - 0.2, 0, 0.15);
     doorGroup.add(handle);
 
     ghGroup.add(doorGroup);
+
+    // ---- Gable trusses (weathered wood) running across the width at intervals ----
+    const trussCount = 9;
+    const trussSpacing = totalLength / (trussCount - 1);
+    const trussBeamThickness = 0.08;
+    const trussBeamGeom = new THREE.BoxGeometry(slopeLength, trussBeamThickness, trussBeamThickness);
+    const tieBeamGeom = new THREE.BoxGeometry(totalWidth, trussBeamThickness, trussBeamThickness);
+
+    for (let i = 0; i < trussCount; i++) {
+        const z = -45 + i * trussSpacing;
+        // Left slope beam
+        const leftBeam = new THREE.Mesh(trussBeamGeom, rafterMat);
+        leftBeam.position.set(-halfWidth / 2, (wallTopY + ridgeY) / 2 - 0.06, z);
+        leftBeam.rotation.z = slopeAngle;
+        ghGroup.add(leftBeam);
+        // Right slope beam
+        const rightBeam = new THREE.Mesh(trussBeamGeom, rafterMat);
+        rightBeam.position.set(halfWidth / 2, (wallTopY + ridgeY) / 2 - 0.06, z);
+        rightBeam.rotation.z = -slopeAngle;
+        ghGroup.add(rightBeam);
+        // Horizontal tie beam at wall top
+        const tieBeam = new THREE.Mesh(tieBeamGeom, rafterMat);
+        tieBeam.position.set(0, wallTopY - 0.05, z);
+        ghGroup.add(tieBeam);
+    }
+
+    // Ridge beam along the roof apex
+    const ridge = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.12, totalLength),
+        rafterMat
+    );
+    ridge.position.set(0, ridgeY - 0.06, zCenter);
+    ghGroup.add(ridge);
+
+    // ---- Trellis lattice over the central aisle with hanging Edison bulbs ----
+    const trellisY = 3.0;
+    const trellisBeamGeom = new THREE.BoxGeometry(0.07, 0.09, totalLength - 4);
+    // Two long beams running the length
+    for (const tx of [-1.8, 1.8]) {
+        const beam = new THREE.Mesh(trellisBeamGeom, rafterMat);
+        beam.position.set(tx, trellisY, zCenter);
+        beam.userData.detail = true;
+        ghGroup.add(beam);
+    }
+    // Cross slats every 1.5m
+    const slatSpacing = 1.5;
+    const slatCount = Math.floor((totalLength - 4) / slatSpacing);
+    const slatStartZ = -45 + 2;
+    const slatGeom = new THREE.BoxGeometry(3.8, 0.04, 0.04);
+    for (let i = 0; i <= slatCount; i++) {
+        const z = slatStartZ + i * slatSpacing;
+        const slat = new THREE.Mesh(slatGeom, rafterMat);
+        slat.position.set(0, trellisY + 0.05, z);
+        slat.userData.detail = true;
+        ghGroup.add(slat);
+    }
+    // A few diagonal lattice slats for visual texture
+    const diagGeom = new THREE.BoxGeometry(0.04, 0.04, slatSpacing * 1.2);
+    for (let i = 0; i < slatCount; i += 2) {
+        const z = slatStartZ + i * slatSpacing + slatSpacing / 2;
+        const diag = new THREE.Mesh(diagGeom, rafterMat);
+        diag.position.set((i % 4 === 0 ? 1 : -1) * 0.9, trellisY + 0.1, z);
+        diag.rotation.y = (i % 4 === 0 ? 1 : -1) * Math.PI / 5;
+        diag.userData.detail = true;
+        ghGroup.add(diag);
+    }
+
+    // Edison-style bulbs hanging from the trellis (one every 6m → ~9 bulbs)
+    const bulbSpacing = 6;
+    const bulbCount = Math.floor((totalLength - 4) / bulbSpacing) + 1;
+    const cordMat = new THREE.MeshBasicMaterial({ color: 0x2b1f17 });
+    const socketMat = new THREE.MeshStandardMaterial({ color: 0x363330, roughness: 0.55, metalness: 0.6 });
+    const cordGeom = new THREE.CylinderGeometry(0.008, 0.008, 0.5, 6);
+    const socketGeom = new THREE.CylinderGeometry(0.04, 0.045, 0.07, 10);
+    const bulbGeom = new THREE.SphereGeometry(0.05, 12, 10);
+    bulbGeom.scale(1, 1.25, 1);
+    const filamentGeom = new THREE.TorusGeometry(0.012, 0.002, 4, 10);
+    const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffaa55 });
+
+    for (let i = 0; i < bulbCount; i++) {
+        const bz = slatStartZ + 1 + i * bulbSpacing;
+        if (bz > 5 - 2) break;
+
+        const cord = new THREE.Mesh(cordGeom, cordMat);
+        cord.position.set(0, trellisY - 0.25, bz);
+        cord.userData.detail = true;
+        ghGroup.add(cord);
+
+        const socket = new THREE.Mesh(socketGeom, socketMat);
+        socket.position.set(0, trellisY - 0.5, bz);
+        socket.userData.detail = true;
+        ghGroup.add(socket);
+
+        const bulbMat = makeBulbMaterial();
+        const bulb = new THREE.Mesh(bulbGeom, bulbMat);
+        bulb.position.set(0, trellisY - 0.6, bz);
+        bulb.userData.detail = true;
+        ghGroup.add(bulb);
+        bulbMeshes.push(bulb);
+
+        const filament = new THREE.Mesh(filamentGeom, filamentMat);
+        filament.position.copy(bulb.position);
+        filament.userData.detail = true;
+        ghGroup.add(filament);
+
+        const light = new THREE.PointLight(0xffaa55, 0, 6, 2);
+        light.position.set(0, trellisY - 0.6, bz);
+        light.castShadow = false;
+        ghGroup.add(light);
+        bulbLights.push(light);
+    }
+
+    // Selectively set shadow casting/receiving:
+    // - Skip detail meshes (mullions, slats, bulbs) and transparent glass — they don't
+    //   produce useful shadows but cost real GPU time.
+    // - Opaque structural meshes still cast and receive shadows.
+    ghGroup.traverse(obj => {
+        if (!obj.isMesh) return;
+        const isDetail = obj.userData.detail === true;
+        const isGlass = obj.material === glassMat;
+        obj.castShadow = !isDetail && !isGlass;
+        obj.receiveShadow = !isDetail;
+    });
 
     scene.add(ghGroup);
 }
@@ -514,29 +1158,118 @@ function createTable(x, z, material) {
     scene.add(tableGroup);
 }
 
-function createEmptyPot(index, pos) {
-    const potGroup = new THREE.Group();
-    potGroup.position.copy(pos);
-    potGroup.userData = {
-        isEmpty: true,
-        positionIndex: index
-    };
+function buildPotMeshes(group) {
+    const potMat = getPotMaterial();
+    const soilMat = getSoilMaterial();
 
-    const potGeom = new THREE.CylinderGeometry(0.15, 0.1, 0.2, 16);
-    const potMat = new THREE.MeshStandardMaterial({ color: 0xcd5c5c, roughness: 0.9 });
-    const pot = new THREE.Mesh(potGeom, potMat);
-    pot.position.y = 0.1;
-    pot.castShadow = true;
-    potGroup.add(pot);
+    const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.155, 0.105, 0.2, 28, 1),
+        potMat
+    );
+    body.position.y = 0.1;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
 
-    const dirtGeom = new THREE.CylinderGeometry(0.14, 0.14, 0.05, 16);
-    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0b });
-    const dirt = new THREE.Mesh(dirtGeom, dirtMat);
-    dirt.position.y = 0.18;
-    potGroup.add(dirt);
+    const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.155, 0.012, 8, 28),
+        potMat
+    );
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.205;
+    rim.castShadow = true;
+    rim.receiveShadow = true;
+    group.add(rim);
 
-    objects.push(potGroup);
-    scene.add(potGroup);
+    // Soil mound (slightly domed)
+    const soil = new THREE.Mesh(
+        new THREE.SphereGeometry(0.142, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2.5),
+        soilMat
+    );
+    soil.position.y = 0.18;
+    soil.scale.y = 0.45;
+    soil.receiveShadow = true;
+    soil.castShadow = true;
+    group.add(soil);
+}
+
+function createEmptyPotsInstanced() {
+    const count = tablePositions.length;
+    const potMat = getPotMaterial();
+    const soilMat = getSoilMaterial();
+
+    // Lower-poly geometries for the instanced empty pots — they're seen at distance
+    const bodyGeom = new THREE.CylinderGeometry(0.155, 0.105, 0.2, 18, 1);
+    const rimGeom = new THREE.TorusGeometry(0.155, 0.012, 6, 18);
+    const soilGeom = new THREE.SphereGeometry(0.142, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.5);
+
+    const bodies = new THREE.InstancedMesh(bodyGeom, potMat, count);
+    const rims = new THREE.InstancedMesh(rimGeom, potMat, count);
+    const soils = new THREE.InstancedMesh(soilGeom, soilMat, count);
+
+    [bodies, rims, soils].forEach(m => {
+        m.castShadow = true;
+        m.receiveShadow = true;
+        m.userData.isEmptyPotMesh = true;
+    });
+
+    const tmp = new THREE.Matrix4();
+    const noRot = new THREE.Quaternion();
+    const rimRot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+    const baseScale = new THREE.Vector3(1, 1, 1);
+    const soilScale = new THREE.Vector3(1, 0.45, 1);
+
+    for (let i = 0; i < count; i++) {
+        const p = tablePositions[i];
+        emptyPotOccupied.push(false);
+
+        tmp.compose(new THREE.Vector3(p.x, p.y + 0.1, p.z), noRot, baseScale);
+        bodies.setMatrixAt(i, tmp);
+
+        tmp.compose(new THREE.Vector3(p.x, p.y + 0.205, p.z), rimRot, baseScale);
+        rims.setMatrixAt(i, tmp);
+
+        tmp.compose(new THREE.Vector3(p.x, p.y + 0.18, p.z), noRot, soilScale);
+        soils.setMatrixAt(i, tmp);
+    }
+    bodies.instanceMatrix.needsUpdate = true;
+    rims.instanceMatrix.needsUpdate = true;
+    soils.instanceMatrix.needsUpdate = true;
+
+    scene.add(bodies);
+    scene.add(rims);
+    scene.add(soils);
+
+    emptyPotInstances = { bodies, rims, soils };
+}
+
+function setEmptyPotOccupied(index, occupied) {
+    if (!emptyPotInstances) return;
+    emptyPotOccupied[index] = occupied;
+    const tmp = new THREE.Matrix4();
+    const noRot = new THREE.Quaternion();
+    const rimRot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+
+    if (occupied) {
+        // Hide via zero-scale matrix
+        const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+        emptyPotInstances.bodies.setMatrixAt(index, zero);
+        emptyPotInstances.rims.setMatrixAt(index, zero);
+        emptyPotInstances.soils.setMatrixAt(index, zero);
+    } else {
+        const p = tablePositions[index];
+        const s = new THREE.Vector3(1, 1, 1);
+        const soilS = new THREE.Vector3(1, 0.45, 1);
+        tmp.compose(new THREE.Vector3(p.x, p.y + 0.1, p.z), noRot, s);
+        emptyPotInstances.bodies.setMatrixAt(index, tmp);
+        tmp.compose(new THREE.Vector3(p.x, p.y + 0.205, p.z), rimRot, s);
+        emptyPotInstances.rims.setMatrixAt(index, tmp);
+        tmp.compose(new THREE.Vector3(p.x, p.y + 0.18, p.z), noRot, soilS);
+        emptyPotInstances.soils.setMatrixAt(index, tmp);
+    }
+    emptyPotInstances.bodies.instanceMatrix.needsUpdate = true;
+    emptyPotInstances.rims.instanceMatrix.needsUpdate = true;
+    emptyPotInstances.soils.instanceMatrix.needsUpdate = true;
 }
 
 function createPlant(todoData, isLoad = false) {
@@ -548,7 +1281,10 @@ function createPlant(todoData, isLoad = false) {
 
     const pos = tablePositions[positionIndex];
 
-    // Find and remove the existing empty pot or plant at this position
+    // Hide the instanced empty pot at this slot (the plant brings its own pot meshes)
+    setEmptyPotOccupied(positionIndex, true);
+
+    // If a plant already lives here, dispose of it before creating the replacement
     const existingObjIndex = objects.findIndex(obj => obj.userData.positionIndex === positionIndex);
     if (existingObjIndex > -1) {
         const existingObj = objects[existingObjIndex];
@@ -566,75 +1302,69 @@ function createPlant(todoData, isLoad = false) {
         isEmpty: false
     };
 
-    // 1. Pot
-    const potGeom = new THREE.CylinderGeometry(0.15, 0.1, 0.2, 16);
-    const potMat = new THREE.MeshStandardMaterial({ color: 0xcd5c5c, roughness: 0.9 });
-    const pot = new THREE.Mesh(potGeom, potMat);
-    pot.position.y = 0.1;
-    pot.castShadow = true;
-    plantGroup.add(pot);
-
-    // 2. Dirt in pot
-    const dirtGeom = new THREE.CylinderGeometry(0.14, 0.14, 0.05, 16);
-    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0b });
-    const dirt = new THREE.Mesh(dirtGeom, dirtMat);
-    dirt.position.y = 0.18;
-    plantGroup.add(dirt);
+    // 1. Pot + soil
+    buildPotMeshes(plantGroup);
 
     if (todoData.completed) {
         // Render as blooming flower
-        const stemGeom = new THREE.CylinderGeometry(0.015, 0.02, 0.4, 8);
+        const stemGeom = new THREE.CylinderGeometry(0.014, 0.022, 0.4, 12);
         stemGeom.translate(0, 0.2, 0);
-        const plantMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
+        const plantMat = new THREE.MeshStandardMaterial({
+            color: 0x4caf50,
+            roughness: 0.7,
+            metalness: 0
+        });
         const stem = new THREE.Mesh(stemGeom, plantMat);
         stem.position.y = 0.2;
         stem.castShadow = true;
         plantGroup.add(stem);
 
-        const flowerGeom = new THREE.DodecahedronGeometry(0.1);
-        const flowerMat = new THREE.MeshStandardMaterial({ color: 0xff69b4, roughness: 0.4 }); // Hot pink bloom
-        const flower = new THREE.Mesh(flowerGeom, flowerMat);
-        flower.position.y = 0.4; // Top of stem
+        const flower = buildFlower();
+        flower.position.y = 0.42;
         stem.add(flower);
 
-        // Droop slightly less
-        stem.rotation.x = Math.PI / 8;
+        // Slight bend
+        stem.rotation.x = Math.PI / 12;
+        stem.rotation.z = (Math.random() - 0.5) * 0.15;
     } else {
         // 3. Stem (will bend based on health)
-        const stemGeom = new THREE.CylinderGeometry(0.015, 0.02, 0.4, 8);
+        const stemGeom = new THREE.CylinderGeometry(0.014, 0.022, 0.4, 12);
         // Move pivot point to bottom of stem
         stemGeom.translate(0, 0.2, 0);
-        const plantMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
+        const plantMat = new THREE.MeshStandardMaterial({
+            color: 0x4caf50,
+            roughness: 0.7,
+            metalness: 0
+        });
         const stem = new THREE.Mesh(stemGeom, plantMat);
         stem.position.y = 0.2; // Start at dirt level
         stem.castShadow = true;
         stem.name = "stem";
         plantGroup.add(stem);
 
-        // 4. Leaves (attached to stem)
-        const leafGeom = new THREE.PlaneGeometry(0.16, 0.16);
-        if (!window.sharedLeafMat) {
-            window.sharedLeafMat = new THREE.MeshStandardMaterial({
-                map: createLeafTexture(),
-                alphaMap: createLeafAlphaTexture(),
-                transparent: true,
-                side: THREE.DoubleSide,
-                alphaTest: 0.5
-            });
-        }
-        const leafMat = window.sharedLeafMat;
+        // 4. Leaves — multiple curved planes at varied angles for fullness
+        if (!sharedLeafMat) sharedLeafMat = createLeafMaterial();
+        const perPlantLeafMat = sharedLeafMat.clone(); // clone so we can color independently
+        const leafGeom = createLeafGeometry();
 
-        const leaf1 = new THREE.Mesh(leafGeom, leafMat);
-        leaf1.position.set(0.05, 0.2, 0);
-        leaf1.rotation.z = -Math.PI / 4;
-        leaf1.name = "leaf1";
-        stem.add(leaf1);
+        const leafConfigs = [
+            { y: 0.18, ry: 0,           rz: -Math.PI / 3.2, scale: 1.0 },
+            { y: 0.22, ry: Math.PI / 2, rz: -Math.PI / 3.2, scale: 0.95 },
+            { y: 0.28, ry: Math.PI / 4, rz:  Math.PI / 3.2, scale: 1.05 },
+            { y: 0.32, ry: Math.PI * 0.75, rz: -Math.PI / 4, scale: 0.9 },
+            { y: 0.36, ry: Math.PI * 1.2, rz:  Math.PI / 3.5, scale: 0.85 }
+        ];
 
-        const leaf2 = new THREE.Mesh(leafGeom, leafMat);
-        leaf2.position.set(-0.05, 0.3, 0);
-        leaf2.rotation.z = Math.PI / 4;
-        leaf2.name = "leaf2";
-        stem.add(leaf2);
+        leafConfigs.forEach((cfg, i) => {
+            const leaf = new THREE.Mesh(leafGeom, perPlantLeafMat);
+            leaf.position.set(0, cfg.y, 0);
+            leaf.rotation.set(0, cfg.ry, cfg.rz);
+            leaf.scale.setScalar(cfg.scale * 0.9);
+            // Shadow casting disabled — alpha-tested shadows are expensive and
+            // leaves are too small to read clearly in shadow anyway.
+            leaf.name = i === 0 ? "leaf1" : (i === 1 ? "leaf2" : `leaf${i + 1}`);
+            stem.add(leaf);
+        });
     }
 
     // Save reference for interaction and updates
@@ -649,6 +1379,123 @@ function createPlant(todoData, isLoad = false) {
     }
 
     return true;
+}
+
+// --- Sun position (SunCalc algorithm) and day/night lighting ---
+
+function computeSunPosition(date, lat, lng) {
+    const rad = Math.PI / 180;
+    const J1970 = 2440588;
+    const J2000 = 2451545;
+    const e = rad * 23.4397; // obliquity of the Earth
+
+    const toJulian = (d) => d.getTime() / 86400000 - 0.5 + J1970;
+    const toDays = (d) => toJulian(d) - J2000;
+
+    const rightAsc = (l, b) => Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l));
+    const decl = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+    const azimuthFn = (H, phi, dec) => Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi));
+    const altitudeFn = (H, phi, dec) => Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+    const sidereal = (d, lw) => rad * (280.16 + 360.9856235 * d) - lw;
+
+    const sunMeanAnomaly = (d) => rad * (357.5291 + 0.98560028 * d);
+    const eclipticLong = (M) => {
+        const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+        const P = rad * 102.9372;
+        return M + C + P + Math.PI;
+    };
+
+    const d = toDays(date);
+    const M = sunMeanAnomaly(d);
+    const L = eclipticLong(M);
+    const ra = rightAsc(L, 0);
+    const dec = decl(L, 0);
+
+    const lw = rad * -lng;
+    const phi = rad * lat;
+    const H = sidereal(d, lw) - ra;
+
+    return {
+        altitude: altitudeFn(H, phi, dec),     // radians; >0 means above horizon
+        azimuth: azimuthFn(H, phi, dec) + Math.PI // radians from north (0=N, π/2=E, π=S, 3π/2=W)
+    };
+}
+
+function updateSunAndLighting() {
+    if (!sky || !sunLight) return;
+
+    const sun = computeSunPosition(new Date(), SUN_LOCATION.lat, SUN_LOCATION.lng);
+    const elev = sun.altitude;
+    const azim = sun.azimuth;
+    const altDeg = elev * 180 / Math.PI;
+
+    // World convention: north = -Z, east = +X.
+    const dir = new THREE.Vector3(
+        Math.sin(azim) * Math.cos(elev),
+        Math.sin(elev),
+        -Math.cos(azim) * Math.cos(elev)
+    );
+
+    sky.material.uniforms.sunPosition.value.copy(dir);
+    sunLight.position.copy(dir).multiplyScalar(40);
+
+    // dayness: 1 fully day, 0 fully night, smooth between altitude -6° → +5°
+    const dayness = THREE.MathUtils.clamp((altDeg + 6) / 11, 0, 1);
+    const nightness = 1 - dayness;
+
+    sunLight.intensity = 3.0 * dayness;
+    skyFill.intensity = 0.45 * dayness + 0.04 * nightness;
+    warmFill.intensity = 0.6 * dayness + 0.05 * nightness;
+
+    // Atmosphere: thinner Rayleigh and lower turbidity at night → darker sky
+    sky.material.uniforms.rayleigh.value = 1.4 * dayness + 0.25 * nightness;
+    sky.material.uniforms.turbidity.value = 6 * dayness + 1.2 * nightness;
+
+    // Edison bulbs glow at night. Setting visible=false prunes them from the
+    // PBR shader's light list entirely — big win during the day.
+    const bulbsOn = nightness > 0.01;
+    bulbLights.forEach(light => {
+        light.visible = bulbsOn;
+        light.intensity = nightness * 4.5;
+    });
+    bulbMeshes.forEach(mesh => {
+        mesh.material.emissiveIntensity = nightness * 1.6;
+    });
+}
+
+// --- Raycasting helpers — handle both regular Plant Groups and InstancedMesh empty pots ---
+function gatherIntersectables() {
+    const list = [];
+    for (const group of objects) {
+        for (const child of group.children) list.push(child);
+    }
+    if (emptyPotInstances) {
+        list.push(emptyPotInstances.bodies);
+        list.push(emptyPotInstances.rims);
+        list.push(emptyPotInstances.soils);
+    }
+    return list;
+}
+
+// Classify the first raycast hit. Returns { kind: 'empty'|'plant'|null, ... }
+function classifyHit(hit) {
+    if (!hit || !hit.object) return { kind: null };
+    const obj = hit.object;
+    if (obj.userData && obj.userData.isEmptyPotMesh) {
+        const idx = hit.instanceId;
+        if (idx === undefined || emptyPotOccupied[idx]) return { kind: null };
+        return { kind: 'empty', index: idx };
+    }
+    let target = obj;
+    while (target && target.userData && target.userData.id === undefined) {
+        target = target.parent;
+        if (!target || target === scene) return { kind: null };
+    }
+    if (target.userData && target.userData.id) {
+        const todo = todos.find(t => t.id === target.userData.id);
+        if (todo) return { kind: 'plant', todo };
+    }
+    return { kind: null };
 }
 
 // Helper to clean up 3D objects
@@ -712,6 +1559,7 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 function animate() {
@@ -719,7 +1567,7 @@ function animate() {
 
     const time = performance.now();
 
-    if (controls.isLocked === true) {
+    if (controls.isLocked === true || mobileActive) {
         const delta = (time - prevTime) / 1000;
 
         velocity.x -= velocity.x * 10.0 * delta;
@@ -744,42 +1592,18 @@ function animate() {
 
         // Hover raycasting
         raycaster.setFromCamera(mouse, camera);
-        const intersectableMeshes = [];
-        objects.forEach(group => {
-            group.children.forEach(child => intersectableMeshes.push(child));
-        });
-
-        const intersects = raycaster.intersectObjects(intersectableMeshes);
+        const intersects = raycaster.intersectObjects(gatherIntersectables(), false);
         const tooltip = document.getElementById('hover-tooltip');
-
-        if (intersects.length > 0) {
-            let target = intersects[0].object;
-            while (target && target.userData && target.userData.id === undefined && target.userData.isEmpty === undefined) {
-                target = target.parent;
-                if (target === scene) break;
-            }
-
-            if (target && target.userData) {
-                if (target.userData.isEmpty) {
-                    tooltip.textContent = "Click to plant a new to-do";
-                    tooltip.style.display = 'block';
-                } else if (target.userData.id) {
-                    const todo = todos.find(t => t.id === target.userData.id);
-                    if (todo) {
-                        if (todo.completed) {
-                            tooltip.textContent = `Completed: ${todo.title}`;
-                        } else {
-                            const statusText = todo.status || "Not Started";
-                            tooltip.textContent = `${todo.title}\n[${statusText}]`;
-                        }
-                        tooltip.style.display = 'block';
-                    }
-                } else {
-                    tooltip.style.display = 'none';
-                }
-            } else {
-                tooltip.style.display = 'none';
-            }
+        const hit = classifyHit(intersects[0]);
+        if (hit.kind === 'empty') {
+            tooltip.textContent = "Click to plant a new to-do";
+            tooltip.style.display = 'block';
+        } else if (hit.kind === 'plant') {
+            const todo = hit.todo;
+            tooltip.textContent = todo.completed
+                ? `Completed: ${todo.title}`
+                : `${todo.title}\n[${todo.status || "Not Started"}]`;
+            tooltip.style.display = 'block';
         } else {
             tooltip.style.display = 'none';
         }
@@ -790,9 +1614,19 @@ function animate() {
     // Update plant decay
     updateDecay();
 
+    // Refresh sun position every 30s — slow real-time motion
+    if (time - lastSunUpdate > 30000) {
+        lastSunUpdate = time;
+        updateSunAndLighting();
+    }
+
     prevTime = time;
 
-    renderer.render(scene, camera);
+    if (composer) {
+        composer.render();
+    } else {
+        renderer.render(scene, camera);
+    }
 }
 
 // --- Decay Logic ---
@@ -887,59 +1721,34 @@ let activePotIndex = null;
 
 // Add click listener for raycasting
 document.addEventListener('click', function() {
-    if (controls.isLocked) {
-        // Only raycast if controls are locked (user is exploring)
-        raycaster.setFromCamera(mouse, camera);
-
-        // Intersect against all children of the plant groups
-        const intersectableMeshes = [];
-        objects.forEach(group => {
-            group.children.forEach(child => intersectableMeshes.push(child));
-        });
-
-        const intersects = raycaster.intersectObjects(intersectableMeshes);
-
-        if (intersects.length > 0) {
-            // Find the parent group which holds the userData
-            let target = intersects[0].object;
-            while (target && target.userData && target.userData.id === undefined && target.userData.isEmpty === undefined) {
-                target = target.parent;
-                if(target === scene) break; // sanity check
-            }
-
-            if (target && target.userData) {
-                if (target.userData.isEmpty) {
-                    activePotIndex = target.userData.positionIndex;
-                    openAddTodoModal();
-                } else if (target.userData.id) {
-                    const todoId = target.userData.id;
-                    const todo = todos.find(t => t.id === todoId);
-
-                    if (todo && !todo.completed) {
-                        openTodoModal(todo);
-                    }
-                }
-            }
-        }
+    if (!controls.isLocked) return;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(gatherIntersectables(), false);
+    const hit = classifyHit(intersects[0]);
+    if (hit.kind === 'empty') {
+        activePotIndex = hit.index;
+        openAddTodoModal();
+    } else if (hit.kind === 'plant' && !hit.todo.completed) {
+        openTodoModal(hit.todo);
     }
 });
 
 function openAddTodoModal() {
-    controls.unlock();
+    pauseForModal();
     document.getElementById('add-todo-modal').style.display = 'flex';
 }
 
 function closeAddTodoModal() {
     document.getElementById('add-todo-modal').style.display = 'none';
     activePotIndex = null;
-    controls.lock();
+    startExploring();
 }
 
 document.getElementById('close-add-modal').addEventListener('click', closeAddTodoModal);
 
 function openTodoModal(todo) {
     activeTodo = todo;
-    controls.unlock(); // Unlock camera to use mouse
+    pauseForModal();
 
     document.getElementById('modal-title').textContent = todo.title;
     document.getElementById('modal-desc').textContent = todo.desc;
@@ -959,7 +1768,7 @@ function openTodoModal(todo) {
 function closeTodoModal() {
     document.getElementById('todo-modal').style.display = 'none';
     activeTodo = null;
-    controls.lock(); // Re-lock to return to walking
+    startExploring();
 }
 
 document.getElementById('close-modal').addEventListener('click', closeTodoModal);
@@ -1010,3 +1819,167 @@ document.getElementById('btn-complete').addEventListener('click', function() {
         closeTodoModal();
     }
 });
+
+// --- Mobile / touch helpers ---
+
+function resetMovement() {
+    moveForward = false;
+    moveBackward = false;
+    moveLeft = false;
+    moveRight = false;
+}
+
+function startExploring() {
+    if (isTouchDevice) {
+        mobileActive = true;
+        blocker.style.display = 'none';
+        uiContainer.style.display = 'none';
+        document.getElementById('mobile-controls').classList.add('active');
+    } else {
+        controls.lock();
+    }
+}
+
+function pauseForModal() {
+    if (isTouchDevice) {
+        mobileActive = false;
+        resetMovement();
+        document.getElementById('mobile-controls').classList.remove('active');
+    } else {
+        controls.unlock();
+    }
+}
+
+function showMobileMenu() {
+    mobileActive = false;
+    resetMovement();
+    document.getElementById('mobile-controls').classList.remove('active');
+    uiContainer.style.display = 'block';
+}
+
+function setupTouchControls() {
+    const joystick = document.getElementById('joystick');
+    const stick = document.getElementById('stick');
+    const lookZone = document.getElementById('look-zone');
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    const lookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+    const JOY_RADIUS = 50;
+    const TAP_THRESHOLD_PX = 10;
+    const LOOK_SENSITIVITY = 0.005;
+
+    // ----- Joystick -----
+    let joyTouchId = null;
+    let joyCenterX = 0;
+    let joyCenterY = 0;
+
+    joystick.addEventListener('touchstart', (e) => {
+        if (joyTouchId !== null) return;
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        joyTouchId = touch.identifier;
+        const rect = joystick.getBoundingClientRect();
+        joyCenterX = rect.left + rect.width / 2;
+        joyCenterY = rect.top + rect.height / 2;
+    }, { passive: false });
+
+    joystick.addEventListener('touchmove', (e) => {
+        for (const touch of e.changedTouches) {
+            if (touch.identifier !== joyTouchId) continue;
+            e.preventDefault();
+            const dx = touch.clientX - joyCenterX;
+            const dy = touch.clientY - joyCenterY;
+            const dist = Math.min(JOY_RADIUS, Math.hypot(dx, dy));
+            const angle = Math.atan2(dy, dx);
+            const sx = Math.cos(angle) * dist;
+            const sy = Math.sin(angle) * dist;
+            stick.style.transform = `translate(${sx}px, ${sy}px)`;
+            const nx = sx / JOY_RADIUS;
+            const ny = sy / JOY_RADIUS;
+            moveLeft = nx < -0.3;
+            moveRight = nx > 0.3;
+            moveForward = ny < -0.3;
+            moveBackward = ny > 0.3;
+        }
+    }, { passive: false });
+
+    function endJoystick(e) {
+        for (const touch of e.changedTouches) {
+            if (touch.identifier !== joyTouchId) continue;
+            e.preventDefault();
+            joyTouchId = null;
+            stick.style.transform = '';
+            resetMovement();
+        }
+    }
+    joystick.addEventListener('touchend', endJoystick, { passive: false });
+    joystick.addEventListener('touchcancel', endJoystick, { passive: false });
+
+    // ----- Look zone (drag to rotate, tap to interact) -----
+    let lookTouchId = null;
+    let lookLastX = 0;
+    let lookLastY = 0;
+    let lookMoved = 0;
+
+    lookZone.addEventListener('touchstart', (e) => {
+        if (lookTouchId !== null) return;
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        lookTouchId = touch.identifier;
+        lookLastX = touch.clientX;
+        lookLastY = touch.clientY;
+        lookMoved = 0;
+    }, { passive: false });
+
+    lookZone.addEventListener('touchmove', (e) => {
+        for (const touch of e.changedTouches) {
+            if (touch.identifier !== lookTouchId) continue;
+            e.preventDefault();
+            const dx = touch.clientX - lookLastX;
+            const dy = touch.clientY - lookLastY;
+            lookLastX = touch.clientX;
+            lookLastY = touch.clientY;
+            lookMoved += Math.abs(dx) + Math.abs(dy);
+
+            lookEuler.setFromQuaternion(camera.quaternion);
+            lookEuler.y -= dx * LOOK_SENSITIVITY;
+            lookEuler.x -= dy * LOOK_SENSITIVITY;
+            lookEuler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, lookEuler.x));
+            camera.quaternion.setFromEuler(lookEuler);
+        }
+    }, { passive: false });
+
+    function endLook(e) {
+        for (const touch of e.changedTouches) {
+            if (touch.identifier !== lookTouchId) continue;
+            const tappedX = touch.clientX;
+            const tappedY = touch.clientY;
+            const wasTap = lookMoved < TAP_THRESHOLD_PX;
+            lookTouchId = null;
+            if (wasTap && mobileActive) {
+                performTapInteraction(tappedX, tappedY);
+            }
+        }
+    }
+    lookZone.addEventListener('touchend', endLook, { passive: false });
+    lookZone.addEventListener('touchcancel', endLook, { passive: false });
+
+    // ----- Menu button -----
+    menuBtn.addEventListener('click', showMobileMenu);
+}
+
+function performTapInteraction(clientX, clientY) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const tapMouse = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+    raycaster.setFromCamera(tapMouse, camera);
+    const intersects = raycaster.intersectObjects(gatherIntersectables(), false);
+    const hit = classifyHit(intersects[0]);
+    if (hit.kind === 'empty') {
+        activePotIndex = hit.index;
+        openAddTodoModal();
+    } else if (hit.kind === 'plant' && !hit.todo.completed) {
+        openTodoModal(hit.todo);
+    }
+}

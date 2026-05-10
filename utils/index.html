@@ -130,6 +130,14 @@
       align-self: flex-start;
     }
 
+    /* Greenhouse card */
+    .card-greenhouse:hover {
+      box-shadow: 0 0 30px rgba(244, 143, 177, 0.2);
+      border-color: rgba(244, 143, 177, 0.35);
+    }
+    .card-greenhouse .card-title { color: #f48fb1; }
+    .card-greenhouse .card-tag { background: rgba(244, 143, 177, 0.12); color: #f48fb1; }
+
     /* Weather card */
     .card-weather:hover {
       box-shadow: 0 0 30px rgba(100, 181, 246, 0.2);
@@ -173,6 +181,13 @@
     <p class="tagline">Infographics, visualizers &amp; data tools</p>
 
     <div class="tool-grid">
+      <a href="greenhouse-todo/index.html" class="tool-card card-greenhouse">
+        <span class="card-icon">🌷</span>
+        <span class="card-title">Greenhouse To-Do</span>
+        <span class="card-desc">Cultivate your tasks in a virtual greenhouse — completed items bloom into flowers with local-storage persistence.</span>
+        <span class="card-tag">productivity</span>
+      </a>
+
       <a href="sky_weather_infographic.html" class="tool-card card-weather">
         <span class="card-icon">🌤️</span>
         <span class="card-title">Sky &amp; Weather</span>

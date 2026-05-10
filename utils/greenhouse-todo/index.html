@@ -18,11 +18,18 @@
     <div id="blocker">
         <div id="instructions">
             <h1>Greenhouse To-Do</h1>
-            <p>
+            <p class="desktop-instructions">
                 Click to enter the greenhouse.<br/>
                 WASD to move, Mouse to look around.<br/>
                 Aim at a plant and click to manage the to-do.<br/>
                 Press ESC to show the mouse and menu.
+            </p>
+            <p class="mobile-instructions">
+                Tap to enter the greenhouse.<br/>
+                Use the joystick to move.<br/>
+                Drag anywhere else to look around.<br/>
+                Tap a plant to manage the to-do.<br/>
+                Use the menu button (top-right) for options.
             </p>
         </div>
     </div>
@@ -87,9 +94,22 @@
         </div>
     </div>
 
-    <!-- Three.js and PointerLockControls -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
-    <script src="app.js"></script>
+    <!-- Mobile Controls (Shown on touch devices while exploring) -->
+    <div id="mobile-controls">
+        <div id="look-zone"></div>
+        <div id="joystick"><div id="stick"></div></div>
+        <button id="mobile-menu-btn" aria-label="Menu">&#9776;</button>
+    </div>
+
+    <!-- Three.js (modern PBR build with post-processing) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+    </script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>
