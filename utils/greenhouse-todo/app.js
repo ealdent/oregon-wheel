@@ -1402,139 +1402,140 @@ function buildGreenhouse() {
     ridge.position.set(0, ridgeY - 0.06, zCenter);
     ghGroup.add(ridge);
 
-    // ---- Trellis lattice over the central aisle with hanging Edison bulbs ----
+    // ---- Trellis: one above each row of tables (over x = ±3) ----
     const trellisY = 3.0;
-    const trellisBeamGeom = new THREE.BoxGeometry(0.07, 0.09, totalLength - 4);
-    // Two long beams running the length
-    for (const tx of [-1.8, 1.8]) {
-        const beam = new THREE.Mesh(trellisBeamGeom, rafterMat);
-        beam.position.set(tx, trellisY, zCenter);
-        beam.userData.detail = true;
-        ghGroup.add(beam);
-    }
-    // Cross slats every 1.5m
-    const slatSpacing = 1.5;
-    const slatCount = Math.floor((totalLength - 4) / slatSpacing);
-    const slatStartZ = -45 + 2;
-    const slatGeom = new THREE.BoxGeometry(3.8, 0.04, 0.04);
-    for (let i = 0; i <= slatCount; i++) {
-        const z = slatStartZ + i * slatSpacing;
-        const slat = new THREE.Mesh(slatGeom, rafterMat);
-        slat.position.set(0, trellisY + 0.05, z);
-        slat.userData.detail = true;
-        ghGroup.add(slat);
-    }
-    // A few diagonal lattice slats for visual texture
-    const diagGeom = new THREE.BoxGeometry(0.04, 0.04, slatSpacing * 1.2);
-    for (let i = 0; i < slatCount; i += 2) {
-        const z = slatStartZ + i * slatSpacing + slatSpacing / 2;
-        const diag = new THREE.Mesh(diagGeom, rafterMat);
-        diag.position.set((i % 4 === 0 ? 1 : -1) * 0.9, trellisY + 0.1, z);
-        diag.rotation.y = (i % 4 === 0 ? 1 : -1) * Math.PI / 5;
-        diag.userData.detail = true;
-        ghGroup.add(diag);
+    const trellisHalfWidth = 0.7;
+    const trellisLengthZ = 42;          // covers tables (z 0 to -36) plus margin
+    const trellisCenterZ = -18;
+    const trellisStartZ = trellisCenterZ - trellisLengthZ / 2;
+    const trellisLongBeamGeom = new THREE.BoxGeometry(0.07, 0.09, trellisLengthZ);
+    const trellisSlatGeom = new THREE.BoxGeometry(trellisHalfWidth * 2 + 0.1, 0.04, 0.04);
+    const tslatSpacing = 2;
+    const tslatCount = Math.floor(trellisLengthZ / tslatSpacing);
+
+    for (const trellisX of [-3, 3]) {
+        for (const dx of [-trellisHalfWidth, trellisHalfWidth]) {
+            const beam = new THREE.Mesh(trellisLongBeamGeom, rafterMat);
+            beam.position.set(trellisX + dx, trellisY, trellisCenterZ);
+            beam.userData.detail = true;
+            ghGroup.add(beam);
+        }
+        for (let i = 0; i <= tslatCount; i++) {
+            const z = trellisStartZ + i * tslatSpacing;
+            const slat = new THREE.Mesh(trellisSlatGeom, rafterMat);
+            slat.position.set(trellisX, trellisY + 0.05, z);
+            slat.userData.detail = true;
+            ghGroup.add(slat);
+        }
     }
 
-    // Edison-style hooded pendant lamps (one every 6 m → ~9 lamps)
-    const bulbSpacing = 6;
-    const bulbCount = Math.floor((totalLength - 4) / bulbSpacing) + 1;
+    // ---- Hooded Edison pendant lamps: one over each table (20 total) ----
+    // Lamp components are instanced by piece — 6 InstancedMesh draws total
+    // covering all 20 lamps.
+    const numLamps = numTables * 2; // 20
+    const lampPositions = [];
+    for (let i = 0; i < numTables; i++) {
+        const zPos = -i * tableSpacing;
+        for (const lx of [-3, 3]) lampPositions.push(new THREE.Vector3(lx, 0, zPos));
+    }
 
     // Geometry / position constants
     const cordHeight = 0.3;
-    const cordCenterY = trellisY - cordHeight / 2;        // cord midpoint
-    const cordBottomY = trellisY - cordHeight;            // hood top
+    const cordCenterY = trellisY - cordHeight / 2;
+    const cordBottomY = trellisY - cordHeight;
     const hoodHeight = 0.18;
-    const hoodCenterY = cordBottomY - hoodHeight / 2;     // hood midpoint
-    const hoodBottomY = cordBottomY - hoodHeight;         // hood opening
-    const bulbY = hoodBottomY - 0.02;                     // bulb peeks from opening
+    const hoodCenterY = cordBottomY - hoodHeight / 2;
+    const hoodBottomY = cordBottomY - hoodHeight;
+    const bulbY = hoodBottomY - 0.02;
 
+    // Shared materials — keep ONE per piece so `bulbMat.emissiveIntensity = ...`
+    // updates all 20 bulbs in a single write.
     const cordMat = new THREE.MeshBasicMaterial({ color: 0x1f140b });
     const socketMat = new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 0.55, metalness: 0.7 });
-    // Aged copper hood — frustum (open top + bottom) with darker outside, two-sided so
-    // the inside catches the bulb glow.
     const hoodMat = new THREE.MeshStandardMaterial({
         color: 0x3a2515,
         roughness: 0.4,
         metalness: 0.7,
         side: THREE.DoubleSide
     });
+    const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffaa55 });
+    const bulbMat = makeBulbMaterial();
+    bulbMeshes.length = 0; // reset (in case of any re-init)
+
+    // Geometries
     const cordGeom = new THREE.CylinderGeometry(0.008, 0.008, cordHeight, 6);
     const socketGeom = new THREE.CylinderGeometry(0.038, 0.046, 0.07, 12);
     const hoodGeom = new THREE.CylinderGeometry(0.04, 0.18, hoodHeight, 18, 1, true);
     const bulbGeom = new THREE.SphereGeometry(0.05, 12, 10);
     bulbGeom.scale(1, 1.25, 1);
     const filamentGeom = new THREE.TorusGeometry(0.012, 0.002, 4, 10);
-    const filamentMat = new THREE.MeshBasicMaterial({ color: 0xffaa55 });
 
-    // Visible light-shaft cone below each lamp — additive, fades in at night.
-    // Narrower cone (~28° half-angle, ~56° full) so each lamp casts a distinct pool
-    // of light rather than flooding the whole aisle.
+    const cordsMesh = new THREE.InstancedMesh(cordGeom, cordMat, numLamps);
+    const socketsMesh = new THREE.InstancedMesh(socketGeom, socketMat, numLamps);
+    const hoodsMesh = new THREE.InstancedMesh(hoodGeom, hoodMat, numLamps);
+    const bulbsMesh = new THREE.InstancedMesh(bulbGeom, bulbMat, numLamps);
+    const filamentsMesh = new THREE.InstancedMesh(filamentGeom, filamentMat, numLamps);
+    [cordsMesh, socketsMesh, hoodsMesh, bulbsMesh, filamentsMesh].forEach(m => {
+        m.userData.detail = true;
+    });
+
+    // Light-shaft cone — narrow (~28°), pointed at the table surface (y=1)
     const SPOT_ANGLE = Math.PI / 6.4;
-    const shaftHeight = bulbY;        // bulb down to the floor
+    const shaftHeight = bulbY - 1.0;            // ends at the table top
     const shaftBottomR = Math.tan(SPOT_ANGLE) * shaftHeight;
+    const shaftGeom = new THREE.CylinderGeometry(0.02, shaftBottomR, shaftHeight, 18, 1, true);
+    const shaftMat = new THREE.MeshBasicMaterial({
+        color: 0xffb070,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        fog: false
+    });
+    const shaftsMesh = new THREE.InstancedMesh(shaftGeom, shaftMat, numLamps);
+    shaftsMesh.visible = false;
+    shaftsMesh.userData.detail = true;
+    // Track a single mesh-and-material pair for night updates
+    shaftMeshes.length = 0;
+    shaftMeshes.push(shaftsMesh);
 
-    for (let i = 0; i < bulbCount; i++) {
-        const bz = slatStartZ + 1 + i * bulbSpacing;
-        if (bz > 5 - 2) break;
+    const _lm = new THREE.Matrix4();
+    const _lq = new THREE.Quaternion();
+    const _ls = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i < numLamps; i++) {
+        const p = lampPositions[i];
+        _lm.compose(new THREE.Vector3(p.x, cordCenterY,             p.z), _lq, _ls);
+        cordsMesh.setMatrixAt(i, _lm);
+        _lm.compose(new THREE.Vector3(p.x, cordBottomY + 0.03,      p.z), _lq, _ls);
+        socketsMesh.setMatrixAt(i, _lm);
+        _lm.compose(new THREE.Vector3(p.x, hoodCenterY,             p.z), _lq, _ls);
+        hoodsMesh.setMatrixAt(i, _lm);
+        _lm.compose(new THREE.Vector3(p.x, bulbY,                   p.z), _lq, _ls);
+        bulbsMesh.setMatrixAt(i, _lm);
+        filamentsMesh.setMatrixAt(i, _lm);
+        _lm.compose(new THREE.Vector3(p.x, bulbY - shaftHeight / 2, p.z), _lq, _ls);
+        shaftsMesh.setMatrixAt(i, _lm);
 
-        const cord = new THREE.Mesh(cordGeom, cordMat);
-        cord.position.set(0, cordCenterY, bz);
-        cord.userData.detail = true;
-        ghGroup.add(cord);
-
-        const socket = new THREE.Mesh(socketGeom, socketMat);
-        socket.position.set(0, cordBottomY + 0.03, bz);
-        socket.userData.detail = true;
-        ghGroup.add(socket);
-
-        const hood = new THREE.Mesh(hoodGeom, hoodMat);
-        hood.position.set(0, hoodCenterY, bz);
-        hood.userData.detail = true;
-        ghGroup.add(hood);
-
-        const bulbMat = makeBulbMaterial();
-        const bulb = new THREE.Mesh(bulbGeom, bulbMat);
-        bulb.position.set(0, bulbY, bz);
-        bulb.userData.detail = true;
-        ghGroup.add(bulb);
-        bulbMeshes.push(bulb);
-
-        const filament = new THREE.Mesh(filamentGeom, filamentMat);
-        filament.position.copy(bulb.position);
-        filament.userData.detail = true;
-        ghGroup.add(filament);
-
-        // SpotLight pointing straight down from inside the hood.
-        // Tighter penumbra, shorter range, faster decay so the floor pool is well-defined
-        // and the area around it stays dark.
-        const spot = new THREE.SpotLight(0xffaa55, 0, 7, SPOT_ANGLE, 0.35, 2.2);
-        spot.position.set(0, bulbY, bz);
-        const spotTarget = new THREE.Object3D();
-        spotTarget.position.set(0, 0, bz);
-        ghGroup.add(spotTarget);
-        spot.target = spotTarget;
+        // SpotLight + target object — these can't be instanced.
+        const spot = new THREE.SpotLight(0xffaa55, 0, 6, SPOT_ANGLE, 0.35, 2.2);
+        spot.position.set(p.x, bulbY, p.z);
+        const target = new THREE.Object3D();
+        target.position.set(p.x, 0, p.z);
+        ghGroup.add(target);
+        spot.target = target;
         spot.castShadow = false;
         ghGroup.add(spot);
         bulbLights.push(spot);
-
-        // Subtle additive light-shaft cone — visible "ray" volume below each lamp.
-        const shaftGeom = new THREE.CylinderGeometry(0.02, shaftBottomR, shaftHeight, 18, 1, true);
-        const shaftMat = new THREE.MeshBasicMaterial({
-            color: 0xffb070,
-            transparent: true,
-            opacity: 0,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            fog: false
-        });
-        const shaft = new THREE.Mesh(shaftGeom, shaftMat);
-        shaft.position.set(0, bulbY - shaftHeight / 2, bz);
-        shaft.userData.detail = true;
-        shaft.visible = false;
-        ghGroup.add(shaft);
-        shaftMeshes.push(shaft);
     }
+    [cordsMesh, socketsMesh, hoodsMesh, bulbsMesh, filamentsMesh, shaftsMesh].forEach(m => {
+        m.instanceMatrix.needsUpdate = true;
+        ghGroup.add(m);
+    });
+
+    // Module-shared references for night-mode updates.
+    sharedAssets._bulbMat = bulbMat;
+    sharedAssets._shaftMat = shaftMat;
 
     // Selectively set shadow casting/receiving:
     // - Skip detail meshes (mullions, slats, bulbs) and transparent glass — they don't
@@ -1890,14 +1891,17 @@ function updateSunAndLighting() {
         light.visible = bulbsOn;
         light.intensity = nightness * 9;
     });
-    bulbMeshes.forEach(mesh => {
-        mesh.material.emissiveIntensity = nightness * 1.8;
-    });
+    // Bulbs share one material, so a single write handles all 20.
+    if (sharedAssets._bulbMat) {
+        sharedAssets._bulbMat.emissiveIntensity = nightness * 1.8;
+    }
 
     // Light shafts: fade in at night, hide entirely during day.
-    shaftMeshes.forEach(shaft => {
-        shaft.material.opacity = nightness * 0.15;
-        shaft.visible = bulbsOn;
+    if (sharedAssets._shaftMat) {
+        sharedAssets._shaftMat.opacity = nightness * 0.15;
+    }
+    shaftMeshes.forEach(mesh => {
+        mesh.visible = bulbsOn;
     });
 }
 
