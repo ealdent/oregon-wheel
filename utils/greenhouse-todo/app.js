@@ -1068,36 +1068,316 @@ function updateTreeWind(now) {
     }
 }
 
-function buildFlower() {
-    const group = new THREE.Group();
+// --- Flower variants (one is randomly chosen per completed todo) ---
 
-    if (!sharedAssets.flowerCenterMat) {
-        sharedAssets.flowerCenterMat = new THREE.MeshStandardMaterial({
-            color: 0xffd54f, roughness: 0.55, metalness: 0
-        });
-        sharedAssets.flowerPetalMat = new THREE.MeshStandardMaterial({
-            color: 0xff7eb6, roughness: 0.55, metalness: 0
-        });
-        sharedAssets.flowerCenterGeom = new THREE.SphereGeometry(0.03, 12, 10);
-        sharedAssets.flowerPetalGeom = new THREE.SphereGeometry(0.045, 12, 10);
-        sharedAssets.flowerPetalGeom.scale(1, 0.32, 1.3);
+const NUM_FLOWER_VARIANTS = 5;
+
+// Flat horizontal petal: base at origin, length along +X, slight upward curve at tip.
+function makeHorizontalPetal(width, length, curveAmount = 0.012) {
+    const geom = new THREE.PlaneGeometry(width, length, 4, 8);
+    geom.rotateZ(-Math.PI / 2);
+    geom.rotateX(Math.PI / 2);
+    geom.translate(length / 2, 0, 0);
+    const pos = geom.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const z = pos.getZ(i);
+        const t = x / length;
+        const taper = Math.sin(t * Math.PI * 1.05);
+        pos.setZ(i, z * Math.max(0.15, taper));
+        pos.setY(i, curveAmount * Math.pow(t, 1.5));
     }
+    geom.computeVertexNormals();
+    return geom;
+}
 
-    const center = new THREE.Mesh(sharedAssets.flowerCenterGeom, sharedAssets.flowerCenterMat);
+// Vertical petal: base at origin, length along +Y, curving inward (-Z) at tip for cup shape.
+function makeVerticalPetal(width, length, curveAmount = 0.04) {
+    const geom = new THREE.PlaneGeometry(width, length, 4, 10);
+    geom.translate(0, length / 2, 0);
+    const pos = geom.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const t = y / length;
+        const taper = Math.sin(t * Math.PI * 1.05);
+        pos.setX(i, x * Math.max(0.18, taper));
+        pos.setZ(i, -curveAmount * Math.pow(t, 1.4));
+    }
+    geom.computeVertexNormals();
+    return geom;
+}
+
+function getDaisyAssets() {
+    if (sharedAssets.daisy) return sharedAssets.daisy;
+    sharedAssets.daisy = {
+        centerGeom: (() => { const g = new THREE.SphereGeometry(0.025, 16, 12); g.scale(1, 0.5, 1); return g; })(),
+        centerMat: new THREE.MeshStandardMaterial({
+            color: 0xffc54a, roughness: 0.45, emissive: 0xffaa00, emissiveIntensity: 0.12
+        }),
+        ringGeom: new THREE.TorusGeometry(0.018, 0.003, 6, 18),
+        ringMat: new THREE.MeshStandardMaterial({ color: 0xe6850a, roughness: 0.5, emissive: 0xc06000, emissiveIntensity: 0.1 }),
+        petalGeom: makeHorizontalPetal(0.025, 0.062, 0.008),
+        petalMat: new THREE.MeshStandardMaterial({
+            color: 0xfafff5, roughness: 0.4, side: THREE.DoubleSide,
+            emissive: 0xfff8f0, emissiveIntensity: 0.08
+        })
+    };
+    return sharedAssets.daisy;
+}
+
+function buildFlower_Daisy() {
+    const a = getDaisyAssets();
+    const group = new THREE.Group();
+    const center = new THREE.Mesh(a.centerGeom, a.centerMat);
+    center.position.y = 0.005;
     group.add(center);
-
-    const petalCount = 6;
+    const ring = new THREE.Mesh(a.ringGeom, a.ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.012;
+    group.add(ring);
+    const petalCount = 14;
     for (let i = 0; i < petalCount; i++) {
-        const petal = new THREE.Mesh(sharedAssets.flowerPetalGeom, sharedAssets.flowerPetalMat);
-        const a = (i / petalCount) * Math.PI * 2;
-        const r = 0.05;
-        petal.position.set(Math.cos(a) * r, -0.005, Math.sin(a) * r);
-        petal.rotation.y = a;
-        petal.rotation.x = -Math.PI / 9;
+        const petal = new THREE.Mesh(a.petalGeom, a.petalMat);
+        petal.rotation.y = -(i / petalCount) * Math.PI * 2;
         group.add(petal);
     }
-
     return group;
+}
+
+function getSunflowerAssets() {
+    if (sharedAssets.sunflower) return sharedAssets.sunflower;
+    const centerGeom = new THREE.SphereGeometry(0.04, 18, 14);
+    centerGeom.scale(1, 0.5, 1);
+    sharedAssets.sunflower = {
+        centerGeom,
+        centerMat: new THREE.MeshStandardMaterial({ color: 0x4a2618, roughness: 0.85 }),
+        seedGeom: new THREE.SphereGeometry(0.004, 5, 4),
+        seedMat: new THREE.MeshStandardMaterial({ color: 0x180a04, roughness: 1 }),
+        petalGeom: makeHorizontalPetal(0.03, 0.085, 0.014),
+        petalMat: new THREE.MeshStandardMaterial({
+            color: 0xffc846, roughness: 0.5, side: THREE.DoubleSide,
+            emissive: 0xff7a00, emissiveIntensity: 0.1
+        }),
+        innerPetalMat: new THREE.MeshStandardMaterial({
+            color: 0xff9020, roughness: 0.5, side: THREE.DoubleSide,
+            emissive: 0xc04000, emissiveIntensity: 0.12
+        })
+    };
+    return sharedAssets.sunflower;
+}
+
+function buildFlower_Sunflower() {
+    const a = getSunflowerAssets();
+    const group = new THREE.Group();
+    const center = new THREE.Mesh(a.centerGeom, a.centerMat);
+    center.position.y = 0.006;
+    group.add(center);
+    for (let i = 0; i < 28; i++) {
+        const seed = new THREE.Mesh(a.seedGeom, a.seedMat);
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(Math.random()) * 0.034;
+        seed.position.set(Math.cos(angle) * r, 0.022, Math.sin(angle) * r);
+        group.add(seed);
+    }
+    const outerCount = 18;
+    for (let i = 0; i < outerCount; i++) {
+        const petal = new THREE.Mesh(a.petalGeom, a.petalMat);
+        petal.rotation.y = -(i / outerCount) * Math.PI * 2;
+        group.add(petal);
+    }
+    const innerCount = 12;
+    for (let i = 0; i < innerCount; i++) {
+        const petal = new THREE.Mesh(a.petalGeom, a.innerPetalMat);
+        petal.rotation.y = -(i / innerCount) * Math.PI * 2 + Math.PI / innerCount;
+        petal.position.y = 0.003;
+        petal.scale.setScalar(0.78);
+        group.add(petal);
+    }
+    return group;
+}
+
+function getRoseAssets() {
+    if (sharedAssets.rose) return sharedAssets.rose;
+    sharedAssets.rose = {
+        innerGeom: makeVerticalPetal(0.025, 0.05, 0.06),
+        midGeom:   makeVerticalPetal(0.04,  0.07, 0.05),
+        outerGeom: makeVerticalPetal(0.052, 0.085, 0.04),
+        innerMat: new THREE.MeshStandardMaterial({
+            color: 0x8a0820, roughness: 0.4, side: THREE.DoubleSide,
+            emissive: 0x300208, emissiveIntensity: 0.18
+        }),
+        midMat: new THREE.MeshStandardMaterial({
+            color: 0xc41a4a, roughness: 0.4, side: THREE.DoubleSide,
+            emissive: 0x500511, emissiveIntensity: 0.15
+        }),
+        outerMat: new THREE.MeshStandardMaterial({
+            color: 0xe04070, roughness: 0.4, side: THREE.DoubleSide,
+            emissive: 0x701030, emissiveIntensity: 0.12
+        })
+    };
+    return sharedAssets.rose;
+}
+
+function buildFlower_Rose() {
+    const a = getRoseAssets();
+    const group = new THREE.Group();
+    function addLayer(geom, mat, count, tilt, yOffset, phase) {
+        for (let i = 0; i < count; i++) {
+            const wrap = new THREE.Group();
+            wrap.rotation.y = (i / count) * Math.PI * 2 + (phase || 0);
+            const tilted = new THREE.Group();
+            tilted.rotation.x = tilt;
+            tilted.position.y = yOffset;
+            tilted.add(new THREE.Mesh(geom, mat));
+            wrap.add(tilted);
+            group.add(wrap);
+        }
+    }
+    addLayer(a.innerGeom, a.innerMat, 5, -Math.PI / 2.4, 0.018, 0);
+    addLayer(a.midGeom,   a.midMat,   8, -Math.PI / 3,   0.008, 0.4);
+    addLayer(a.outerGeom, a.outerMat, 12, -Math.PI / 4,  0.0,   0.2);
+    addLayer(a.outerGeom, a.outerMat, 14, -Math.PI / 5,  -0.004, 0.6);
+    return group;
+}
+
+function getTulipAssets() {
+    if (sharedAssets.tulip) return sharedAssets.tulip;
+    sharedAssets.tulip = {
+        outerGeom: makeVerticalPetal(0.045, 0.13, 0.07),
+        innerGeom: makeVerticalPetal(0.04, 0.105, 0.085),
+        outerMat: new THREE.MeshStandardMaterial({
+            color: 0xcc4488, roughness: 0.4, side: THREE.DoubleSide,
+            emissive: 0x501030, emissiveIntensity: 0.12
+        }),
+        innerMat: new THREE.MeshStandardMaterial({
+            color: 0xe060a0, roughness: 0.4, side: THREE.DoubleSide,
+            emissive: 0x70204a, emissiveIntensity: 0.15
+        }),
+        stamenGeom: new THREE.CylinderGeometry(0.0035, 0.003, 0.04, 6),
+        stamenMat: new THREE.MeshStandardMaterial({
+            color: 0xffd84a, roughness: 0.45,
+            emissive: 0xffaa00, emissiveIntensity: 0.2
+        })
+    };
+    return sharedAssets.tulip;
+}
+
+function buildFlower_Tulip() {
+    const a = getTulipAssets();
+    const group = new THREE.Group();
+    for (let i = 0; i < 6; i++) {
+        const wrap = new THREE.Group();
+        wrap.rotation.y = (i / 6) * Math.PI * 2;
+        const tilted = new THREE.Group();
+        tilted.rotation.x = -Math.PI / 11;
+        tilted.add(new THREE.Mesh(a.outerGeom, a.outerMat));
+        wrap.add(tilted);
+        group.add(wrap);
+    }
+    for (let i = 0; i < 3; i++) {
+        const wrap = new THREE.Group();
+        wrap.rotation.y = (i / 3) * Math.PI * 2 + Math.PI / 6;
+        const tilted = new THREE.Group();
+        tilted.rotation.x = -Math.PI / 18;
+        tilted.position.y = 0.005;
+        tilted.add(new THREE.Mesh(a.innerGeom, a.innerMat));
+        wrap.add(tilted);
+        group.add(wrap);
+    }
+    for (let i = 0; i < 4; i++) {
+        const stamen = new THREE.Mesh(a.stamenGeom, a.stamenMat);
+        const angle = (i / 4) * Math.PI * 2;
+        stamen.position.set(Math.cos(angle) * 0.006, 0.04, Math.sin(angle) * 0.006);
+        group.add(stamen);
+    }
+    return group;
+}
+
+function createFloretTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 4; i++) {
+        ctx.save();
+        ctx.translate(32, 32);
+        ctx.rotate((i * Math.PI) / 2);
+        ctx.beginPath();
+        ctx.ellipse(0, -11, 7, 14, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    ctx.fillStyle = '#ffea7a';
+    ctx.beginPath();
+    ctx.arc(32, 32, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    return new THREE.CanvasTexture(canvas);
+}
+
+function getHydrangeaAssets() {
+    if (sharedAssets.hydrangea) return sharedAssets.hydrangea;
+    const tex = createFloretTexture();
+    tex.colorSpace = THREE.SRGBColorSpace;
+    sharedAssets.hydrangea = {
+        floretGeom: new THREE.PlaneGeometry(0.026, 0.026),
+        blueMat: new THREE.MeshStandardMaterial({
+            map: tex, color: 0x9ab8ff, roughness: 0.4, side: THREE.DoubleSide,
+            transparent: true, alphaTest: 0.4,
+            emissive: 0x3050aa, emissiveIntensity: 0.1
+        }),
+        violetMat: new THREE.MeshStandardMaterial({
+            map: tex, color: 0xc8a4ff, roughness: 0.4, side: THREE.DoubleSide,
+            transparent: true, alphaTest: 0.4,
+            emissive: 0x603090, emissiveIntensity: 0.1
+        }),
+        pinkMat: new THREE.MeshStandardMaterial({
+            map: tex, color: 0xffa0d0, roughness: 0.4, side: THREE.DoubleSide,
+            transparent: true, alphaTest: 0.4,
+            emissive: 0x901050, emissiveIntensity: 0.1
+        })
+    };
+    return sharedAssets.hydrangea;
+}
+
+function buildFlower_Hydrangea() {
+    const a = getHydrangeaAssets();
+    const group = new THREE.Group();
+    const mats = [a.blueMat, a.violetMat, a.pinkMat];
+    const floretCount = 24;
+    const lookTarget = new THREE.Vector3();
+    for (let i = 0; i < floretCount; i++) {
+        const u = (i + 0.5) / floretCount;
+        const theta = u * Math.PI * 2 * 4.7;
+        const phi = Math.acos(1 - 1.65 * u);
+        const r = 0.058;
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = r * Math.cos(phi) * 0.7 + 0.018;
+        const z = r * Math.sin(phi) * Math.sin(theta);
+        const mat = mats[(i * 7) % mats.length];
+        const floret = new THREE.Mesh(a.floretGeom, mat);
+        floret.position.set(x, y, z);
+        // Face outward from the cluster center
+        const len = Math.hypot(x, y - 0.018, z) || 1;
+        lookTarget.set(x + x / len, y + (y - 0.018) / len, z + z / len);
+        floret.lookAt(lookTarget);
+        floret.scale.setScalar(0.85 + Math.random() * 0.35);
+        group.add(floret);
+    }
+    return group;
+}
+
+function buildFlowerByVariant(variantIdx) {
+    const v = ((variantIdx | 0) % NUM_FLOWER_VARIANTS + NUM_FLOWER_VARIANTS) % NUM_FLOWER_VARIANTS;
+    switch (v) {
+        case 0: return buildFlower_Daisy();
+        case 1: return buildFlower_Sunflower();
+        case 2: return buildFlower_Rose();
+        case 3: return buildFlower_Tulip();
+        case 4: return buildFlower_Hydrangea();
+    }
+    return buildFlower_Daisy();
 }
 
 function createLeafGeometry() {
@@ -1782,7 +2062,13 @@ function createPlant(todoData, isLoad = false) {
         stem.castShadow = true;
         plantGroup.add(stem);
 
-        const flower = buildFlower();
+        // Pick a flower variant. New completions get an explicit random pick saved to
+        // todoData.flowerVariant; legacy completions without one fall back to a
+        // deterministic pick keyed off the todo id, so the chosen flower is permanent.
+        const variantIdx = (typeof todoData.flowerVariant === 'number')
+            ? todoData.flowerVariant
+            : Math.abs(todoData.id || 0);
+        const flower = buildFlowerByVariant(variantIdx);
         flower.position.y = 0.42;
         stem.add(flower);
 
@@ -2298,6 +2584,10 @@ document.getElementById('btn-complete').addEventListener('click', function() {
         activeTodo.completed = true;
         activeTodo.health = 100;
         activeTodo.status = "Completed";
+        // Lock in a random flower variant — saved with the todo so it's permanent.
+        if (typeof activeTodo.flowerVariant !== 'number') {
+            activeTodo.flowerVariant = Math.floor(Math.random() * NUM_FLOWER_VARIANTS);
+        }
 
         saveTodosToLocal();
 
