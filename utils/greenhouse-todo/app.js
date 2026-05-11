@@ -37,6 +37,11 @@ const eyePairs = [];         // glowing-red eye pair state machines
 
 // FPS / stats overlay (toggled with F)
 let stats = null;
+let diagPanel = null;
+let diagLastUpdate = 0;
+// Chrome enforces a ~1.25 s cooldown after Escape releases pointer-lock during
+// which requestPointerLock is silently refused. We retry once when that happens.
+let lockRetryScheduled = false;
 
 const objects = []; // Interactable objects (plants)
 let todos = []; // Data for todos
@@ -193,11 +198,14 @@ function init() {
             case 'KeyD':
                 moveRight = true;
                 break;
-            case 'KeyF':
-                if (stats) {
-                    stats.dom.style.display = stats.dom.style.display === 'none' ? 'block' : 'none';
-                }
+            case 'KeyF': {
+                // Toggle the stats.js FPS graph and our diagnostics panel together.
+                const currentlyShown = stats && stats.dom.style.display !== 'none';
+                const next = currentlyShown ? 'none' : 'block';
+                if (stats) stats.dom.style.display = next;
+                if (diagPanel) diagPanel.style.display = next;
                 break;
+            }
         }
     };
 
@@ -260,6 +268,49 @@ function init() {
     stats.dom.style.zIndex = '100';
     stats.dom.style.display = 'none';
     document.body.appendChild(stats.dom);
+
+    // Detailed diagnostics panel — text stats updated ~4×/sec
+    diagPanel = document.createElement('div');
+    diagPanel.id = 'diag-panel';
+    diagPanel.style.cssText = [
+        'position: fixed',
+        'left: 0',
+        'bottom: 52px',
+        'padding: 10px 14px',
+        "font-family: 'Menlo', 'Consolas', monospace",
+        'font-size: 11px',
+        'line-height: 1.5',
+        'color: #c4dcc8',
+        'background: rgba(8, 14, 10, 0.78)',
+        'border: 1px solid rgba(120, 180, 130, 0.25)',
+        'border-radius: 0 4px 0 0',
+        'z-index: 100',
+        'pointer-events: none',
+        'display: none',
+        'white-space: pre',
+        'letter-spacing: 0.02em',
+        'min-width: 220px'
+    ].join('; ');
+    document.body.appendChild(diagPanel);
+
+    // Auto-retry requestPointerLock when Chrome rejects it during the
+    // ~1.25s post-Escape cooldown. Without this the first ESC press on the
+    // pause overlay silently fails and the user has to press multiple times.
+    document.addEventListener('pointerlockerror', () => {
+        if (lockRetryScheduled) return;
+        if (isTouchDevice) return;
+        lockRetryScheduled = true;
+        setTimeout(() => {
+            lockRetryScheduled = false;
+            if (controls.isLocked) return;
+            const todoOpen = document.getElementById('todo-modal').style.display !== 'none';
+            const addOpen = document.getElementById('add-todo-modal').style.display !== 'none';
+            if (todoOpen || addOpen) return; // user is reading a modal
+            const wantsWalking = uiContainer.style.display === 'flex'
+                || blocker.style.display !== 'none';
+            if (wantsWalking) controls.lock();
+        }, 1350);
+    });
 
     // 8. Build Greenhouse Environment
     buildGreenhouse();
@@ -2464,6 +2515,62 @@ function animate() {
     }
 
     if (stats) stats.update();
+    updateDiagPanel(time);
+}
+
+function updateDiagPanel(time) {
+    if (!diagPanel || diagPanel.style.display === 'none') return;
+    if (time - diagLastUpdate < 250) return;
+    diagLastUpdate = time;
+
+    const info = renderer.info;
+    const lights = { dir: 0, spot: 0, point: 0, hemi: 0 };
+    scene.traverse(obj => {
+        if (!obj.isLight || !obj.visible) return;
+        if (obj.isDirectionalLight) lights.dir++;
+        else if (obj.isSpotLight) lights.spot++;
+        else if (obj.isPointLight) lights.point++;
+        else if (obj.isHemisphereLight) lights.hemi++;
+    });
+
+    const sunVec = sky && sky.material && sky.material.uniforms.sunPosition.value;
+    const sunAlt = sunVec
+        ? Math.round(Math.asin(Math.max(-1, Math.min(1, sunVec.y))) * 180 / Math.PI)
+        : '-';
+
+    const cam = controls.getObject().position;
+    const activeCount = todos.filter(t => !t.completed).length;
+    const completedCount = todos.length - activeCount;
+    const bulbsOn = bulbLights.length && bulbLights[0].visible ? 'ON' : 'off';
+    const eyesLit = eyePairs.filter(p => p.state !== 'off').length;
+    const winds = treeMaterials[0] && treeMaterials[0].userData.shader
+        ? treeMaterials[0].userData.shader.uniforms.uWindStrength.value.toFixed(3)
+        : '-';
+    const programs = info.programs ? info.programs.length : '-';
+
+    diagPanel.textContent = [
+        '── GPU ─────────────',
+        `Draw calls   ${info.render.calls}`,
+        `Triangles    ${info.render.triangles.toLocaleString()}`,
+        `Geometries   ${info.memory.geometries}`,
+        `Textures     ${info.memory.textures}`,
+        `Programs     ${programs}`,
+        '',
+        '── Lights ──────────',
+        `Directional  ${lights.dir}`,
+        `Spot         ${lights.spot}`,
+        `Point        ${lights.point}`,
+        `Hemisphere   ${lights.hemi}`,
+        `Bulbs        ${bulbsOn}`,
+        '',
+        '── World ───────────',
+        `Sun alt      ${sunAlt}°`,
+        `Dayness      ${currentDayness.toFixed(2)}`,
+        `Wind         ${winds}`,
+        `Eyes lit     ${eyesLit}`,
+        `Pos          ${cam.x.toFixed(1)}, ${cam.y.toFixed(1)}, ${cam.z.toFixed(1)}`,
+        `Todos        ${activeCount} active · ${completedCount} done`
+    ].join('\n');
 }
 
 // --- Decay Logic ---
