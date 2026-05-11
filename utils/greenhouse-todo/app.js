@@ -2294,20 +2294,20 @@ function classifyHit(hit) {
 
 // Table collision — block walking into or through any of the 20 tables.
 // Tables are 2m (x) × 3m (z) tops centered at x = ±3, z = 0, -4, ..., -36.
-// We treat them as 2D AABBs in the XZ plane plus a small player radius.
+// AABB is tight to the actual table edge (no player-radius buffer), so the 1m
+// gaps between adjacent tables in the same row are fully walkable.
 const TABLE_HALF_X = 1.0;
 const TABLE_HALF_Z = 1.5;
-const PLAYER_RADIUS = 0.35;
 function collidesWithTable(x, z) {
-    if (z > 1.6 || z < -38) return false; // quick reject outside table row span
-    if (Math.abs(x) > 4.5) return false;  // quick reject outside table x band
+    // Quick reject outside the band that any table could occupy.
+    if (z > TABLE_HALF_Z || z < -36 - TABLE_HALF_Z) return false;
+    if (Math.abs(x) > 3 + TABLE_HALF_X) return false;
     for (let i = 0; i < 10; i++) {
         const tz = -i * 4;
         const dz = Math.abs(z - tz);
-        if (dz > TABLE_HALF_Z + PLAYER_RADIUS) continue;
+        if (dz >= TABLE_HALF_Z) continue;
         for (const tx of [-3, 3]) {
-            const dx = Math.abs(x - tx);
-            if (dx < TABLE_HALF_X + PLAYER_RADIUS && dz < TABLE_HALF_Z + PLAYER_RADIUS) return true;
+            if (Math.abs(x - tx) < TABLE_HALF_X) return true;
         }
     }
     return false;
@@ -2396,15 +2396,24 @@ function animate() {
         if (moveForward || moveBackward) velocity.z -= direction.z * 40.0 * delta;
         if (moveLeft || moveRight) velocity.x -= direction.x * 40.0 * delta;
 
-        // Move axis-by-axis so we can selectively revert each axis on collision
-        // (lets the player slide along table edges instead of getting stuck).
+        // moveRight / moveForward update both x AND z when the camera faces
+        // diagonally, so we can't selectively revert a single axis. Revert both
+        // when a step would land inside a table — player simply stops at the wall.
         const pos = controls.getObject().position;
         const startX = pos.x;
         const startZ = pos.z;
         controls.moveRight(-velocity.x * delta);
-        if (collidesWithTable(pos.x, pos.z)) pos.x = startX;
+        if (collidesWithTable(pos.x, pos.z)) {
+            pos.x = startX;
+            pos.z = startZ;
+        }
+        const midX = pos.x;
+        const midZ = pos.z;
         controls.moveForward(-velocity.z * delta);
-        if (collidesWithTable(pos.x, pos.z)) pos.z = startZ;
+        if (collidesWithTable(pos.x, pos.z)) {
+            pos.x = midX;
+            pos.z = midZ;
+        }
 
         // Greenhouse wall boundary
         if (pos.x < -7.5) pos.x = -7.5;
@@ -2556,13 +2565,17 @@ document.addEventListener('click', function() {
 });
 
 function openAddTodoModal() {
-    pauseForModal();
+    // Display the modal BEFORE releasing pointer-lock so the unlock-event handler
+    // sees a modal is open and doesn't briefly flash the pause overlay underneath.
     document.getElementById('add-todo-modal').style.display = 'flex';
+    uiContainer.style.display = 'none';
+    pauseForModal();
 }
 
 function closeAddTodoModal() {
     document.getElementById('add-todo-modal').style.display = 'none';
     activePotIndex = null;
+    uiContainer.style.display = 'none'; // paranoid: ensure pause overlay isn't lingering
     startExploring();
 }
 
@@ -2570,6 +2583,9 @@ document.getElementById('close-add-modal').addEventListener('click', closeAddTod
 
 function openTodoModal(todo) {
     activeTodo = todo;
+    // Show the modal BEFORE releasing pointer-lock; see openAddTodoModal for why.
+    document.getElementById('todo-modal').style.display = 'flex';
+    uiContainer.style.display = 'none';
     pauseForModal();
 
     document.getElementById('modal-title').textContent = todo.title;
@@ -2583,13 +2599,12 @@ function openTodoModal(todo) {
     document.getElementById('modal-urgency').textContent = urgencyText;
 
     document.getElementById('todo-effort').value = "0";
-
-    document.getElementById('todo-modal').style.display = 'flex';
 }
 
 function closeTodoModal() {
     document.getElementById('todo-modal').style.display = 'none';
     activeTodo = null;
+    uiContainer.style.display = 'none'; // paranoid: ensure pause overlay isn't lingering
     startExploring();
 }
 
