@@ -2336,7 +2336,11 @@
     }
 
     function setBigMessage(title, body){
-      ui.bigMessage.innerHTML = `<h2>${title}</h2><p>${body}</p>`;
+      const h2 = document.createElement("h2");
+      h2.textContent = title;
+      const p = document.createElement("p");
+      p.textContent = body;
+      ui.bigMessage.replaceChildren(h2, p);
       ui.bigMessage.classList.remove("hidden");
     }
     function hideBigMessage(){
@@ -2351,13 +2355,24 @@
         el.tabIndex = 0;
         el.dataset.tower = t.id;
         el.title = `${t.name}: ${t.desc}`;
-        el.innerHTML = `
-          <div class="shopIcon" aria-hidden="true">${t.icon}</div>
-          <div class="shopMeta">
-            <div class="shopName">${t.name}</div>
-          </div>
-          <div class="shopCost">${t.cost}</div>
-        `;
+
+        const icon = document.createElement("div");
+        icon.className = "shopIcon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = t.icon;
+
+        const meta = document.createElement("div");
+        meta.className = "shopMeta";
+        const name = document.createElement("div");
+        name.className = "shopName";
+        name.textContent = t.name;
+        meta.appendChild(name);
+
+        const cost = document.createElement("div");
+        cost.className = "shopCost";
+        cost.textContent = t.cost;
+
+        el.append(icon, meta, cost);
         const activate = () => {
           if (state.phase !== "planning") {
             toast("Building happens between waves 🧠");
@@ -2384,16 +2399,16 @@
     function renderSelected(){
       ui.btnSell.disabled = !selectedTower;
       if (!selectedTower) {
-        ui.selectedBody.innerHTML = `<div class="emptySelect">Tap a tower to see upgrades.</div>`;
+        const empty = document.createElement("div");
+        empty.className = "emptySelect";
+        empty.textContent = "Tap a tower to see upgrades.";
+        ui.selectedBody.replaceChildren(empty);
         return;
       }
 
       const t = selectedTower;
       const def = t.def;
       const s = t.stats;
-
-      const dots = [];
-      for (let i=0;i<MAX_UPGRADES;i++) dots.push(`<div class="dot ${t.level>i?"on":""}"></div>`);
 
       const dps = (def.mode === "beam")
         ? (s.beamDamage / s.tick) * (s.beamTargets || 1)
@@ -2409,45 +2424,104 @@
             ? "Need gold"
             : "";
 
-      ui.selectedBody.innerHTML = `
-        <div class="selTop">
-          <div class="selName">
-            <div class="selIcon" aria-hidden="true">${def.icon}</div>
-            <div style="min-width:0">
-              <div class="selTitle">${def.name}</div>
-              <div class="selLvl">Level ${t.level}/${MAX_UPGRADES}</div>
-              <div class="lvlDots" aria-hidden="true">${dots.join("")}</div>
-            </div>
-          </div>
-          <div style="text-align:right">
-            <div class="smallMuted">Sell</div>
-            <div style="font-weight:1000">+${t.sellValue()}</div>
-          </div>
-        </div>
+      ui.selectedBody.textContent = "";
 
-        <div class="selStats">
-          <div class="chip"><div class="k">Range</div><div class="v">${s.range.toFixed(2)} tiles</div></div>
-          <div class="chip"><div class="k">DPS</div><div class="v">${dps.toFixed(1)}</div></div>
-          <div class="chip"><div class="k">Rate</div><div class="v">${(def.mode === "beam" ? (1/s.tick) : (1/s.interval)).toFixed(1)}/s</div></div>
-          <div class="chip"><div class="k">Special</div><div class="v">${towerSpecialText(t)}</div></div>
-        </div>
+      // selTop
+      const selTop = document.createElement("div");
+      selTop.className = "selTop";
 
-        <div class="upgradeBox">
-          ${next ? `
-            <div class="upgradeTitle">Next: ${next.name}</div>
-            <div class="upgradeDesc">${next.desc}</div>
-            <div class="upgradeRow">
-              <div class="shopCost" style="margin-left:0">${next.cost}</div>
-              <button id="btnUpgrade" class="btn primary small" type="button" ${canUpgrade?"":"disabled"}>
-                ${canUpgrade ? "Upgrade" : upgradeDisabledReason}
-              </button>
-            </div>
-          ` : `
-            <div class="upgradeTitle">Fully upgraded ✨</div>
-            <div class="upgradeDesc">This tower is at max level. Consider building a new one for more coverage.</div>
-          `}
-        </div>
-      `;
+      const selName = document.createElement("div");
+      selName.className = "selName";
+      const selIcon = document.createElement("div");
+      selIcon.className = "selIcon";
+      selIcon.setAttribute("aria-hidden", "true");
+      selIcon.textContent = def.icon;
+      const nameBox = document.createElement("div");
+      nameBox.style.minWidth = "0";
+      const selTitle = document.createElement("div");
+      selTitle.className = "selTitle";
+      selTitle.textContent = def.name;
+      const selLvl = document.createElement("div");
+      selLvl.className = "selLvl";
+      selLvl.textContent = `Level ${t.level}/${MAX_UPGRADES}`;
+      const lvlDots = document.createElement("div");
+      lvlDots.className = "lvlDots";
+      lvlDots.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < MAX_UPGRADES; i++) {
+        const dot = document.createElement("div");
+        dot.className = `dot ${t.level > i ? "on" : ""}`;
+        lvlDots.appendChild(dot);
+      }
+      nameBox.append(selTitle, selLvl, lvlDots);
+      selName.append(selIcon, nameBox);
+
+      const sellBox = document.createElement("div");
+      sellBox.style.textAlign = "right";
+      const sellLabel = document.createElement("div");
+      sellLabel.className = "smallMuted";
+      sellLabel.textContent = "Sell";
+      const sellVal = document.createElement("div");
+      sellVal.style.fontWeight = "1000";
+      sellVal.textContent = `+${t.sellValue()}`;
+      sellBox.append(sellLabel, sellVal);
+
+      selTop.append(selName, sellBox);
+
+      // selStats
+      const selStats = document.createElement("div");
+      selStats.className = "selStats";
+      const createChip = (k, v) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        const keyEl = document.createElement("div");
+        keyEl.className = "k";
+        keyEl.textContent = k;
+        const valEl = document.createElement("div");
+        valEl.className = "v";
+        valEl.textContent = v;
+        chip.append(keyEl, valEl);
+        return chip;
+      };
+      selStats.appendChild(createChip("Range", `${s.range.toFixed(2)} tiles`));
+      selStats.appendChild(createChip("DPS", dps.toFixed(1)));
+      selStats.appendChild(createChip("Rate", `${(def.mode === "beam" ? (1/s.tick) : (1/s.interval)).toFixed(1)}/s`));
+      selStats.appendChild(createChip("Special", towerSpecialText(t)));
+
+      // upgradeBox
+      const upgradeBox = document.createElement("div");
+      upgradeBox.className = "upgradeBox";
+      if (next) {
+        const upTitle = document.createElement("div");
+        upTitle.className = "upgradeTitle";
+        upTitle.textContent = `Next: ${next.name}`;
+        const upDesc = document.createElement("div");
+        upDesc.className = "upgradeDesc";
+        upDesc.textContent = next.desc;
+        const upRow = document.createElement("div");
+        upRow.className = "upgradeRow";
+        const upCost = document.createElement("div");
+        upCost.className = "shopCost";
+        upCost.style.marginLeft = "0";
+        upCost.textContent = next.cost;
+        const upBtn = document.createElement("button");
+        upBtn.id = "btnUpgrade";
+        upBtn.className = "btn primary small";
+        upBtn.type = "button";
+        if (!canUpgrade) upBtn.disabled = true;
+        upBtn.textContent = canUpgrade ? "Upgrade" : upgradeDisabledReason;
+        upRow.append(upCost, upBtn);
+        upgradeBox.append(upTitle, upDesc, upRow);
+      } else {
+        const upTitle = document.createElement("div");
+        upTitle.className = "upgradeTitle";
+        upTitle.textContent = "Fully upgraded ✨";
+        const upDesc = document.createElement("div");
+        upDesc.className = "upgradeDesc";
+        upDesc.textContent = "This tower is at max level. Consider building a new one for more coverage.";
+        upgradeBox.append(upTitle, upDesc);
+      }
+
+      ui.selectedBody.append(selTop, selStats, upgradeBox);
 
       const btn = ui.selectedBody.querySelector("#btnUpgrade");
       if (btn) {
@@ -2500,9 +2574,12 @@
 
     function renderNextWave(){
       const idx = state.nextWaveIndex;
-      ui.nextWave.innerHTML = "";
+      ui.nextWave.textContent = "";
       if (idx >= state.waves.length) {
-        ui.nextWave.innerHTML = `<div class="smallMuted">No more waves. If you're seeing this, you've already won.</div>`;
+        const msg = document.createElement("div");
+        msg.className = "smallMuted";
+        msg.textContent = "No more waves. If you're seeing this, you've already won.";
+        ui.nextWave.appendChild(msg);
         return;
       }
       const wave = state.waves[idx];
@@ -2511,11 +2588,21 @@
         const d = ENEMIES[item.type];
         const pill = document.createElement("div");
         pill.className = "enemyPill";
-        pill.innerHTML = `
-          <div class="enemyIcon" aria-hidden="true">${d.icon}</div>
-          <div class="enemyName">${d.name}</div>
-          <div class="enemyCount">×${item.count}</div>
-        `;
+
+        const icon = document.createElement("div");
+        icon.className = "enemyIcon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = d.icon;
+
+        const name = document.createElement("div");
+        name.className = "enemyName";
+        name.textContent = d.name;
+
+        const count = document.createElement("div");
+        count.className = "enemyCount";
+        count.textContent = `×${item.count}`;
+
+        pill.append(icon, name, count);
         ui.nextWave.appendChild(pill);
       }
     }
