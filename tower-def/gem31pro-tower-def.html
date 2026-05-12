@@ -234,8 +234,7 @@
 
     let selectedBuild = null;
     let selectedTower = null;
-    let mouseX = 0;
-    let mouseY = 0;
+    let mouse = { x: -1000, y: -1000 };
 
     // --- INITIALIZATION ---
     function init() {
@@ -328,19 +327,21 @@
         // Track mouse movement
         canvas.addEventListener('mousemove', (e) => {
             const pos = getMousePos(e);
-            mouseX = pos.x;
-            mouseY = pos.y;
+            mouse.x = pos.x;
+            mouse.y = pos.y;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouse.x = -1000;
+            mouse.y = -1000;
         });
 
         // Canvas clicking for placement and selection
         canvas.addEventListener('mousedown', (e) => {
             if(gameState === 'gameover') return;
             const pos = getMousePos(e);
-            const x = pos.x;
-            const y = pos.y;
-
-            const gridX = Math.floor(x / TILE_SIZE);
-            const gridY = Math.floor(y / TILE_SIZE);
+            const gridX = Math.floor(pos.x / TILE_SIZE);
+            const gridY = Math.floor(pos.y / TILE_SIZE);
 
             if(gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) return;
 
@@ -707,15 +708,16 @@
         }
 
         // Draw Build Hover / Range
-        if(selectedBuild) {
-            const gridX = Math.floor(mouseX / TILE_SIZE);
-            const gridY = Math.floor(mouseY / TILE_SIZE);
+        if(selectedBuild && mouse.x >= 0) {
+            const gridX = Math.floor(mouse.x / TILE_SIZE);
+            const gridY = Math.floor(mouse.y / TILE_SIZE);
 
             if(gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
                 const bx = gridX * TILE_SIZE + TILE_SIZE / 2;
                 const by = gridY * TILE_SIZE + TILE_SIZE / 2;
                 const tType = TOWER_TYPES[selectedBuild];
 
+                ctx.save();
                 // Range preview
                 ctx.beginPath();
                 ctx.arc(bx, by, tType.range, 0, Math.PI * 2);
@@ -726,11 +728,13 @@
                 ctx.fillStyle = canPlace ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 0, 0, 0.1)";
                 ctx.fill();
 
-                // Tower icon preview
+                // Ghost tower
                 ctx.globalAlpha = 0.5;
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath(); ctx.arc(bx, by + 10, 15, 0, Math.PI*2); ctx.fill();
                 ctx.font = "30px Arial";
                 ctx.fillText(tType.icon, bx, by);
-                ctx.globalAlpha = 1.0;
+                ctx.restore();
             }
         }
     }
