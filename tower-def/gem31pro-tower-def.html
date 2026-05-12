@@ -234,6 +234,7 @@
 
     let selectedBuild = null;
     let selectedTower = null;
+    let mouse = { x: -1000, y: -1000 };
 
     // --- INITIALIZATION ---
     function init() {
@@ -301,6 +302,16 @@
     }
 
     // --- UI SETUP & LOGIC ---
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
+    }
+
     function setupUI() {
         const buildMenu = document.getElementById('build-menu');
         for (const [key, t] of Object.entries(TOWER_TYPES)) {
@@ -313,17 +324,24 @@
 
         document.getElementById('wave-btn').onclick = startWave;
 
+        // Track mouse movement
+        canvas.addEventListener('mousemove', (e) => {
+            const pos = getMousePos(e);
+            mouse.x = pos.x;
+            mouse.y = pos.y;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouse.x = -1000;
+            mouse.y = -1000;
+        });
+
         // Canvas clicking for placement and selection
         canvas.addEventListener('mousedown', (e) => {
             if(gameState === 'gameover') return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-
-            const gridX = Math.floor(x / TILE_SIZE);
-            const gridY = Math.floor(y / TILE_SIZE);
+            const pos = getMousePos(e);
+            const gridX = Math.floor(pos.x / TILE_SIZE);
+            const gridY = Math.floor(pos.y / TILE_SIZE);
 
             if(gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) return;
 
@@ -690,9 +708,34 @@
         }
 
         // Draw Build Hover / Range
-        if(selectedBuild) {
-            // Get mouse position (rough hack using last known or center)
-            // Range preview is handled via CSS or keeping track of mouse, skipped for compactness
+        if(selectedBuild && mouse.x >= 0) {
+            const gridX = Math.floor(mouse.x / TILE_SIZE);
+            const gridY = Math.floor(mouse.y / TILE_SIZE);
+
+            if(gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                const bx = gridX * TILE_SIZE + TILE_SIZE / 2;
+                const by = gridY * TILE_SIZE + TILE_SIZE / 2;
+                const tType = TOWER_TYPES[selectedBuild];
+
+                ctx.save();
+                // Range preview
+                ctx.beginPath();
+                ctx.arc(bx, by, tType.range, 0, Math.PI * 2);
+                const canPlace = grid[gridX][gridY] === 0 && money >= tType.baseCost;
+                ctx.strokeStyle = canPlace ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 0, 0, 0.5)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = canPlace ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 0, 0, 0.1)";
+                ctx.fill();
+
+                // Ghost tower
+                ctx.globalAlpha = 0.5;
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath(); ctx.arc(bx, by + 10, 15, 0, Math.PI*2); ctx.fill();
+                ctx.font = "30px Arial";
+                ctx.fillText(tType.icon, bx, by);
+                ctx.restore();
+            }
         }
     }
 
