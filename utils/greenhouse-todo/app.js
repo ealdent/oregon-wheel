@@ -99,6 +99,32 @@ const direction = new THREE.Vector3();
 const blocker = document.getElementById('blocker');
 const instructions = document.getElementById('instructions');
 const uiContainer = document.getElementById('ui-container');
+const todoModal = document.getElementById('todo-modal');
+const addTodoModal = document.getElementById('add-todo-modal');
+const hoverTooltip = document.getElementById('hover-tooltip');
+const closeAddModal = document.getElementById('close-add-modal');
+const closeModal = document.getElementById('close-modal');
+const btnCheckin = document.getElementById('btn-checkin');
+const btnComplete = document.getElementById('btn-complete');
+const mobileControls = document.getElementById('mobile-controls');
+const joystick = document.getElementById('joystick');
+const stick = document.getElementById('stick');
+const lookZone = document.getElementById('look-zone');
+const menuBtn = document.getElementById('mobile-menu-btn');
+
+// Modal Elements
+const modalTitle = document.getElementById('modal-title');
+const modalDesc = document.getElementById('modal-desc');
+const modalHealth = document.getElementById('modal-health');
+const modalStatus = document.getElementById('modal-status');
+const modalUrgency = document.getElementById('modal-urgency');
+const todoEffort = document.getElementById('todo-effort');
+
+// Form Elements
+const addTodoForm = document.getElementById('add-todo-form');
+const todoTitle = document.getElementById('todo-title');
+const todoDesc = document.getElementById('todo-desc');
+const todoUrgency = document.getElementById('todo-urgency');
 
 function init() {
     // 1. Scene
@@ -169,8 +195,8 @@ function init() {
     });
 
     controls.addEventListener('unlock', function () {
-        const todoModalOpen = document.getElementById('todo-modal').style.display !== 'none';
-        const addTodoModalOpen = document.getElementById('add-todo-modal').style.display !== 'none';
+        const todoModalOpen = todoModal.style.display !== 'none';
+        const addTodoModalOpen = addTodoModal.style.display !== 'none';
         if (!todoModalOpen && !addTodoModalOpen) {
             uiContainer.style.display = 'flex';
             blocker.style.display = 'none';
@@ -240,8 +266,6 @@ function init() {
     //   - If pause overlay or home blocker is showing, resume walking.
     document.addEventListener('keydown', (event) => {
         if (event.code !== 'Escape') return;
-        const todoModal = document.getElementById('todo-modal');
-        const addTodoModal = document.getElementById('add-todo-modal');
         if (todoModal.style.display !== 'none') {
             closeTodoModal();
             return;
@@ -303,8 +327,8 @@ function init() {
         setTimeout(() => {
             lockRetryScheduled = false;
             if (controls.isLocked) return;
-            const todoOpen = document.getElementById('todo-modal').style.display !== 'none';
-            const addOpen = document.getElementById('add-todo-modal').style.display !== 'none';
+            const todoOpen = todoModal.style.display !== 'none';
+            const addOpen = addTodoModal.style.display !== 'none';
             if (todoOpen || addOpen) return; // user is reading a modal
             const wantsWalking = uiContainer.style.display === 'flex'
                 || blocker.style.display !== 'none';
@@ -2388,12 +2412,12 @@ function disposeHierarchy(node) {
 }
 
 // UI Event Listeners for adding todos
-document.getElementById('add-todo-form').addEventListener('submit', function(e) {
+addTodoForm.addEventListener('submit', function(e) {
     e.preventDefault();
 
-    const title = document.getElementById('todo-title').value;
-    const desc = document.getElementById('todo-desc').value;
-    const urgency = parseInt(document.getElementById('todo-urgency').value);
+    const title = todoTitle.value;
+    const desc = todoDesc.value;
+    const urgency = parseInt(todoUrgency.value);
 
     if (activePotIndex === null) {
         console.error("No pot selected to plant seed.");
@@ -2475,22 +2499,21 @@ function animate() {
         // Hover raycasting
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObjects(gatherIntersectables(), false);
-        const tooltip = document.getElementById('hover-tooltip');
         const hit = classifyHit(intersects[0]);
         if (hit.kind === 'empty') {
-            tooltip.textContent = "Click to plant a new to-do";
-            tooltip.style.display = 'block';
+            hoverTooltip.textContent = "Click to plant a new to-do";
+            hoverTooltip.style.display = 'block';
         } else if (hit.kind === 'plant') {
             const todo = hit.todo;
-            tooltip.textContent = todo.completed
+            hoverTooltip.textContent = todo.completed
                 ? `Completed: ${todo.title}`
                 : `${todo.title}\n[${todo.status || "Not Started"}]`;
-            tooltip.style.display = 'block';
+            hoverTooltip.style.display = 'block';
         } else {
-            tooltip.style.display = 'none';
+            hoverTooltip.style.display = 'none';
         }
     } else {
-        document.getElementById('hover-tooltip').style.display = 'none';
+        hoverTooltip.style.display = 'none';
     }
 
     // Update plant decay
@@ -2674,48 +2697,48 @@ document.addEventListener('click', function() {
 function openAddTodoModal() {
     // Display the modal BEFORE releasing pointer-lock so the unlock-event handler
     // sees a modal is open and doesn't briefly flash the pause overlay underneath.
-    document.getElementById('add-todo-modal').style.display = 'flex';
+    addTodoModal.style.display = 'flex';
     uiContainer.style.display = 'none';
     pauseForModal();
 }
 
 function closeAddTodoModal() {
-    document.getElementById('add-todo-modal').style.display = 'none';
+    addTodoModal.style.display = 'none';
     activePotIndex = null;
     uiContainer.style.display = 'none'; // paranoid: ensure pause overlay isn't lingering
     startExploring();
 }
 
-document.getElementById('close-add-modal').addEventListener('click', closeAddTodoModal);
+closeAddModal.addEventListener('click', closeAddTodoModal);
 
 function openTodoModal(todo) {
     activeTodo = todo;
     // Show the modal BEFORE releasing pointer-lock; see openAddTodoModal for why.
-    document.getElementById('todo-modal').style.display = 'flex';
+    todoModal.style.display = 'flex';
     uiContainer.style.display = 'none';
     pauseForModal();
 
-    document.getElementById('modal-title').textContent = todo.title;
-    document.getElementById('modal-desc').textContent = todo.desc;
-    document.getElementById('modal-health').textContent = Math.round(todo.health) + '%';
-    document.getElementById('modal-status').textContent = todo.status || "Not Started";
+    modalTitle.textContent = todo.title;
+    modalDesc.textContent = todo.desc;
+    modalHealth.textContent = Math.round(todo.health) + '%';
+    modalStatus.textContent = todo.status || "Not Started";
 
     let urgencyText = "Medium";
     if (todo.urgency === 1) urgencyText = "Low";
     if (todo.urgency === 3) urgencyText = "High";
-    document.getElementById('modal-urgency').textContent = urgencyText;
+    modalUrgency.textContent = urgencyText;
 
-    document.getElementById('todo-effort').value = "0";
+    todoEffort.value = "0";
 }
 
 function closeTodoModal() {
-    document.getElementById('todo-modal').style.display = 'none';
+    todoModal.style.display = 'none';
     activeTodo = null;
     uiContainer.style.display = 'none'; // paranoid: ensure pause overlay isn't lingering
     startExploring();
 }
 
-document.getElementById('close-modal').addEventListener('click', closeTodoModal);
+closeModal.addEventListener('click', closeTodoModal);
 
 // Status buttons
 const statusButtons = [
@@ -2728,15 +2751,15 @@ statusButtons.forEach(btnInfo => {
     document.getElementById(btnInfo.id).addEventListener('click', () => {
         if (activeTodo) {
             activeTodo.status = btnInfo.text;
-            document.getElementById('modal-status').textContent = btnInfo.text;
+            modalStatus.textContent = btnInfo.text;
             saveTodosToLocal();
         }
     });
 });
 
-document.getElementById('btn-checkin').addEventListener('click', function() {
+btnCheckin.addEventListener('click', function() {
     if (!activeTodo) return;
-    const effortBoost = parseInt(document.getElementById('todo-effort').value);
+    const effortBoost = parseInt(todoEffort.value);
     const oldHealth = activeTodo.health;
     const newHealth = Math.min(100, activeTodo.health + effortBoost);
 
@@ -2748,7 +2771,7 @@ document.getElementById('btn-checkin').addEventListener('click', function() {
     saveTodosToLocal();
 
     // Count-up animation on the health display (~1s), then auto-close at 2s.
-    const healthEl = document.getElementById('modal-health');
+    const healthEl = modalHealth;
     const checkinBtn = this;
     checkinBtn.disabled = true;
     const ANIM_MS = 1000;
@@ -2771,7 +2794,7 @@ document.getElementById('btn-checkin').addEventListener('click', function() {
 init();
 animate();
 
-document.getElementById('btn-complete').addEventListener('click', function() {
+btnComplete.addEventListener('click', function() {
     if (activeTodo) {
         activeTodo.completed = true;
         activeTodo.health = 100;
@@ -2804,7 +2827,7 @@ function startExploring() {
         mobileActive = true;
         blocker.style.display = 'none';
         uiContainer.style.display = 'none';
-        document.getElementById('mobile-controls').classList.add('active');
+        mobileControls.classList.add('active');
     } else {
         controls.lock();
     }
@@ -2814,7 +2837,7 @@ function pauseForModal() {
     if (isTouchDevice) {
         mobileActive = false;
         resetMovement();
-        document.getElementById('mobile-controls').classList.remove('active');
+        mobileControls.classList.remove('active');
     } else {
         controls.unlock();
     }
@@ -2823,15 +2846,11 @@ function pauseForModal() {
 function showMobileMenu() {
     mobileActive = false;
     resetMovement();
-    document.getElementById('mobile-controls').classList.remove('active');
+    mobileControls.classList.remove('active');
     uiContainer.style.display = 'flex';
 }
 
 function setupTouchControls() {
-    const joystick = document.getElementById('joystick');
-    const stick = document.getElementById('stick');
-    const lookZone = document.getElementById('look-zone');
-    const menuBtn = document.getElementById('mobile-menu-btn');
     const lookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
     const JOY_RADIUS = 50;
     const TAP_THRESHOLD_PX = 10;
