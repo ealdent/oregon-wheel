@@ -234,6 +234,8 @@
 
     let selectedBuild = null;
     let selectedTower = null;
+    let mouseX = 0;
+    let mouseY = 0;
 
     // --- INITIALIZATION ---
     function init() {
@@ -301,6 +303,16 @@
     }
 
     // --- UI SETUP & LOGIC ---
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
+    }
+
     function setupUI() {
         const buildMenu = document.getElementById('build-menu');
         for (const [key, t] of Object.entries(TOWER_TYPES)) {
@@ -313,14 +325,19 @@
 
         document.getElementById('wave-btn').onclick = startWave;
 
+        // Track mouse movement
+        canvas.addEventListener('mousemove', (e) => {
+            const pos = getMousePos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+        });
+
         // Canvas clicking for placement and selection
         canvas.addEventListener('mousedown', (e) => {
             if(gameState === 'gameover') return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
+            const pos = getMousePos(e);
+            const x = pos.x;
+            const y = pos.y;
 
             const gridX = Math.floor(x / TILE_SIZE);
             const gridY = Math.floor(y / TILE_SIZE);
@@ -691,8 +708,30 @@
 
         // Draw Build Hover / Range
         if(selectedBuild) {
-            // Get mouse position (rough hack using last known or center)
-            // Range preview is handled via CSS or keeping track of mouse, skipped for compactness
+            const gridX = Math.floor(mouseX / TILE_SIZE);
+            const gridY = Math.floor(mouseY / TILE_SIZE);
+
+            if(gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+                const bx = gridX * TILE_SIZE + TILE_SIZE / 2;
+                const by = gridY * TILE_SIZE + TILE_SIZE / 2;
+                const tType = TOWER_TYPES[selectedBuild];
+
+                // Range preview
+                ctx.beginPath();
+                ctx.arc(bx, by, tType.range, 0, Math.PI * 2);
+                const canPlace = grid[gridX][gridY] === 0 && money >= tType.baseCost;
+                ctx.strokeStyle = canPlace ? "rgba(255, 255, 255, 0.5)" : "rgba(255, 0, 0, 0.5)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.fillStyle = canPlace ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 0, 0, 0.1)";
+                ctx.fill();
+
+                // Tower icon preview
+                ctx.globalAlpha = 0.5;
+                ctx.font = "30px Arial";
+                ctx.fillText(tType.icon, bx, by);
+                ctx.globalAlpha = 1.0;
+            }
         }
     }
 
