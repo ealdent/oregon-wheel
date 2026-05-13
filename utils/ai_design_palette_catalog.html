@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>AI App &amp; Agentic Tool Design Systems Catalog</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Geist:wght@400;600;700;800&family=Geist+Mono:wght@400;600&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;600;700&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&family=Libre+Baskerville:wght@400;700&family=Lora:wght@400;600;700&family=Noto+Sans:wght@400;700&family=Nunito+Sans:wght@400;700;800&family=Oswald:wght@400;600;700&family=Poppins:wght@400;600;700;800&family=Press+Start+2P&family=Roboto:wght@400;700&family=Roboto+Condensed:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+:root {
+  --bg: #f5f1e8;
+  --ink: #171511;
+  --muted: #6f685e;
+  --card: rgba(255,255,255,.78);
+  --line: rgba(23,21,17,.13);
+  --shadow: 0 20px 60px rgba(32, 24, 10, .12);
+  --radius: 28px;
+  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+  background:
+    radial-gradient(circle at 15% 5%, rgba(255, 130, 5, .18), transparent 28rem),
+    radial-gradient(circle at 90% 8%, rgba(114, 168, 248, .24), transparent 30rem),
+    radial-gradient(circle at 60% 100%, rgba(162, 89, 255, .16), transparent 34rem),
+    var(--bg);
+}
+a { color: inherit; }
+.wrap { width: min(1480px, calc(100% - 44px)); margin: 0 auto; }
+.hero { padding: 64px 0 30px; }
+.hero-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 26px; align-items: stretch; }
+.hero-copy {
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 10px);
+  background: linear-gradient(135deg, rgba(255,255,255,.82), rgba(255,255,255,.45));
+  box-shadow: var(--shadow);
+  padding: clamp(28px, 4vw, 56px);
+  backdrop-filter: blur(18px);
+  position: relative;
+  overflow: hidden;
+}
+.hero-copy::after {
+  content:"";
+  position:absolute; inset:auto -10% -40% 42%; height: 340px;
+  background: conic-gradient(from 190deg, #10a37f, #078efa, #a259ff, #fe7b02, #ff4f00, #10a37f);
+  filter: blur(50px); opacity:.16; border-radius: 50%;
+}
+.kicker { margin:0 0 16px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .16em; font-size: 12px; }
+h1 { margin: 0; font-size: clamp(44px, 7vw, 104px); line-height: .89; letter-spacing: -.07em; max-width: 980px; }
+.lede { margin: 26px 0 0; font-size: clamp(18px, 2.2vw, 28px); line-height: 1.25; color: #35312b; max-width: 980px; }
+.meta { display:flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+.meta span { border:1px solid var(--line); border-radius:999px; padding:10px 13px; background: rgba(255,255,255,.62); font-size:13px; }
+.panel {
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 10px);
+  background: rgba(20,18,13,.92);
+  color: #faf9f5;
+  box-shadow: var(--shadow);
+  padding: 26px;
+  display:flex; flex-direction:column; justify-content:space-between; min-height: 410px;
+  overflow:hidden; position:relative;
+}
+.panel::before { content:""; position:absolute; width: 340px; height:340px; right:-120px; top:-120px; border-radius:50%; background: conic-gradient(#8534f3, #199fd7, #21c19a, #ff8205, #ea4b71, #8534f3); filter: blur(20px); opacity:.7; }
+.panel > * { position:relative; }
+.panel h2 { font-size: 18px; letter-spacing: -.02em; margin:0 0 8px; }
+.panel p { color:#d4d0c9; line-height:1.55; margin:0; }
+.legend { display:grid; gap:12px; margin-top:22px; }
+.legend span { display:flex; justify-content:space-between; gap:16px; border-bottom:1px solid rgba(255,255,255,.13); padding-bottom:10px; font-family:var(--mono); font-size:12px; color:#eee9de; }
+.stats { display:flex; flex-wrap:wrap; gap:10px; margin: 24px 0 12px; }
+.stats span {
+  display:flex; gap:8px; align-items:center;
+  background: rgba(255,255,255,.58); border: 1px solid var(--line);
+  border-radius: 18px; padding: 12px 14px; color: #4a443c;
+}
+.stats b { font-size: 22px; letter-spacing: -.04em; color: var(--ink); }
+.toolbar {
+  position: sticky; top: 0; z-index: 10;
+  margin: 22px auto 26px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(245,241,232,.78);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 10px 30px rgba(32, 24, 10, .08);
+  display: grid; grid-template-columns: minmax(220px, 360px) 1fr; gap: 12px;
+}
+.search { width:100%; border:1px solid var(--line); border-radius: 16px; padding: 13px 14px; font: 15px var(--sans); background: rgba(255,255,255,.74); color:var(--ink); outline: none; }
+.filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.filter { border:1px solid var(--line); background:rgba(255,255,255,.58); border-radius:999px; padding:10px 12px; cursor:pointer; color:#433d35; font: 13px var(--sans); }
+.filter.active { background:#171511; color:#fffaf0; border-color:#171511; }
+.grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; padding-bottom: 70px; }
+.card {
+  background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.63));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 45px rgba(32, 24, 10, .10);
+  padding: 24px;
+  overflow:hidden; position: relative;
+}
+.card::before { content:""; position:absolute; top:0; left:0; right:0; height:5px; background: var(--accent); }
+.card-top { display:flex; justify-content:space-between; align-items:flex-start; gap: 16px; }
+.eyebrow { margin:0 0 7px; font-family:var(--mono); font-size: 12px; letter-spacing:.06em; color:var(--muted); text-transform:uppercase; }
+.card h2 { margin:0; font-size: clamp(26px, 3vw, 42px); line-height: .98; letter-spacing:-.055em; }
+.preview {
+  width: 206px;
+  min-width:206px;
+  min-height: 96px;
+  border-radius: 20px;
+  border:1px solid rgba(0,0,0,.10);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.24);
+  padding: 9px;
+  display:grid;
+  gap: 7px;
+  background: rgba(255,255,255,.62);
+}
+.preview-title {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-family: var(--mono); font-size: 10px; letter-spacing:.08em; text-transform:uppercase;
+  color:#6f685e;
+}
+.preview-title::after { content:"not logo"; opacity:.68; letter-spacing:.06em; }
+.preview-row { display:grid; grid-template-columns: 36px 1fr; gap: 7px; align-items:center; }
+.preview-label { font-family:var(--mono); font-size:10px; color:#6f685e; text-transform:uppercase; letter-spacing:.05em; }
+.preview-bar {
+  min-height: 24px;
+  display:flex;
+  overflow:hidden;
+  border-radius: 999px;
+  border:1px solid rgba(0,0,0,.13);
+  background:#fff;
+}
+.preview-bar i {
+  display:block;
+  flex: 1 1 0;
+  min-width: 10px;
+}
+.preview-bar i + i { box-shadow: inset 1px 0 rgba(0,0,0,.12); }
+.badges { display:flex; gap:8px; flex-wrap:wrap; margin: 16px 0; }
+.badges span { background: rgba(23,21,17,.06); color:#514940; border:1px solid var(--line); border-radius:999px; padding:7px 9px; font-size:12px; }
+.note { margin: 0 0 18px; color: var(--muted); line-height:1.45; font-size:14px; }
+.modes { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.modes section { border:1px solid var(--line); border-radius: 20px; padding: 13px; background: rgba(255,255,255,.42); }
+.card h3 { margin:0 0 10px; font-size: 13px; text-transform:uppercase; letter-spacing:.10em; color:#6e655b; }
+.swatches { display:grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap:8px; }
+.swatch {
+  min-height:74px;
+  border: 1px solid rgba(0,0,0,.10);
+  border-radius: 14px;
+  background: var(--sw);
+  color: var(--swtext);
+  padding: 9px;
+  display:flex; flex-direction:column; justify-content:space-between; align-items:flex-start;
+  text-align:left; cursor:pointer; overflow:hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+}
+.swatch span { font-size: 11px; opacity:.86; line-height:1.1; }
+.swatch b { font-family:var(--mono); font-size: 11px; letter-spacing:-.03em; }
+.font-block, .thesis { margin-top:16px; border-top:1px solid var(--line); padding-top:16px; }
+.font-block p, .thesis p { margin:0; line-height:1.55; color:#332e28; }
+.font-sample {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.36));
+  overflow:hidden;
+}
+.font-sample-tag {
+  font-family: var(--mono);
+  color: #746d64;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.font-sample-display {
+  font-family: var(--font-heading);
+  font-size: clamp(25px, 2.55vw, 38px);
+  line-height: .98;
+  letter-spacing: -.045em;
+  color: #171511;
+  margin-bottom: 8px;
+}
+.font-sample-glyphs {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  line-height:1.35;
+  color:#3f3931;
+  margin-bottom: 8px;
+}
+.font-sample-body {
+  font-family: var(--font-body);
+  color:#4b453d;
+  font-size: 14px;
+  line-height:1.45;
+  margin-bottom: 10px;
+}
+.font-sample-mono {
+  font-family: var(--font-mono);
+  color:#6f685e;
+  font-size: 11px;
+  line-height:1.35;
+  border-top:1px solid var(--line);
+  padding-top:9px;
+}
+
+details { margin-top:16px; border:1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.38); padding: 12px 14px; }
+summary { cursor:pointer; font-weight:700; letter-spacing:-.02em; }
+details ul { margin: 12px 0; padding-left: 18px; color:#4a443c; line-height:1.48; }
+.sources { display:flex; gap:8px; flex-wrap:wrap; }
+.sources a { font-size:12px; border:1px solid var(--line); background:rgba(255,255,255,.62); border-radius:999px; padding:8px 9px; text-decoration:none; color:#332e28; }
+.toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); opacity:0; pointer-events:none; background:#171511; color:#fffaf0; border-radius:999px; padding:12px 16px; font:13px var(--mono); transition: all .22s ease; z-index:20; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.empty { display:none; text-align:center; padding:60px 20px 90px; color: var(--muted); }
+.footer { border-top:1px solid var(--line); padding: 32px 0 56px; color:var(--muted); line-height:1.5; }
+.footer strong { color:var(--ink); }
+@media (max-width: 960px) {
+  .hero-grid { grid-template-columns:1fr; }
+  .grid { grid-template-columns:1fr; }
+  .toolbar { grid-template-columns:1fr; position: static; }
+}
+@media (max-width: 640px) {
+  .wrap { width:min(100% - 26px, 1480px); }
+  .hero { padding-top: 28px; }
+  .card { padding:18px; border-radius:22px; }
+  .card-top { flex-direction:column; }
+  .preview { width:100%; min-width:0; }
+  .modes { grid-template-columns:1fr; }
+  h1 { font-size: 44px; }
+}
+@media print {
+  body { background:#fff; }
+  .toolbar, .toast { display:none !important; }
+  .grid { grid-template-columns:1fr; }
+  .card { break-inside:avoid; box-shadow:none; background:#fff; }
+  .hero-copy, .panel { box-shadow:none; }
+}
+</style>
+</head>
+<body>
+<header class="hero wrap">
+<div class="hero-grid">
+<section class="hero-copy">
+<p class="kicker">AI visual systems catalog · May 2026</p>
+<h1>Color, type, and the brand logic of AI tools.</h1>
+<p class="lede">A researched catalog of 22 popular AI apps and agentic tools, mapping their light/dark palettes, typography choices, and the design thesis each system appears to be communicating.</p>
+<div class="meta">
+<span>Hex values marked as official, mixed, or inferred</span>
+<span>Font samples render exact public fonts or close fallbacks</span>
+<span>Header palette maps mirror the light/dark swatches below</span>
+</div>
+</section>
+<aside class="panel">
+<div>
+<p class="kicker">Reading key</p>
+<h2>What counts as evidence?</h2>
+<p><strong>Official</strong> means a brand or design-system source published colors, type, or design rationale. <strong>Mixed</strong> combines official assets with reputable brand indexes or direct product observation. <strong>Inferred</strong> means public standards were limited, so the palette/type is a close visual read, not a claim of canonical tokens.</p>
+</div>
+<div class="legend">
+<span><b>Consumer AI</b><em>trust, warmth, magic</em></span>
+<span><b>Agentic dev tools</b><em>focus, code, action</em></span>
+<span><b>Creative AI</b><em>image/video/audio first</em></span>
+<span><b>Automation</b><em>workflow clarity</em></span>
+</div>
+</aside>
+</div>
+<div class="stats"><span><b>1</b>Agentic AI</span><span><b>2</b>Agentic automation</span><span><b>7</b>Agentic dev tool</span><span><b>1</b>Agentic infrastructure</span><span><b>4</b>Consumer AI</span><span><b>1</b>Consumer and enterprise AI</span><span><b>2</b>Creative AI</span><span><b>1</b>Creative and agentic AI</span><span><b>1</b>Creative and productivity AI</span><span><b>1</b>Foundation AI</span><span><b>1</b>Productivity AI</span></div>
+</header>
+<nav aria-label="Catalog filters" class="toolbar wrap">
+<input class="search" id="search" placeholder="Search brands, colors, fonts, or theses…"/>
+<div class="filters"><button class="filter active" data-filter="All">All</button><button class="filter" data-filter="Agentic AI">Agentic AI</button><button class="filter" data-filter="Agentic automation">Agentic automation</button><button class="filter" data-filter="Agentic dev tool">Agentic dev tool</button><button class="filter" data-filter="Agentic infrastructure">Agentic infrastructure</button><button class="filter" data-filter="Consumer AI">Consumer AI</button><button class="filter" data-filter="Consumer and enterprise AI">Consumer and enterprise AI</button><button class="filter" data-filter="Creative AI">Creative AI</button><button class="filter" data-filter="Creative and agentic AI">Creative and agentic AI</button><button class="filter" data-filter="Creative and productivity AI">Creative and productivity AI</button><button class="filter" data-filter="Foundation AI">Foundation AI</button><button class="filter" data-filter="Productivity AI">Productivity AI</button></div>
+</nav>
+<main class="wrap">
+<section class="grid" id="grid">
+<article class="card" data-quality="Official type, mixed color" data-search="openai / chatgpt foundation ai assistant consumer ai openai sans. closest public fallback: inter or a humanist-geometric sans such as avenir next / sf pro. the system says: precision without theatre. black, white, neutral space, and a custom sans with rounded humanist pressure make the product feel sober, capable, and less like a toy robot. the old green accent remains useful as a trust cue, but the newer brand center of gravity is monochrome, legible, and institutional." data-type="Consumer AI" style="--accent:#10A37F">
+<div class="card-top">
+<div>
+<p class="eyebrow">01 · Foundation AI assistant</p>
+<h2>OpenAI / ChatGPT</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: Canvas #FFFFFF"></i><i style="background:#050505" title="Light: Ink #050505"></i><i style="background:#F7F7F2" title="Light: Soft neutral #F7F7F2"></i><i style="background:#D9D9D0" title="Light: Rule gray #D9D9D0"></i><i style="background:#10A37F" title="Light: ChatGPT accent #10A37F"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Night #000000"></i><i style="background:#171717" title="Dark: Surface #171717"></i><i style="background:#FFFFFF" title="Dark: Text #FFFFFF"></i><i style="background:#3B3B36" title="Dark: Muted line #3B3B36"></i><i style="background:#10A37F" title="Dark: Accent #10A37F"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Consumer AI</span>
+<span>Official type, mixed color</span>
+</div>
+<p class="note">Official public brand guidance emphasizes typography and restraint; the green accent is treated as product/legacy brand inference.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>Canvas</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#050505" style="--sw:#050505; --swtext:#FFFFFF" title="Copy #050505"><span>Ink</span><b>#050505</b></button><button class="swatch" data-hex="#F7F7F2" style="--sw:#F7F7F2; --swtext:#111111" title="Copy #F7F7F2"><span>Soft neutral</span><b>#F7F7F2</b></button><button class="swatch" data-hex="#D9D9D0" style="--sw:#D9D9D0; --swtext:#111111" title="Copy #D9D9D0"><span>Rule gray</span><b>#D9D9D0</b></button><button class="swatch" data-hex="#10A37F" style="--sw:#10A37F; --swtext:#FFFFFF" title="Copy #10A37F"><span>ChatGPT accent</span><b>#10A37F</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Night</span><b>#000000</b></button><button class="swatch" data-hex="#171717" style="--sw:#171717; --swtext:#FFFFFF" title="Copy #171717"><span>Surface</span><b>#171717</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>Text</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#3B3B36" style="--sw:#3B3B36; --swtext:#FFFFFF" title="Copy #3B3B36"><span>Muted line</span><b>#3B3B36</b></button><button class="swatch" data-hex="#10A37F" style="--sw:#10A37F; --swtext:#FFFFFF" title="Copy #10A37F"><span>Accent</span><b>#10A37F</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>OpenAI Sans. Closest public fallback: Inter or a humanist-geometric sans such as Avenir Next / SF Pro.</p>
+<div class="font-sample" style='--font-heading: "Inter", "Avenir Next", "SF Pro Display", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", "Avenir Next", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · OpenAI Sans unavailable, Inter fallback</div><div class="font-sample-display">OpenAI / ChatGPT</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>The system says: precision without theatre. Black, white, neutral space, and a custom sans with rounded humanist pressure make the product feel sober, capable, and less like a toy robot. The old green accent remains useful as a trust cue, but the newer brand center of gravity is monochrome, legible, and institutional.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Low-chroma palette lets text, reasoning, and product affordances carry the experience.</li><li>Rounded but technical letterforms communicate warmth without cuteness.</li><li>The marketing posture is ‘advanced capability under control,’ not spectacle.</li></ul>
+<div class="sources"><a href="https://openai.com/brand/" rel="noopener noreferrer" target="_blank">OpenAI brand</a><a href="https://openai.com/brand/" rel="noopener noreferrer" target="_blank">OpenAI Sans note</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official colors and type" data-search="anthropic / claude foundation ai assistant consumer ai poppins for headings and lora for body in the published guidance. closest thesis match: a soft geometric sans paired with an editorial serif. claude is styled like a calm reading room rather than a command center. warm paper, off-black, serif body text, and muted earth accents imply deliberation, safety, and long-form thought. the brand is trying to make advanced ai feel literate, careful, and almost bookish." data-type="Consumer AI" style="--accent:#D97757">
+<div class="card-top">
+<div>
+<p class="eyebrow">02 · Foundation AI assistant</p>
+<h2>Anthropic / Claude</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FAF9F5" title="Light: Warm paper #FAF9F5"></i><i style="background:#141413" title="Light: Ink #141413"></i><i style="background:#E8E6DC" title="Light: Light gray #E8E6DC"></i><i style="background:#B0AEA5" title="Light: Mid gray #B0AEA5"></i><i style="background:#D97757" title="Light: Clay orange #D97757"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#141413" title="Dark: Charcoal #141413"></i><i style="background:#FAF9F5" title="Dark: Warm text #FAF9F5"></i><i style="background:#B0AEA5" title="Dark: Mid gray #B0AEA5"></i><i style="background:#6A9BCC" title="Dark: Soft blue #6A9BCC"></i><i style="background:#788C5D" title="Dark: Moss #788C5D"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Consumer AI</span>
+<span>Official colors and type</span>
+</div>
+<p class="note">Palette and type are drawn from Anthropic’s published brand-skill guidance.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FAF9F5" style="--sw:#FAF9F5; --swtext:#111111" title="Copy #FAF9F5"><span>Warm paper</span><b>#FAF9F5</b></button><button class="swatch" data-hex="#141413" style="--sw:#141413; --swtext:#FFFFFF" title="Copy #141413"><span>Ink</span><b>#141413</b></button><button class="swatch" data-hex="#E8E6DC" style="--sw:#E8E6DC; --swtext:#111111" title="Copy #E8E6DC"><span>Light gray</span><b>#E8E6DC</b></button><button class="swatch" data-hex="#B0AEA5" style="--sw:#B0AEA5; --swtext:#111111" title="Copy #B0AEA5"><span>Mid gray</span><b>#B0AEA5</b></button><button class="swatch" data-hex="#D97757" style="--sw:#D97757; --swtext:#FFFFFF" title="Copy #D97757"><span>Clay orange</span><b>#D97757</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#141413" style="--sw:#141413; --swtext:#FFFFFF" title="Copy #141413"><span>Charcoal</span><b>#141413</b></button><button class="swatch" data-hex="#FAF9F5" style="--sw:#FAF9F5; --swtext:#111111" title="Copy #FAF9F5"><span>Warm text</span><b>#FAF9F5</b></button><button class="swatch" data-hex="#B0AEA5" style="--sw:#B0AEA5; --swtext:#111111" title="Copy #B0AEA5"><span>Mid gray</span><b>#B0AEA5</b></button><button class="swatch" data-hex="#6A9BCC" style="--sw:#6A9BCC; --swtext:#FFFFFF" title="Copy #6A9BCC"><span>Soft blue</span><b>#6A9BCC</b></button><button class="swatch" data-hex="#788C5D" style="--sw:#788C5D; --swtext:#FFFFFF" title="Copy #788C5D"><span>Moss</span><b>#788C5D</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Poppins for headings and Lora for body in the published guidance. Closest thesis match: a soft geometric sans paired with an editorial serif.</p>
+<div class="font-sample" style='--font-heading: "Poppins", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Lora", Georgia, serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · public Poppins + Lora</div><div class="font-sample-display">Anthropic / Claude</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Claude is styled like a calm reading room rather than a command center. Warm paper, off-black, serif body text, and muted earth accents imply deliberation, safety, and long-form thought. The brand is trying to make advanced AI feel literate, careful, and almost bookish.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Serif body text makes Claude feel more essayist than dashboard.</li><li>Earthy orange and moss accents reduce cold machine energy.</li><li>Off-white backgrounds frame AI as thoughtful conversation.</li></ul>
+<div class="sources"><a href="https://github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md" rel="noopener noreferrer" target="_blank">Anthropic brand skill</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official design thesis, mixed palette" data-search="google gemini foundation ai assistant consumer ai google sans / google sans text. closest fallback: product sans style, inter, or sf pro. gemini turns the familiar google color system into a moving gradient organism. circles, dots, spatial softness, and directional color shifts are meant to suggest synthesis, energy transfer, and friendly magic while preserving google’s everyday utility." data-type="Consumer AI" style="--accent:#078EFA">
+<div class="card-top">
+<div>
+<p class="eyebrow">03 · Foundation AI assistant</p>
+<h2>Google Gemini</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#4285F4" title="Light: Google blue #4285F4"></i><i style="background:#EA4335" title="Light: Google red #EA4335"></i><i style="background:#FBBC05" title="Light: Google yellow #FBBC05"></i><i style="background:#34A853" title="Light: Google green #34A853"></i><i style="background:#078EFA" title="Light: Gemini blue #078EFA"></i><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#202124" title="Dark: Deep gray #202124"></i><i style="background:#E8EAED" title="Dark: Cloud text #E8EAED"></i><i style="background:#078EFA" title="Dark: Gemini blue #078EFA"></i><i style="background:#8E6CEF" title="Dark: Violet shift #8E6CEF"></i><i style="background:#B7D7FF" title="Dark: Soft glow #B7D7FF"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Consumer AI</span>
+<span>Official design thesis, mixed palette</span>
+</div>
+<p class="note">Google’s design library explains the Gemini gradient language; hexes combine Google core colors with current Gemini blue inference.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#4285F4" style="--sw:#4285F4; --swtext:#FFFFFF" title="Copy #4285F4"><span>Google blue</span><b>#4285F4</b></button><button class="swatch" data-hex="#EA4335" style="--sw:#EA4335; --swtext:#FFFFFF" title="Copy #EA4335"><span>Google red</span><b>#EA4335</b></button><button class="swatch" data-hex="#FBBC05" style="--sw:#FBBC05; --swtext:#111111" title="Copy #FBBC05"><span>Google yellow</span><b>#FBBC05</b></button><button class="swatch" data-hex="#34A853" style="--sw:#34A853; --swtext:#FFFFFF" title="Copy #34A853"><span>Google green</span><b>#34A853</b></button><button class="swatch" data-hex="#078EFA" style="--sw:#078EFA; --swtext:#FFFFFF" title="Copy #078EFA"><span>Gemini blue</span><b>#078EFA</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#202124" style="--sw:#202124; --swtext:#FFFFFF" title="Copy #202124"><span>Deep gray</span><b>#202124</b></button><button class="swatch" data-hex="#E8EAED" style="--sw:#E8EAED; --swtext:#111111" title="Copy #E8EAED"><span>Cloud text</span><b>#E8EAED</b></button><button class="swatch" data-hex="#078EFA" style="--sw:#078EFA; --swtext:#FFFFFF" title="Copy #078EFA"><span>Gemini blue</span><b>#078EFA</b></button><button class="swatch" data-hex="#8E6CEF" style="--sw:#8E6CEF; --swtext:#FFFFFF" title="Copy #8E6CEF"><span>Violet shift</span><b>#8E6CEF</b></button><button class="swatch" data-hex="#B7D7FF" style="--sw:#B7D7FF; --swtext:#111111" title="Copy #B7D7FF"><span>Soft glow</span><b>#B7D7FF</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Google Sans / Google Sans Text. Closest fallback: Product Sans style, Inter, or SF Pro.</p>
+<div class="font-sample" style='--font-heading: "Google Sans", "Product Sans", "Roboto", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Roboto", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Google Sans-style fallback</div><div class="font-sample-display">Google Gemini</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Gemini turns the familiar Google color system into a moving gradient organism. Circles, dots, spatial softness, and directional color shifts are meant to suggest synthesis, energy transfer, and friendly magic while preserving Google’s everyday utility.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>The gradient is not decoration; it visualizes thinking, motion, and combination.</li><li>Rounded containers and circles avoid intimidating AI iconography.</li><li>The core Google colors keep the new AI layer inside a trusted ecosystem.</li></ul>
+<div class="sources"><a href="https://design.google/library/gemini-ai-visual-design" rel="noopener noreferrer" target="_blank">Google Design Library: Gemini visual design</a><a href="https://developers.google.com/assistant/console/brand-basics" rel="noopener noreferrer" target="_blank">Google Assistant partner brand basics</a></div>
+</details>
+</article>
+<article class="card" data-quality="Mixed official and brand-indexed" data-search="perplexity answer engine consumer ai perplexity sans / fk grotesk neue appears in brand references. closest fallback: fk grotesk, inter, or noto sans for broad language coverage. perplexity wants to feel like a search engine crossed with a reference library. teal signals credibility and freshness; parchment keeps it from feeling like a sterile index. the type-led system makes the core product promise clear: answers, citations, and reading, not chatbot theatrics." data-type="Consumer AI" style="--accent:#20808D">
+<div class="card-top">
+<div>
+<p class="eyebrow">04 · Answer engine</p>
+<h2>Perplexity</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FBFAF4" title="Light: Parchment #FBFAF4"></i><i style="background:#FFFFFF" title="Light: Paper #FFFFFF"></i><i style="background:#27251E" title="Light: Graphite #27251E"></i><i style="background:#20808D" title="Light: Turquoise #20808D"></i><i style="background:#B7B2A7" title="Light: Stone #B7B2A7"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#091717" title="Dark: Deep teal black #091717"></i><i style="background:#EAF5F3" title="Dark: Soft text #EAF5F3"></i><i style="background:#20808D" title="Dark: Turquoise #20808D"></i><i style="background:#3D4644" title="Dark: Muted graphite #3D4644"></i><i style="background:#FBFAF4" title="Dark: Parchment glint #FBFAF4"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Consumer AI</span>
+<span>Mixed official and brand-indexed</span>
+</div>
+<p class="note">Brand directory and standards sources converge on teal, parchment, graphite, and near-black tones; mark as mixed because public docs vary by product surface.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FBFAF4" style="--sw:#FBFAF4; --swtext:#111111" title="Copy #FBFAF4"><span>Parchment</span><b>#FBFAF4</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>Paper</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#27251E" style="--sw:#27251E; --swtext:#FFFFFF" title="Copy #27251E"><span>Graphite</span><b>#27251E</b></button><button class="swatch" data-hex="#20808D" style="--sw:#20808D; --swtext:#FFFFFF" title="Copy #20808D"><span>Turquoise</span><b>#20808D</b></button><button class="swatch" data-hex="#B7B2A7" style="--sw:#B7B2A7; --swtext:#111111" title="Copy #B7B2A7"><span>Stone</span><b>#B7B2A7</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#091717" style="--sw:#091717; --swtext:#FFFFFF" title="Copy #091717"><span>Deep teal black</span><b>#091717</b></button><button class="swatch" data-hex="#EAF5F3" style="--sw:#EAF5F3; --swtext:#111111" title="Copy #EAF5F3"><span>Soft text</span><b>#EAF5F3</b></button><button class="swatch" data-hex="#20808D" style="--sw:#20808D; --swtext:#FFFFFF" title="Copy #20808D"><span>Turquoise</span><b>#20808D</b></button><button class="swatch" data-hex="#3D4644" style="--sw:#3D4644; --swtext:#FFFFFF" title="Copy #3D4644"><span>Muted graphite</span><b>#3D4644</b></button><button class="swatch" data-hex="#FBFAF4" style="--sw:#FBFAF4; --swtext:#111111" title="Copy #FBFAF4"><span>Parchment glint</span><b>#FBFAF4</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Perplexity Sans / FK Grotesk Neue appears in brand references. Closest fallback: FK Grotesk, Inter, or Noto Sans for broad language coverage.</p>
+<div class="font-sample" style='--font-heading: "FK Grotesk Neue", "Space Grotesk", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", "Noto Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Space Grotesk / Inter fallback</div><div class="font-sample-display">Perplexity</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Perplexity wants to feel like a search engine crossed with a reference library. Teal signals credibility and freshness; parchment keeps it from feeling like a sterile index. The type-led system makes the core product promise clear: answers, citations, and reading, not chatbot theatrics.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Teal functions as a trust and source-navigation accent.</li><li>Warm off-white supports long reading sessions.</li><li>Brand restraint gives citations and snippets visual authority.</li></ul>
+<div class="sources"><a href="https://live.standards.site/perplexity/color" rel="noopener noreferrer" target="_blank">Perplexity standards color</a><a href="https://live.standards.site/perplexity/type" rel="noopener noreferrer" target="_blank">Perplexity standards type</a><a href="https://brandfetch.com/perplexity.ai" rel="noopener noreferrer" target="_blank">Brandfetch: Perplexity</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official design thesis, inferred hexes" data-search="microsoft copilot enterprise ai assistant consumer and enterprise ai segoe ui / microsoft fluent typography. closest fallback: segoe ui, aptos, or system ui. copilot uses a prismatic, fluid ribbon to say that ai is not a single product, but a connective layer through the microsoft stack. rounded gradients soften enterprise software while the fluent typography keeps it familiar to office, windows, and teams users." data-type="Consumer and enterprise AI" style="--accent:#199FD7">
+<div class="card-top">
+<div>
+<p class="eyebrow">05 · Enterprise AI assistant</p>
+<h2>Microsoft Copilot</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#F5F5F5" title="Light: Fluent gray #F5F5F5"></i><i style="background:#199FD7" title="Light: Sky #199FD7"></i><i style="background:#8A50D8" title="Light: Violet #8A50D8"></i><i style="background:#EE5091" title="Light: Coral #EE5091"></i><i style="background:#FC7942" title="Light: Orange #FC7942"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#111111" title="Dark: Charcoal #111111"></i><i style="background:#1B1B1B" title="Dark: Panel #1B1B1B"></i><i style="background:#199FD7" title="Dark: Sky #199FD7"></i><i style="background:#99BD3C" title="Dark: Green #99BD3C"></i><i style="background:#8A50D8" title="Dark: Violet #8A50D8"></i><i style="background:#F8F8F8" title="Dark: Text #F8F8F8"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Consumer and enterprise AI</span>
+<span>Official design thesis, inferred hexes</span>
+</div>
+<p class="note">Copilot’s exact brand tokens are not all public in one canonical spec; this palette approximates the prismatic Fluent gradient language seen across Copilot/M365 materials.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#F5F5F5" style="--sw:#F5F5F5; --swtext:#111111" title="Copy #F5F5F5"><span>Fluent gray</span><b>#F5F5F5</b></button><button class="swatch" data-hex="#199FD7" style="--sw:#199FD7; --swtext:#FFFFFF" title="Copy #199FD7"><span>Sky</span><b>#199FD7</b></button><button class="swatch" data-hex="#8A50D8" style="--sw:#8A50D8; --swtext:#FFFFFF" title="Copy #8A50D8"><span>Violet</span><b>#8A50D8</b></button><button class="swatch" data-hex="#EE5091" style="--sw:#EE5091; --swtext:#FFFFFF" title="Copy #EE5091"><span>Coral</span><b>#EE5091</b></button><button class="swatch" data-hex="#FC7942" style="--sw:#FC7942; --swtext:#111111" title="Copy #FC7942"><span>Orange</span><b>#FC7942</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#111111" style="--sw:#111111; --swtext:#FFFFFF" title="Copy #111111"><span>Charcoal</span><b>#111111</b></button><button class="swatch" data-hex="#1B1B1B" style="--sw:#1B1B1B; --swtext:#FFFFFF" title="Copy #1B1B1B"><span>Panel</span><b>#1B1B1B</b></button><button class="swatch" data-hex="#199FD7" style="--sw:#199FD7; --swtext:#FFFFFF" title="Copy #199FD7"><span>Sky</span><b>#199FD7</b></button><button class="swatch" data-hex="#99BD3C" style="--sw:#99BD3C; --swtext:#111111" title="Copy #99BD3C"><span>Green</span><b>#99BD3C</b></button><button class="swatch" data-hex="#8A50D8" style="--sw:#8A50D8; --swtext:#FFFFFF" title="Copy #8A50D8"><span>Violet</span><b>#8A50D8</b></button><button class="swatch" data-hex="#F8F8F8" style="--sw:#F8F8F8; --swtext:#111111" title="Copy #F8F8F8"><span>Text</span><b>#F8F8F8</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Segoe UI / Microsoft Fluent typography. Closest fallback: Segoe UI, Aptos, or system UI.</p>
+<div class="font-sample" style='--font-heading: "Segoe UI", "Aptos Display", "Aptos", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Segoe UI", "Aptos", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "Cascadia Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Segoe/Aptos/system stack</div><div class="font-sample-display">Microsoft Copilot</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Copilot uses a prismatic, fluid ribbon to say that AI is not a single product, but a connective layer through the Microsoft stack. Rounded gradients soften enterprise software while the Fluent typography keeps it familiar to Office, Windows, and Teams users.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Multi-color gradients represent cross-app orchestration.</li><li>Soft folded geometry reduces the anxiety of automation.</li><li>Segoe/Fluent continuity says: this is inside the tools you already use.</li></ul>
+<div class="sources"><a href="https://www.microsoft.design/" rel="noopener noreferrer" target="_blank">Microsoft Design coverage of Copilot-influenced icons</a><a href="https://www.office.com/" rel="noopener noreferrer" target="_blank">Microsoft 365 Copilot</a></div>
+</details>
+</article>
+<article class="card" data-quality="Inferred visual system" data-search="midjourney generative image model creative ai clean grotesk, likely custom or system. closest fallback: inter, söhne, helvetica neue, or sf pro. midjourney’s brand mostly gets out of the way. sparse monochrome, gallery spacing, and research-lab language let generated images become the identity. the message is: the frontier is visual imagination, and the interface is only the aperture." data-type="Creative AI" style="--accent:#8A8A8A">
+<div class="card-top">
+<div>
+<p class="eyebrow">06 · Generative image model</p>
+<h2>Midjourney</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#F4F1EA" title="Light: Gallery paper #F4F1EA"></i><i style="background:#111111" title="Light: Ink #111111"></i><i style="background:#8A8A8A" title="Light: Gallery gray #8A8A8A"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Black #000000"></i><i style="background:#111111" title="Dark: Void #111111"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#B7B7B7" title="Dark: Muted silver #B7B7B7"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Creative AI</span>
+<span>Inferred visual system</span>
+</div>
+<p class="note">Midjourney has historically published less conventional brand guidance; this entry is inferred from current marketing/product presentation and research-lab positioning.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#F4F1EA" style="--sw:#F4F1EA; --swtext:#111111" title="Copy #F4F1EA"><span>Gallery paper</span><b>#F4F1EA</b></button><button class="swatch" data-hex="#111111" style="--sw:#111111; --swtext:#FFFFFF" title="Copy #111111"><span>Ink</span><b>#111111</b></button><button class="swatch" data-hex="#8A8A8A" style="--sw:#8A8A8A; --swtext:#FFFFFF" title="Copy #8A8A8A"><span>Gallery gray</span><b>#8A8A8A</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#111111" style="--sw:#111111; --swtext:#FFFFFF" title="Copy #111111"><span>Void</span><b>#111111</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#B7B7B7" style="--sw:#B7B7B7; --swtext:#111111" title="Copy #B7B7B7"><span>Muted silver</span><b>#B7B7B7</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Clean grotesk, likely custom or system. Closest fallback: Inter, Söhne, Helvetica Neue, or SF Pro.</p>
+<div class="font-sample" style='--font-heading: "Helvetica Neue", "Inter", "Söhne", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", "Helvetica Neue", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · clean grotesk fallback</div><div class="font-sample-display">Midjourney</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Midjourney’s brand mostly gets out of the way. Sparse monochrome, gallery spacing, and research-lab language let generated images become the identity. The message is: the frontier is visual imagination, and the interface is only the aperture.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Minimal brand color keeps attention on user-created images.</li><li>Research-lab framing adds mystique without heavy enterprise polish.</li><li>Neutral type makes the community gallery feel like the main character.</li></ul>
+<div class="sources"><a href="https://www.midjourney.com/" rel="noopener noreferrer" target="_blank">Midjourney home</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official logo rules, inferred palette/type" data-search="runway generative video studio creative ai custom wordmark. closest marketing/ui fallback: suisse international, neue haas grotesk, or inter. runway behaves like production software for cinematic work. black/white framing, full-bleed visuals, and sparse ui chrome communicate studio seriousness. the palette says less ‘ai toy’ and more ‘post-production room with a very strange engine inside.’" data-type="Creative AI" style="--accent:#4A78B9">
+<div class="card-top">
+<div>
+<p class="eyebrow">07 · Generative video studio</p>
+<h2>Runway</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#000000" title="Light: Black #000000"></i><i style="background:#767D88" title="Light: Blue Bayoux #767D88"></i><i style="background:#4A78B9" title="Light: Havelock blue #4A78B9"></i><i style="background:#E7E9EA" title="Light: Mist #E7E9EA"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Black #000000"></i><i style="background:#030303" title="Dark: Stage black #030303"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#767D88" title="Dark: Slate #767D88"></i><i style="background:#4A78B9" title="Dark: Cool blue #4A78B9"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Creative AI</span>
+<span>Official logo rules, inferred palette/type</span>
+</div>
+<p class="note">Official guidelines emphasize black/white logo use; gray/blue values are inferred from interface and brand-index references.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#767D88" style="--sw:#767D88; --swtext:#FFFFFF" title="Copy #767D88"><span>Blue Bayoux</span><b>#767D88</b></button><button class="swatch" data-hex="#4A78B9" style="--sw:#4A78B9; --swtext:#FFFFFF" title="Copy #4A78B9"><span>Havelock blue</span><b>#4A78B9</b></button><button class="swatch" data-hex="#E7E9EA" style="--sw:#E7E9EA; --swtext:#111111" title="Copy #E7E9EA"><span>Mist</span><b>#E7E9EA</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#030303" style="--sw:#030303; --swtext:#FFFFFF" title="Copy #030303"><span>Stage black</span><b>#030303</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#767D88" style="--sw:#767D88; --swtext:#FFFFFF" title="Copy #767D88"><span>Slate</span><b>#767D88</b></button><button class="swatch" data-hex="#4A78B9" style="--sw:#4A78B9; --swtext:#FFFFFF" title="Copy #4A78B9"><span>Cool blue</span><b>#4A78B9</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Custom wordmark. Closest marketing/UI fallback: Suisse International, Neue Haas Grotesk, or Inter.</p>
+<div class="font-sample" style='--font-heading: "Neue Haas Grotesk Text", "Helvetica Neue", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", "Helvetica Neue", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Neue Haas/Suisse-style fallback</div><div class="font-sample-display">Runway</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Runway behaves like production software for cinematic work. Black/white framing, full-bleed visuals, and sparse UI chrome communicate studio seriousness. The palette says less ‘AI toy’ and more ‘post-production room with a very strange engine inside.’</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Monochrome gives video and imagery the spotlight.</li><li>Cool grays make the tool feel production-grade.</li><li>Custom wordmark separates brand from generic SaaS.</li></ul>
+<div class="sources"><a href="https://runwayml.com/brand-guidelines" rel="noopener noreferrer" target="_blank">Runway brand guidelines</a><a href="https://runwayml.com/" rel="noopener noreferrer" target="_blank">Runway product site</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official brand thesis, mixed type/color" data-search="elevenlabs ai audio and agents creative and agentic ai waldenburg 300 appears in brand-index references; closest fallback: a compressed grotesk plus inter / helvetica for ui. elevenlabs treats sound as something physical. chladni-like patterns, kinetic typography, and analog textures make synthetic voice feel tactile rather than disembodied. blue, orange, and monochrome split product families while preserving a single audio-technology core." data-type="Creative and agentic AI" style="--accent:#0447FF">
+<div class="card-top">
+<div>
+<p class="eyebrow">08 · AI audio and agents</p>
+<h2>ElevenLabs</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FDFCFC" title="Light: Near white #FDFCFC"></i><i style="background:#000000" title="Light: Black #000000"></i><i style="background:#E5E5E5" title="Light: Neutral #E5E5E5"></i><i style="background:#0447FF" title="Light: Agents blue #0447FF"></i><i style="background:#FF4704" title="Light: Creative orange #FF4704"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Black #000000"></i><i style="background:#FDFCFC" title="Dark: Near white #FDFCFC"></i><i style="background:#777169" title="Dark: Warm gray #777169"></i><i style="background:#0447FF" title="Dark: Blue #0447FF"></i><i style="background:#FF4704" title="Dark: Orange #FF4704"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Creative and agentic AI</span>
+<span>Official brand thesis, mixed type/color</span>
+</div>
+<p class="note">Official guidance describes product-family palette behavior; some exact hexes are taken from brand-index observations and current materials.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FDFCFC" style="--sw:#FDFCFC; --swtext:#111111" title="Copy #FDFCFC"><span>Near white</span><b>#FDFCFC</b></button><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#E5E5E5" style="--sw:#E5E5E5; --swtext:#111111" title="Copy #E5E5E5"><span>Neutral</span><b>#E5E5E5</b></button><button class="swatch" data-hex="#0447FF" style="--sw:#0447FF; --swtext:#FFFFFF" title="Copy #0447FF"><span>Agents blue</span><b>#0447FF</b></button><button class="swatch" data-hex="#FF4704" style="--sw:#FF4704; --swtext:#FFFFFF" title="Copy #FF4704"><span>Creative orange</span><b>#FF4704</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#FDFCFC" style="--sw:#FDFCFC; --swtext:#111111" title="Copy #FDFCFC"><span>Near white</span><b>#FDFCFC</b></button><button class="swatch" data-hex="#777169" style="--sw:#777169; --swtext:#FFFFFF" title="Copy #777169"><span>Warm gray</span><b>#777169</b></button><button class="swatch" data-hex="#0447FF" style="--sw:#0447FF; --swtext:#FFFFFF" title="Copy #0447FF"><span>Blue</span><b>#0447FF</b></button><button class="swatch" data-hex="#FF4704" style="--sw:#FF4704; --swtext:#FFFFFF" title="Copy #FF4704"><span>Orange</span><b>#FF4704</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Waldenburg 300 appears in brand-index references; closest fallback: a compressed grotesk plus Inter / Helvetica for UI.</p>
+<div class="font-sample" style='--font-heading: "Roboto Condensed", "Oswald", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", "Helvetica Neue", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · compressed grotesk fallback</div><div class="font-sample-display">ElevenLabs</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>ElevenLabs treats sound as something physical. Chladni-like patterns, kinetic typography, and analog textures make synthetic voice feel tactile rather than disembodied. Blue, orange, and monochrome split product families while preserving a single audio-technology core.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Wave and vibration motifs make invisible audio visible.</li><li>Analog texture humanizes digital precision.</li><li>Product-family color coding helps the platform feel modular.</li></ul>
+<div class="sources"><a href="https://elevenlabs.io/brand" rel="noopener noreferrer" target="_blank">ElevenLabs brand</a><a href="https://elevenlabs.io/" rel="noopener noreferrer" target="_blank">ElevenLabs product site</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official assets, strong third-party style analysis" data-search="cursor ai coding ide agentic dev tool cursor gothic plus berkeley mono / jetbrains mono in style references. closest fallback: a condensed grotesk paired with a programmer mono. cursor rejects neon hacker clichés. warm cream, deep charcoal, and a disciplined orange accent make ai coding feel like a composed writing environment. the mono type keeps it technical; the editorial warmth makes it feel less like a terminal bunker." data-type="Agentic dev tool" style="--accent:#F54E00">
+<div class="card-top">
+<div>
+<p class="eyebrow">09 · AI coding IDE</p>
+<h2>Cursor</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#F7F7F4" title="Light: Cream #F7F7F4"></i><i style="background:#14120B" title="Light: Warm ink #14120B"></i><i style="background:#26251E" title="Light: Charcoal #26251E"></i><i style="background:#F54E00" title="Light: Cursor orange #F54E00"></i><i style="background:#EDECEC" title="Light: Soft line #EDECEC"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#14120B" title="Dark: Ink #14120B"></i><i style="background:#26251E" title="Dark: Panel #26251E"></i><i style="background:#F7F7F4" title="Dark: Cream text #F7F7F4"></i><i style="background:#F54E00" title="Dark: Orange #F54E00"></i><i style="background:#8A8880" title="Dark: Muted #8A8880"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official assets, strong third-party style analysis</span>
+</div>
+<p class="note">Official brand page publishes assets; color/type specifics are supported by current brand-analysis references and product observation.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#F7F7F4" style="--sw:#F7F7F4; --swtext:#111111" title="Copy #F7F7F4"><span>Cream</span><b>#F7F7F4</b></button><button class="swatch" data-hex="#14120B" style="--sw:#14120B; --swtext:#FFFFFF" title="Copy #14120B"><span>Warm ink</span><b>#14120B</b></button><button class="swatch" data-hex="#26251E" style="--sw:#26251E; --swtext:#FFFFFF" title="Copy #26251E"><span>Charcoal</span><b>#26251E</b></button><button class="swatch" data-hex="#F54E00" style="--sw:#F54E00; --swtext:#FFFFFF" title="Copy #F54E00"><span>Cursor orange</span><b>#F54E00</b></button><button class="swatch" data-hex="#EDECEC" style="--sw:#EDECEC; --swtext:#111111" title="Copy #EDECEC"><span>Soft line</span><b>#EDECEC</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#14120B" style="--sw:#14120B; --swtext:#FFFFFF" title="Copy #14120B"><span>Ink</span><b>#14120B</b></button><button class="swatch" data-hex="#26251E" style="--sw:#26251E; --swtext:#FFFFFF" title="Copy #26251E"><span>Panel</span><b>#26251E</b></button><button class="swatch" data-hex="#F7F7F4" style="--sw:#F7F7F4; --swtext:#111111" title="Copy #F7F7F4"><span>Cream text</span><b>#F7F7F4</b></button><button class="swatch" data-hex="#F54E00" style="--sw:#F54E00; --swtext:#FFFFFF" title="Copy #F54E00"><span>Orange</span><b>#F54E00</b></button><button class="swatch" data-hex="#8A8880" style="--sw:#8A8880; --swtext:#FFFFFF" title="Copy #8A8880"><span>Muted</span><b>#8A8880</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Cursor Gothic plus Berkeley Mono / JetBrains Mono in style references. Closest fallback: a condensed grotesk paired with a programmer mono.</p>
+<div class="font-sample" style='--font-heading: "Oswald", "Roboto Condensed", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · condensed grotesk + code mono fallback</div><div class="font-sample-display">Cursor</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Cursor rejects neon hacker clichés. Warm cream, deep charcoal, and a disciplined orange accent make AI coding feel like a composed writing environment. The mono type keeps it technical; the editorial warmth makes it feel less like a terminal bunker.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Cream and charcoal create calm focus for long coding sessions.</li><li>Orange acts as a precise action marker, not a decorative flood.</li><li>Mono pairing keeps the coding substrate visible.</li></ul>
+<div class="sources"><a href="https://cursor.com/brand" rel="noopener noreferrer" target="_blank">Cursor brand</a><a href="https://www.loftlyy.com/en/cursor" rel="noopener noreferrer" target="_blank">Loftlyy Cursor brand analysis</a><a href="https://www.designmd.co/d/cursor" rel="noopener noreferrer" target="_blank">DesignMD Cursor analysis</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official brand story, mixed palette" data-search="replit ai coding and cloud ide agentic dev tool a custom hand-drawn pixel/display face appears in the brand story, supported by pragmatic ui sans/mono choices. closest fallback: pixel display plus inter and jetbrains mono. replit’s identity is a construction kit. pixels, characters, orange energy, and approachable motion say that programming is something you can pick up and build with immediately. the thesis is not ‘elite developer tooling,’ it is ‘software creation for everyone.’" data-type="Agentic dev tool" style="--accent:#F26207">
+<div class="card-top">
+<div>
+<p class="eyebrow">10 · AI coding and cloud IDE</p>
+<h2>Replit</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FCFCFC" title="Light: Paper #FCFCFC"></i><i style="background:#1B1B1B" title="Light: Ink #1B1B1B"></i><i style="background:#F26207" title="Light: Replit orange #F26207"></i><i style="background:#F5F2ED" title="Light: Warm sand #F5F2ED"></i><i style="background:#9B7B5F" title="Light: Muted tan #9B7B5F"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#0E1525" title="Dark: IDE navy #0E1525"></i><i style="background:#2B3245" title="Dark: Panel #2B3245"></i><i style="background:#F5F5F5" title="Dark: Text #F5F5F5"></i><i style="background:#F26207" title="Dark: Orange #F26207"></i><i style="background:#8892A0" title="Dark: Code gray #8892A0"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official brand story, mixed palette</span>
+</div>
+<p class="note">Replit’s brand story is official; orange and dark IDE tones are supported by brand-index/product observation.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FCFCFC" style="--sw:#FCFCFC; --swtext:#111111" title="Copy #FCFCFC"><span>Paper</span><b>#FCFCFC</b></button><button class="swatch" data-hex="#1B1B1B" style="--sw:#1B1B1B; --swtext:#FFFFFF" title="Copy #1B1B1B"><span>Ink</span><b>#1B1B1B</b></button><button class="swatch" data-hex="#F26207" style="--sw:#F26207; --swtext:#FFFFFF" title="Copy #F26207"><span>Replit orange</span><b>#F26207</b></button><button class="swatch" data-hex="#F5F2ED" style="--sw:#F5F2ED; --swtext:#111111" title="Copy #F5F2ED"><span>Warm sand</span><b>#F5F2ED</b></button><button class="swatch" data-hex="#9B7B5F" style="--sw:#9B7B5F; --swtext:#FFFFFF" title="Copy #9B7B5F"><span>Muted tan</span><b>#9B7B5F</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#0E1525" style="--sw:#0E1525; --swtext:#FFFFFF" title="Copy #0E1525"><span>IDE navy</span><b>#0E1525</b></button><button class="swatch" data-hex="#2B3245" style="--sw:#2B3245; --swtext:#FFFFFF" title="Copy #2B3245"><span>Panel</span><b>#2B3245</b></button><button class="swatch" data-hex="#F5F5F5" style="--sw:#F5F5F5; --swtext:#111111" title="Copy #F5F5F5"><span>Text</span><b>#F5F5F5</b></button><button class="swatch" data-hex="#F26207" style="--sw:#F26207; --swtext:#FFFFFF" title="Copy #F26207"><span>Orange</span><b>#F26207</b></button><button class="swatch" data-hex="#8892A0" style="--sw:#8892A0; --swtext:#FFFFFF" title="Copy #8892A0"><span>Code gray</span><b>#8892A0</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>A custom hand-drawn pixel/display face appears in the brand story, supported by pragmatic UI sans/mono choices. Closest fallback: pixel display plus Inter and JetBrains Mono.</p>
+<div class="font-sample" style='--font-heading: "Press Start 2P", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · pixel-display proxy + Inter</div><div class="font-sample-display">Replit</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Replit’s identity is a construction kit. Pixels, characters, orange energy, and approachable motion say that programming is something you can pick up and build with immediately. The thesis is not ‘elite developer tooling,’ it is ‘software creation for everyone.’</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Pixel forms tie the brand to code at the smallest visible unit.</li><li>Orange creates momentum and maker energy.</li><li>The brand story explicitly centers the human behind the machine.</li></ul>
+<div class="sources"><a href="https://replit.com/brand" rel="noopener noreferrer" target="_blank">Replit brand</a><a href="https://blog.replit.com/rebranding-replit-inspiration-to-action" rel="noopener noreferrer" target="_blank">Replit rebrand story</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official palette and brand rules" data-search="github copilot ai coding assistant agentic dev tool mona sans / hubot sans / github primer typography. closest fallback: system ui or inter. github copilot has to feel magical without leaving github’s developer trust layer. purple and orange mark the ai capability; dark primer surfaces keep the product anchored in code, issues, pull requests, and the daily workbench." data-type="Agentic dev tool" style="--accent:#8534F3">
+<div class="card-top">
+<div>
+<p class="eyebrow">11 · AI coding assistant</p>
+<h2>GitHub Copilot</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: GitHub white #FFFFFF"></i><i style="background:#24292E" title="Light: Primer ink #24292E"></i><i style="background:#8534F3" title="Light: Copilot purple #8534F3"></i><i style="background:#C898FD" title="Light: Light purple #C898FD"></i><i style="background:#FE4C25" title="Light: Signal orange #FE4C25"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#0D1117" title="Dark: GitHub dark #0D1117"></i><i style="background:#F0F6FC" title="Dark: Text #F0F6FC"></i><i style="background:#B870FF" title="Dark: Bright purple #B870FF"></i><i style="background:#160048" title="Dark: Deep purple #160048"></i><i style="background:#F08A3A" title="Dark: Orange #F08A3A"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official palette and brand rules</span>
+</div>
+<p class="note">Copilot palette values are from GitHub’s official Copilot brand-identity guidance.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>GitHub white</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#24292E" style="--sw:#24292E; --swtext:#FFFFFF" title="Copy #24292E"><span>Primer ink</span><b>#24292E</b></button><button class="swatch" data-hex="#8534F3" style="--sw:#8534F3; --swtext:#FFFFFF" title="Copy #8534F3"><span>Copilot purple</span><b>#8534F3</b></button><button class="swatch" data-hex="#C898FD" style="--sw:#C898FD; --swtext:#111111" title="Copy #C898FD"><span>Light purple</span><b>#C898FD</b></button><button class="swatch" data-hex="#FE4C25" style="--sw:#FE4C25; --swtext:#FFFFFF" title="Copy #FE4C25"><span>Signal orange</span><b>#FE4C25</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#0D1117" style="--sw:#0D1117; --swtext:#FFFFFF" title="Copy #0D1117"><span>GitHub dark</span><b>#0D1117</b></button><button class="swatch" data-hex="#F0F6FC" style="--sw:#F0F6FC; --swtext:#111111" title="Copy #F0F6FC"><span>Text</span><b>#F0F6FC</b></button><button class="swatch" data-hex="#B870FF" style="--sw:#B870FF; --swtext:#111111" title="Copy #B870FF"><span>Bright purple</span><b>#B870FF</b></button><button class="swatch" data-hex="#160048" style="--sw:#160048; --swtext:#FFFFFF" title="Copy #160048"><span>Deep purple</span><b>#160048</b></button><button class="swatch" data-hex="#F08A3A" style="--sw:#F08A3A; --swtext:#111111" title="Copy #F08A3A"><span>Orange</span><b>#F08A3A</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Mona Sans / Hubot Sans / GitHub Primer typography. Closest fallback: system UI or Inter.</p>
+<div class="font-sample" style='--font-heading: "Mona Sans", "Hubot Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Mona Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;'><div class="font-sample-tag">Rendered sample · Mona/Hubot fallback stack</div><div class="font-sample-display">GitHub Copilot</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>GitHub Copilot has to feel magical without leaving GitHub’s developer trust layer. Purple and orange mark the AI capability; dark Primer surfaces keep the product anchored in code, issues, pull requests, and the daily workbench.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Purple is a reserved AI highlight rather than a whole new universe.</li><li>Mascot use is intentionally sparse to avoid gimmick fatigue.</li><li>The palette connects Copilot to GitHub while giving it a distinct signal.</li></ul>
+<div class="sources"><a href="https://brand.github.com/brand-identity/copilot" rel="noopener noreferrer" target="_blank">GitHub Copilot brand identity</a><a href="https://brand.github.com/" rel="noopener noreferrer" target="_blank">GitHub brand</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official design system" data-search="vercel / v0 ai app builder and deployment agentic dev tool geist sans and geist mono. closest fallback: inter plus a neutral code mono. vercel’s design thesis is compiled minimalism. almost-black, almost-white, exact spacing, and geist type make the product feel fast, deployable, and technically inevitable. v0 adds generative creation, but the brand keeps the ai inside a disciplined front-end engineering frame." data-type="Agentic dev tool" style="--accent:#000000">
+<div class="card-top">
+<div>
+<p class="eyebrow">12 · AI app builder and deployment</p>
+<h2>Vercel / v0</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#000000" title="Light: Black #000000"></i><i style="background:#FAFAFA" title="Light: Background #FAFAFA"></i><i style="background:#666666" title="Light: Text secondary #666666"></i><i style="background:#0070F3" title="Light: Blue accent #0070F3"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Black #000000"></i><i style="background:#111111" title="Dark: Surface #111111"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#888888" title="Dark: Text secondary #888888"></i><i style="background:#333333" title="Dark: Line #333333"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official design system</span>
+</div>
+<p class="note">Geist color and type foundations are official; v0 inherits much of Vercel’s high-contrast visual discipline.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#FAFAFA" style="--sw:#FAFAFA; --swtext:#111111" title="Copy #FAFAFA"><span>Background</span><b>#FAFAFA</b></button><button class="swatch" data-hex="#666666" style="--sw:#666666; --swtext:#FFFFFF" title="Copy #666666"><span>Text secondary</span><b>#666666</b></button><button class="swatch" data-hex="#0070F3" style="--sw:#0070F3; --swtext:#FFFFFF" title="Copy #0070F3"><span>Blue accent</span><b>#0070F3</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#111111" style="--sw:#111111; --swtext:#FFFFFF" title="Copy #111111"><span>Surface</span><b>#111111</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#888888" style="--sw:#888888; --swtext:#FFFFFF" title="Copy #888888"><span>Text secondary</span><b>#888888</b></button><button class="swatch" data-hex="#333333" style="--sw:#333333; --swtext:#FFFFFF" title="Copy #333333"><span>Line</span><b>#333333</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Geist Sans and Geist Mono. Closest fallback: Inter plus a neutral code mono.</p>
+<div class="font-sample" style='--font-heading: "Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Geist", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Geist public font</div><div class="font-sample-display">Vercel / v0</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Vercel’s design thesis is compiled minimalism. Almost-black, almost-white, exact spacing, and Geist type make the product feel fast, deployable, and technically inevitable. v0 adds generative creation, but the brand keeps the AI inside a disciplined front-end engineering frame.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Black/white contrast makes every interface decision feel intentional.</li><li>Geist Mono keeps the developer substrate visible.</li><li>The triangle/logo geometry suggests infrastructure reduced to a clean primitive.</li></ul>
+<div class="sources"><a href="https://vercel.com/geist/introduction" rel="noopener noreferrer" target="_blank">Vercel Geist introduction</a><a href="https://vercel.com/geist/colors" rel="noopener noreferrer" target="_blank">Vercel Geist colors</a><a href="https://vercel.com/geist/typography" rel="noopener noreferrer" target="_blank">Vercel Geist typography</a></div>
+</details>
+</article>
+<article class="card" data-quality="Mixed product and brand inference" data-search="notion ai ai workspace productivity ai inter across core ui, plus optional serif and mono page styles. closest fallback: system ui. notion ai inherits the thesis of notion itself: software should feel like a blank document that grew superpowers. neutral grays, inter, and muted semantic colors avoid competing with notes, databases, and wikis. the ai is framed as a workspace capability, not a neon sidekick." data-type="Productivity AI" style="--accent:#373530">
+<div class="card-top">
+<div>
+<p class="eyebrow">13 · AI workspace</p>
+<h2>Notion AI</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: Canvas #FFFFFF"></i><i style="background:#373530" title="Light: Ink #373530"></i><i style="background:#F1F1EF" title="Light: Soft gray #F1F1EF"></i><i style="background:#787774" title="Light: Secondary text #787774"></i><i style="background:#487CA5" title="Light: Muted blue #487CA5"></i><i style="background:#CC782F" title="Light: Muted orange #CC782F"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#191919" title="Dark: Dark canvas #191919"></i><i style="background:#2F2F2F" title="Dark: Panel #2F2F2F"></i><i style="background:#E9E9E7" title="Dark: Soft text #E9E9E7"></i><i style="background:#9B9B98" title="Dark: Muted gray #9B9B98"></i><i style="background:#548164" title="Dark: Muted green #548164"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Productivity AI</span>
+<span>Mixed product and brand inference</span>
+</div>
+<p class="note">Notion’s core public surfaces are famously neutral; exact palette values are supported by community/system documentation and product observation.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>Canvas</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#373530" style="--sw:#373530; --swtext:#FFFFFF" title="Copy #373530"><span>Ink</span><b>#373530</b></button><button class="swatch" data-hex="#F1F1EF" style="--sw:#F1F1EF; --swtext:#111111" title="Copy #F1F1EF"><span>Soft gray</span><b>#F1F1EF</b></button><button class="swatch" data-hex="#787774" style="--sw:#787774; --swtext:#FFFFFF" title="Copy #787774"><span>Secondary text</span><b>#787774</b></button><button class="swatch" data-hex="#487CA5" style="--sw:#487CA5; --swtext:#FFFFFF" title="Copy #487CA5"><span>Muted blue</span><b>#487CA5</b></button><button class="swatch" data-hex="#CC782F" style="--sw:#CC782F; --swtext:#FFFFFF" title="Copy #CC782F"><span>Muted orange</span><b>#CC782F</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#191919" style="--sw:#191919; --swtext:#FFFFFF" title="Copy #191919"><span>Dark canvas</span><b>#191919</b></button><button class="swatch" data-hex="#2F2F2F" style="--sw:#2F2F2F; --swtext:#FFFFFF" title="Copy #2F2F2F"><span>Panel</span><b>#2F2F2F</b></button><button class="swatch" data-hex="#E9E9E7" style="--sw:#E9E9E7; --swtext:#111111" title="Copy #E9E9E7"><span>Soft text</span><b>#E9E9E7</b></button><button class="swatch" data-hex="#9B9B98" style="--sw:#9B9B98; --swtext:#111111" title="Copy #9B9B98"><span>Muted gray</span><b>#9B9B98</b></button><button class="swatch" data-hex="#548164" style="--sw:#548164; --swtext:#FFFFFF" title="Copy #548164"><span>Muted green</span><b>#548164</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Inter across core UI, plus optional serif and mono page styles. Closest fallback: system UI.</p>
+<div class="font-sample" style='--font-heading: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Inter public font</div><div class="font-sample-display">Notion AI</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Notion AI inherits the thesis of Notion itself: software should feel like a blank document that grew superpowers. Neutral grays, Inter, and muted semantic colors avoid competing with notes, databases, and wikis. The AI is framed as a workspace capability, not a neon sidekick.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>The palette is designed for content hierarchy more than brand spectacle.</li><li>Muted colors keep databases and pages legible at scale.</li><li>The AI layer blends into existing workflows.</li></ul>
+<div class="sources"><a href="https://www.notion.com/" rel="noopener noreferrer" target="_blank">Notion AI workspace</a><a href="https://matthiasfrank.de/en/notion-colors/" rel="noopener noreferrer" target="_blank">Notion color reference</a><a href="https://www.designyourway.net/blog/notion-font/" rel="noopener noreferrer" target="_blank">Notion font reference</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official palette and type" data-search="mistral / le chat open-weight ai lab and assistant foundation ai arial, selected in the official guidance for universal appeal, simplicity, clarity, and accessibility. mistral’s identity is refreshingly utilitarian. arial, beige, black, and a blazing warm pixel-rainbow communicate accessible european engineering rather than luxury ai mysticism. it feels open, direct, and production-minded." data-type="Foundation AI" style="--accent:#FF8205">
+<div class="card-top">
+<div>
+<p class="eyebrow">14 · Open-weight AI lab and assistant</p>
+<h2>Mistral / Le Chat</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFAEB" title="Light: Beige 100 #FFFAEB"></i><i style="background:#000000" title="Light: Black #000000"></i><i style="background:#E10500" title="Light: Red #E10500"></i><i style="background:#FA500F" title="Light: Dark orange #FA500F"></i><i style="background:#FF8205" title="Light: Orange #FF8205"></i><i style="background:#FFD800" title="Light: Yellow #FFD800"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Black #000000"></i><i style="background:#1E1E1E" title="Dark: Dark tint #1E1E1E"></i><i style="background:#FFFAEB" title="Dark: Beige text #FFFAEB"></i><i style="background:#FF8205" title="Dark: Orange #FF8205"></i><i style="background:#FFD800" title="Dark: Yellow #FFD800"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Foundation AI</span>
+<span>Official palette and type</span>
+</div>
+<p class="note">Palette and typography are from Mistral’s official brand page.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFAEB" style="--sw:#FFFAEB; --swtext:#111111" title="Copy #FFFAEB"><span>Beige 100</span><b>#FFFAEB</b></button><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#E10500" style="--sw:#E10500; --swtext:#FFFFFF" title="Copy #E10500"><span>Red</span><b>#E10500</b></button><button class="swatch" data-hex="#FA500F" style="--sw:#FA500F; --swtext:#FFFFFF" title="Copy #FA500F"><span>Dark orange</span><b>#FA500F</b></button><button class="swatch" data-hex="#FF8205" style="--sw:#FF8205; --swtext:#111111" title="Copy #FF8205"><span>Orange</span><b>#FF8205</b></button><button class="swatch" data-hex="#FFD800" style="--sw:#FFD800; --swtext:#111111" title="Copy #FFD800"><span>Yellow</span><b>#FFD800</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#1E1E1E" style="--sw:#1E1E1E; --swtext:#FFFFFF" title="Copy #1E1E1E"><span>Dark tint</span><b>#1E1E1E</b></button><button class="swatch" data-hex="#FFFAEB" style="--sw:#FFFAEB; --swtext:#111111" title="Copy #FFFAEB"><span>Beige text</span><b>#FFFAEB</b></button><button class="swatch" data-hex="#FF8205" style="--sw:#FF8205; --swtext:#111111" title="Copy #FF8205"><span>Orange</span><b>#FF8205</b></button><button class="swatch" data-hex="#FFD800" style="--sw:#FFD800; --swtext:#111111" title="Copy #FFD800"><span>Yellow</span><b>#FFD800</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Arial, selected in the official guidance for universal appeal, simplicity, clarity, and accessibility.</p>
+<div class="font-sample" style='--font-heading: Arial, Helvetica, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: Arial, Helvetica, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Arial/system font</div><div class="font-sample-display">Mistral / Le Chat</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Mistral’s identity is refreshingly utilitarian. Arial, beige, black, and a blazing warm pixel-rainbow communicate accessible European engineering rather than luxury AI mysticism. It feels open, direct, and production-minded.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Arial lowers barriers and avoids bespoke-brand preciousness.</li><li>Warm colors give the technical identity heat and recognizability.</li><li>Pixel/rainbow blocks nod to computational primitives.</li></ul>
+<div class="sources"><a href="https://mistral.ai/brand" rel="noopener noreferrer" target="_blank">Mistral brand</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official agency case study" data-search="langchain agent framework and platform agentic infrastructure lausanne by weltkern with custom glyphs in the rebrand. closest fallback: suisse/helvetica-style grotesk plus inter. langchain makes agentic infrastructure feel like flight. the bird mark, sky-to-dusk blues, node networks, and custom glyphs convert a highly technical framework into a navigable ecosystem. it is still developer-first, but less grim than typical infrastructure branding." data-type="Agentic infrastructure" style="--accent:#72A8F8">
+<div class="card-top">
+<div>
+<p class="eyebrow">15 · Agent framework and platform</p>
+<h2>LangChain</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#EAF4FF" title="Light: Sky wash #EAF4FF"></i><i style="background:#0F172A" title="Light: Ink navy #0F172A"></i><i style="background:#72A8F8" title="Light: Flight blue #72A8F8"></i><i style="background:#F6B58F" title="Light: Peach #F6B58F"></i><i style="background:#77B255" title="Light: Agent green #77B255"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#0F172A" title="Dark: Engineer navy #0F172A"></i><i style="background:#1E3A8A" title="Dark: Dusk blue #1E3A8A"></i><i style="background:#EAF4FF" title="Dark: Sky text #EAF4FF"></i><i style="background:#4C1D95" title="Dark: Plum #4C1D95"></i><i style="background:#F6B58F" title="Dark: Peach #F6B58F"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic infrastructure</span>
+<span>Official agency case study</span>
+</div>
+<p class="note">Colors are approximate from the agency case study, which describes the palette direction more than publishing a token table.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#EAF4FF" style="--sw:#EAF4FF; --swtext:#111111" title="Copy #EAF4FF"><span>Sky wash</span><b>#EAF4FF</b></button><button class="swatch" data-hex="#0F172A" style="--sw:#0F172A; --swtext:#FFFFFF" title="Copy #0F172A"><span>Ink navy</span><b>#0F172A</b></button><button class="swatch" data-hex="#72A8F8" style="--sw:#72A8F8; --swtext:#111111" title="Copy #72A8F8"><span>Flight blue</span><b>#72A8F8</b></button><button class="swatch" data-hex="#F6B58F" style="--sw:#F6B58F; --swtext:#111111" title="Copy #F6B58F"><span>Peach</span><b>#F6B58F</b></button><button class="swatch" data-hex="#77B255" style="--sw:#77B255; --swtext:#111111" title="Copy #77B255"><span>Agent green</span><b>#77B255</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#0F172A" style="--sw:#0F172A; --swtext:#FFFFFF" title="Copy #0F172A"><span>Engineer navy</span><b>#0F172A</b></button><button class="swatch" data-hex="#1E3A8A" style="--sw:#1E3A8A; --swtext:#FFFFFF" title="Copy #1E3A8A"><span>Dusk blue</span><b>#1E3A8A</b></button><button class="swatch" data-hex="#EAF4FF" style="--sw:#EAF4FF; --swtext:#111111" title="Copy #EAF4FF"><span>Sky text</span><b>#EAF4FF</b></button><button class="swatch" data-hex="#4C1D95" style="--sw:#4C1D95; --swtext:#FFFFFF" title="Copy #4C1D95"><span>Plum</span><b>#4C1D95</b></button><button class="swatch" data-hex="#F6B58F" style="--sw:#F6B58F; --swtext:#111111" title="Copy #F6B58F"><span>Peach</span><b>#F6B58F</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Lausanne by Weltkern with custom glyphs in the rebrand. Closest fallback: Suisse/Helvetica-style grotesk plus Inter.</p>
+<div class="font-sample" style='--font-heading: "Lausanne", "Space Grotesk", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Lausanne-style fallback</div><div class="font-sample-display">LangChain</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>LangChain makes agentic infrastructure feel like flight. The bird mark, sky-to-dusk blues, node networks, and custom glyphs convert a highly technical framework into a navigable ecosystem. It is still developer-first, but less grim than typical infrastructure branding.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Darker tones acknowledge engineer dark-mode norms.</li><li>Sky colors suggest motion, orchestration, and trajectories.</li><li>Node/icon language maps directly to chains, graphs, and agents.</li></ul>
+<div class="sources"><a href="https://play.studio/work/langchain" rel="noopener noreferrer" target="_blank">Play Studio LangChain case study</a><a href="https://www.langchain.com/" rel="noopener noreferrer" target="_blank">LangChain</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official palette" data-search="n8n workflow automation and ai agents agentic automation custom rounded lowercase wordmark. closest fallback: inter rounded, nunito sans, or a soft geometric sans. n8n’s pink-on-black/white identity turns automation into a visible circuit trace. the brand needs to feel technical enough for workflows and apis, but friendly enough for low-code builders. the result is utilitarian, punchy, and not afraid of one loud accent." data-type="Agentic automation" style="--accent:#EA4B71">
+<div class="card-top">
+<div>
+<p class="eyebrow">16 · Workflow automation and AI agents</p>
+<h2>n8n</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#040506" title="Light: Dark #040506"></i><i style="background:#EA4B71" title="Light: n8n pink #EA4B71"></i><i style="background:#F6F3F4" title="Light: Blush gray #F6F3F4"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#040506" title="Dark: Dark #040506"></i><i style="background:#1C1E22" title="Dark: Panel #1C1E22"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#EA4B71" title="Dark: n8n pink #EA4B71"></i><i style="background:#2A2B2F" title="Dark: Muted line #2A2B2F"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic automation</span>
+<span>Official palette</span>
+</div>
+<p class="note">Core colors are from n8n’s official brand guidelines; font is inferred from wordmark/product observation.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#040506" style="--sw:#040506; --swtext:#FFFFFF" title="Copy #040506"><span>Dark</span><b>#040506</b></button><button class="swatch" data-hex="#EA4B71" style="--sw:#EA4B71; --swtext:#FFFFFF" title="Copy #EA4B71"><span>n8n pink</span><b>#EA4B71</b></button><button class="swatch" data-hex="#F6F3F4" style="--sw:#F6F3F4; --swtext:#111111" title="Copy #F6F3F4"><span>Blush gray</span><b>#F6F3F4</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#040506" style="--sw:#040506; --swtext:#FFFFFF" title="Copy #040506"><span>Dark</span><b>#040506</b></button><button class="swatch" data-hex="#1C1E22" style="--sw:#1C1E22; --swtext:#FFFFFF" title="Copy #1C1E22"><span>Panel</span><b>#1C1E22</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#EA4B71" style="--sw:#EA4B71; --swtext:#FFFFFF" title="Copy #EA4B71"><span>n8n pink</span><b>#EA4B71</b></button><button class="swatch" data-hex="#2A2B2F" style="--sw:#2A2B2F; --swtext:#FFFFFF" title="Copy #2A2B2F"><span>Muted line</span><b>#2A2B2F</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Custom rounded lowercase wordmark. Closest fallback: Inter Rounded, Nunito Sans, or a soft geometric sans.</p>
+<div class="font-sample" style='--font-heading: "Nunito Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Nunito Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · rounded sans fallback</div><div class="font-sample-display">n8n</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>n8n’s pink-on-black/white identity turns automation into a visible circuit trace. The brand needs to feel technical enough for workflows and APIs, but friendly enough for low-code builders. The result is utilitarian, punchy, and not afraid of one loud accent.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Single hot-pink accent makes nodes, triggers, and actions easy to brand.</li><li>Lowercase mark keeps automation approachable.</li><li>High contrast supports developer documentation and product UI.</li></ul>
+<div class="sources"><a href="https://n8n.io/brandguidelines/" rel="noopener noreferrer" target="_blank">n8n brand guidelines</a><a href="https://n8n.io/" rel="noopener noreferrer" target="_blank">n8n</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official palette, inferred type" data-search="devin / cognition ai software engineer agentic dev tool ibm plex sans condensed appears in site font detection. closest fallback: ibm plex sans condensed plus ibm plex mono / jetbrains mono. devin is designed as a competent operator. blue, green, and purple-blue feel like task states, progress, and engineering telemetry. the compact typography and restrained palette tell users this agent is supposed to do work, not merely chat about it." data-type="Agentic dev tool" style="--accent:#3969CA">
+<div class="card-top">
+<div>
+<p class="eyebrow">17 · AI software engineer</p>
+<h2>Devin / Cognition</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#111111" title="Light: Ink #111111"></i><i style="background:#3969CA" title="Light: Devin purple-blue #3969CA"></i><i style="background:#21C19A" title="Light: Agent green #21C19A"></i><i style="background:#0294DE" title="Light: Action blue #0294DE"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#070B10" title="Dark: Deep navy #070B10"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#3969CA" title="Dark: Purple-blue #3969CA"></i><i style="background:#21C19A" title="Dark: Green #21C19A"></i><i style="background:#0294DE" title="Dark: Blue #0294DE"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official palette, inferred type</span>
+</div>
+<p class="note">Devin color values are from Cognition’s official brand page; type is inferred from site/font analysis.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#111111" style="--sw:#111111; --swtext:#FFFFFF" title="Copy #111111"><span>Ink</span><b>#111111</b></button><button class="swatch" data-hex="#3969CA" style="--sw:#3969CA; --swtext:#FFFFFF" title="Copy #3969CA"><span>Devin purple-blue</span><b>#3969CA</b></button><button class="swatch" data-hex="#21C19A" style="--sw:#21C19A; --swtext:#FFFFFF" title="Copy #21C19A"><span>Agent green</span><b>#21C19A</b></button><button class="swatch" data-hex="#0294DE" style="--sw:#0294DE; --swtext:#FFFFFF" title="Copy #0294DE"><span>Action blue</span><b>#0294DE</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#070B10" style="--sw:#070B10; --swtext:#FFFFFF" title="Copy #070B10"><span>Deep navy</span><b>#070B10</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#3969CA" style="--sw:#3969CA; --swtext:#FFFFFF" title="Copy #3969CA"><span>Purple-blue</span><b>#3969CA</b></button><button class="swatch" data-hex="#21C19A" style="--sw:#21C19A; --swtext:#FFFFFF" title="Copy #21C19A"><span>Green</span><b>#21C19A</b></button><button class="swatch" data-hex="#0294DE" style="--sw:#0294DE; --swtext:#FFFFFF" title="Copy #0294DE"><span>Blue</span><b>#0294DE</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>IBM Plex Sans Condensed appears in site font detection. Closest fallback: IBM Plex Sans Condensed plus IBM Plex Mono / JetBrains Mono.</p>
+<div class="font-sample" style='--font-heading: "IBM Plex Sans Condensed", "Roboto Condensed", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "IBM Plex Sans Condensed", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · IBM Plex public family</div><div class="font-sample-display">Devin / Cognition</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Devin is designed as a competent operator. Blue, green, and purple-blue feel like task states, progress, and engineering telemetry. The compact typography and restrained palette tell users this agent is supposed to do work, not merely chat about it.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Blue/green accents mirror status, execution, and completion.</li><li>The palette is vivid but not playful.</li><li>Condensed type gives the brand a technical instrument-panel feel.</li></ul>
+<div class="sources"><a href="https://cognition.ai/brand" rel="noopener noreferrer" target="_blank">Cognition brand</a><a href="https://devin.ai/" rel="noopener noreferrer" target="_blank">Devin</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official palette and type" data-search="manus general ai agent agentic ai libre baskerville for serif expression, dm sans for sans, and noto families for asian scripts. manus makes autonomy feel quiet and editorial. a near-monochrome palette, a literary serif, and clean sans typography support the stated idea of ‘less structure, more intelligence.’ it sells the agent as a refined generalist rather than a dashboard full of knobs." data-type="Agentic AI" style="--accent:#34322D">
+<div class="card-top">
+<div>
+<p class="eyebrow">18 · General AI agent</p>
+<h2>Manus</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#34322D" title="Light: Black-brown #34322D"></i><i style="background:#F8F8F8" title="Light: Gray #F8F8F8"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#34322D" title="Dark: Black-brown #34322D"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#F8F8F8" title="Dark: Gray #F8F8F8"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic AI</span>
+<span>Official palette and type</span>
+</div>
+<p class="note">Colors and typography come from Manus’s official brand page.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#34322D" style="--sw:#34322D; --swtext:#FFFFFF" title="Copy #34322D"><span>Black-brown</span><b>#34322D</b></button><button class="swatch" data-hex="#F8F8F8" style="--sw:#F8F8F8; --swtext:#111111" title="Copy #F8F8F8"><span>Gray</span><b>#F8F8F8</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#34322D" style="--sw:#34322D; --swtext:#FFFFFF" title="Copy #34322D"><span>Black-brown</span><b>#34322D</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#F8F8F8" style="--sw:#F8F8F8; --swtext:#111111" title="Copy #F8F8F8"><span>Gray</span><b>#F8F8F8</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Libre Baskerville for serif expression, DM Sans for sans, and Noto families for Asian scripts.</p>
+<div class="font-sample" style='--font-heading: "Libre Baskerville", Georgia, serif; --font-body: "DM Sans", "Noto Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Libre Baskerville + DM Sans</div><div class="font-sample-display">Manus</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Manus makes autonomy feel quiet and editorial. A near-monochrome palette, a literary serif, and clean sans typography support the stated idea of ‘less structure, more intelligence.’ It sells the agent as a refined generalist rather than a dashboard full of knobs.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Grayscale restraint suggests confidence and premium calm.</li><li>Serif/sans pairing gives the agent a thoughtful voice.</li><li>Minimal structure implies the system will adapt around the user.</li></ul>
+<div class="sources"><a href="https://manus.im/brand" rel="noopener noreferrer" target="_blank">Manus brand</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official assets, inferred colors/type" data-search="windsurf ai coding ide agentic dev tool inferred athletic/geometric sans. closest fallback: abc diatype, suisse, inter, or a clean sportswear-adjacent grotesk. windsurf recasts coding as flow-state sport. the surf/nature palette, black-and-white mark, and movement language pull the ide away from basement-terminal aesthetics. it wants to feel fast, ambient, and kinetic." data-type="Agentic dev tool" style="--accent:#86C7FF">
+<div class="card-top">
+<div>
+<p class="eyebrow">19 · AI coding IDE</p>
+<h2>Windsurf</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#000000" title="Light: Black #000000"></i><i style="background:#F4E9D8" title="Light: Sand #F4E9D8"></i><i style="background:#86C7FF" title="Light: Sky #86C7FF"></i><i style="background:#FFC857" title="Light: Golden light #FFC857"></i><i style="background:#FF6B4A" title="Light: Coral #FF6B4A"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#000000" title="Dark: Black #000000"></i><i style="background:#143540" title="Dark: Deep water #143540"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#2B8C8C" title="Dark: Ocean #2B8C8C"></i><i style="background:#FFC857" title="Dark: Gold #FFC857"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official assets, inferred colors/type</span>
+</div>
+<p class="note">Official page defines logo usage and flow-state positioning; nature/sport palette is inferred from brand coverage and current materials.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#F4E9D8" style="--sw:#F4E9D8; --swtext:#111111" title="Copy #F4E9D8"><span>Sand</span><b>#F4E9D8</b></button><button class="swatch" data-hex="#86C7FF" style="--sw:#86C7FF; --swtext:#111111" title="Copy #86C7FF"><span>Sky</span><b>#86C7FF</b></button><button class="swatch" data-hex="#FFC857" style="--sw:#FFC857; --swtext:#111111" title="Copy #FFC857"><span>Golden light</span><b>#FFC857</b></button><button class="swatch" data-hex="#FF6B4A" style="--sw:#FF6B4A; --swtext:#FFFFFF" title="Copy #FF6B4A"><span>Coral</span><b>#FF6B4A</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#000000" style="--sw:#000000; --swtext:#FFFFFF" title="Copy #000000"><span>Black</span><b>#000000</b></button><button class="swatch" data-hex="#143540" style="--sw:#143540; --swtext:#FFFFFF" title="Copy #143540"><span>Deep water</span><b>#143540</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#2B8C8C" style="--sw:#2B8C8C; --swtext:#FFFFFF" title="Copy #2B8C8C"><span>Ocean</span><b>#2B8C8C</b></button><button class="swatch" data-hex="#FFC857" style="--sw:#FFC857; --swtext:#111111" title="Copy #FFC857"><span>Gold</span><b>#FFC857</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Inferred athletic/geometric sans. Closest fallback: ABC Diatype, Suisse, Inter, or a clean sportswear-adjacent grotesk.</p>
+<div class="font-sample" style='--font-heading: "Space Grotesk", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · athletic geometric fallback</div><div class="font-sample-display">Windsurf</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Windsurf recasts coding as flow-state sport. The surf/nature palette, black-and-white mark, and movement language pull the IDE away from basement-terminal aesthetics. It wants to feel fast, ambient, and kinetic.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Coastal colors give coding an outdoor, embodied metaphor.</li><li>Sport-like energy distinguishes it from classical devtools.</li><li>Flow-state language makes the agent feel like a collaborator that removes friction.</li></ul>
+<div class="sources"><a href="https://windsurf.com/brand" rel="noopener noreferrer" target="_blank">Windsurf brand</a><a href="https://windsurf.com/" rel="noopener noreferrer" target="_blank">Windsurf</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official assets, third-party color/type analysis" data-search="lovable ai app builder agentic dev tool camera plain in brand-analysis references. closest fallback: a friendly neo-grotesk with rounded warmth, plus inter for ui. lovable sells software creation as approachable and emotionally rewarding. cream, orange, saturated blue, and candy-bright gradients make app building feel less like engineering bureaucracy and more like assembling something alive with a small spark of taste." data-type="Agentic dev tool" style="--accent:#FE7B02">
+<div class="card-top">
+<div>
+<p class="eyebrow">20 · AI app builder</p>
+<h2>Lovable</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FCFBF8" title="Light: Cream #FCFBF8"></i><i style="background:#FE7B02" title="Light: Orange #FE7B02"></i><i style="background:#4B73FF" title="Light: Blue #4B73FF"></i><i style="background:#FF66F4" title="Light: Pink #FF66F4"></i><i style="background:#FF0105" title="Light: Red #FF0105"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#1B0B13" title="Dark: Aubergine #1B0B13"></i><i style="background:#FCFBF8" title="Dark: Cream #FCFBF8"></i><i style="background:#FE7B02" title="Dark: Orange #FE7B02"></i><i style="background:#4B73FF" title="Dark: Blue #4B73FF"></i><i style="background:#FF66F4" title="Dark: Pink #FF66F4"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic dev tool</span>
+<span>Official assets, third-party color/type analysis</span>
+</div>
+<p class="note">Official asset page exists; palette/type details are supported by brand-analysis references.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FCFBF8" style="--sw:#FCFBF8; --swtext:#111111" title="Copy #FCFBF8"><span>Cream</span><b>#FCFBF8</b></button><button class="swatch" data-hex="#FE7B02" style="--sw:#FE7B02; --swtext:#111111" title="Copy #FE7B02"><span>Orange</span><b>#FE7B02</b></button><button class="swatch" data-hex="#4B73FF" style="--sw:#4B73FF; --swtext:#FFFFFF" title="Copy #4B73FF"><span>Blue</span><b>#4B73FF</b></button><button class="swatch" data-hex="#FF66F4" style="--sw:#FF66F4; --swtext:#111111" title="Copy #FF66F4"><span>Pink</span><b>#FF66F4</b></button><button class="swatch" data-hex="#FF0105" style="--sw:#FF0105; --swtext:#FFFFFF" title="Copy #FF0105"><span>Red</span><b>#FF0105</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#1B0B13" style="--sw:#1B0B13; --swtext:#FFFFFF" title="Copy #1B0B13"><span>Aubergine</span><b>#1B0B13</b></button><button class="swatch" data-hex="#FCFBF8" style="--sw:#FCFBF8; --swtext:#111111" title="Copy #FCFBF8"><span>Cream</span><b>#FCFBF8</b></button><button class="swatch" data-hex="#FE7B02" style="--sw:#FE7B02; --swtext:#111111" title="Copy #FE7B02"><span>Orange</span><b>#FE7B02</b></button><button class="swatch" data-hex="#4B73FF" style="--sw:#4B73FF; --swtext:#FFFFFF" title="Copy #4B73FF"><span>Blue</span><b>#4B73FF</b></button><button class="swatch" data-hex="#FF66F4" style="--sw:#FF66F4; --swtext:#111111" title="Copy #FF66F4"><span>Pink</span><b>#FF66F4</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Camera Plain in brand-analysis references. Closest fallback: a friendly neo-grotesk with rounded warmth, plus Inter for UI.</p>
+<div class="font-sample" style='--font-heading: "Nunito Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · friendly rounded fallback</div><div class="font-sample-display">Lovable</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Lovable sells software creation as approachable and emotionally rewarding. Cream, orange, saturated blue, and candy-bright gradients make app building feel less like engineering bureaucracy and more like assembling something alive with a small spark of taste.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Warm cream avoids sterile white-screen syndrome.</li><li>Orange provides an action/creation pulse.</li><li>Gradient brights signal accessibility and optimism.</li></ul>
+<div class="sources"><a href="https://lovable.dev/brand" rel="noopener noreferrer" target="_blank">Lovable brand assets</a><a href="https://www.loftlyy.com/en/lovable" rel="noopener noreferrer" target="_blank">Loftlyy Lovable analysis</a><a href="https://docs.lovable.dev/" rel="noopener noreferrer" target="_blank">Lovable docs</a></div>
+</details>
+</article>
+<article class="card" data-quality="Third-party brand guideline analysis" data-search="zapier automation and ai agents agentic automation degular display for hero/display and inter for body/ui in brand-guideline analyses. zapier’s design turns automation into warm commercial momentum. orange ctas, cream backgrounds, coffee ink, and rounded interface forms position workflows as approachable business leverage rather than brittle scripting." data-type="Agentic automation" style="--accent:#FF4F00">
+<div class="card-top">
+<div>
+<p class="eyebrow">21 · Automation and AI agents</p>
+<h2>Zapier</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFEFB" title="Light: Cream #FFFEFB"></i><i style="background:#201515" title="Light: Coffee ink #201515"></i><i style="background:#FF4F00" title="Light: Zapier orange #FF4F00"></i><i style="background:#D8B08C" title="Light: Earth #D8B08C"></i><i style="background:#B7C79E" title="Light: Moss #B7C79E"></i><i style="background:#B29AEA" title="Light: Lavender #B29AEA"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#201515" title="Dark: Coffee ink #201515"></i><i style="background:#FFFEFB" title="Dark: Cream #FFFEFB"></i><i style="background:#FF4F00" title="Dark: Orange #FF4F00"></i><i style="background:#5B3F2F" title="Dark: Earth dark #5B3F2F"></i><i style="background:#7E8F6A" title="Dark: Moss dark #7E8F6A"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Agentic automation</span>
+<span>Third-party brand guideline analysis</span>
+</div>
+<p class="note">Palette/type are drawn from published brand-guideline deck analyses and current brand observation.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFEFB" style="--sw:#FFFEFB; --swtext:#111111" title="Copy #FFFEFB"><span>Cream</span><b>#FFFEFB</b></button><button class="swatch" data-hex="#201515" style="--sw:#201515; --swtext:#FFFFFF" title="Copy #201515"><span>Coffee ink</span><b>#201515</b></button><button class="swatch" data-hex="#FF4F00" style="--sw:#FF4F00; --swtext:#FFFFFF" title="Copy #FF4F00"><span>Zapier orange</span><b>#FF4F00</b></button><button class="swatch" data-hex="#D8B08C" style="--sw:#D8B08C; --swtext:#111111" title="Copy #D8B08C"><span>Earth</span><b>#D8B08C</b></button><button class="swatch" data-hex="#B7C79E" style="--sw:#B7C79E; --swtext:#111111" title="Copy #B7C79E"><span>Moss</span><b>#B7C79E</b></button><button class="swatch" data-hex="#B29AEA" style="--sw:#B29AEA; --swtext:#111111" title="Copy #B29AEA"><span>Lavender</span><b>#B29AEA</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#201515" style="--sw:#201515; --swtext:#FFFFFF" title="Copy #201515"><span>Coffee ink</span><b>#201515</b></button><button class="swatch" data-hex="#FFFEFB" style="--sw:#FFFEFB; --swtext:#111111" title="Copy #FFFEFB"><span>Cream</span><b>#FFFEFB</b></button><button class="swatch" data-hex="#FF4F00" style="--sw:#FF4F00; --swtext:#FFFFFF" title="Copy #FF4F00"><span>Orange</span><b>#FF4F00</b></button><button class="swatch" data-hex="#5B3F2F" style="--sw:#5B3F2F; --swtext:#FFFFFF" title="Copy #5B3F2F"><span>Earth dark</span><b>#5B3F2F</b></button><button class="swatch" data-hex="#7E8F6A" style="--sw:#7E8F6A; --swtext:#FFFFFF" title="Copy #7E8F6A"><span>Moss dark</span><b>#7E8F6A</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Degular Display for hero/display and Inter for body/UI in brand-guideline analyses.</p>
+<div class="font-sample" style='--font-heading: "Degular Display", "Space Grotesk", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Degular-style fallback + Inter</div><div class="font-sample-display">Zapier</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Zapier’s design turns automation into warm commercial momentum. Orange CTAs, cream backgrounds, coffee ink, and rounded interface forms position workflows as approachable business leverage rather than brittle scripting.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>Orange is both brand recognition and action grammar.</li><li>Cream/coffee tones humanize back-office automation.</li><li>Degular Display adds personality without sacrificing SaaS clarity.</li></ul>
+<div class="sources"><a href="https://www.deck.gallery/zapier-brand-guidelines-2023/" rel="noopener noreferrer" target="_blank">Zapier brand guideline deck analysis</a><a href="https://www.designmd.co/d/zapier" rel="noopener noreferrer" target="_blank">DesignMD Zapier analysis</a><a href="https://zapier.com/agents" rel="noopener noreferrer" target="_blank">Zapier Agents</a></div>
+</details>
+</article>
+<article class="card" data-quality="Official type/thesis, mixed palette" data-search="figma ai / figma make ai-assisted design platform creative and productivity ai figma sans and figma mono, designed with grilli type. closest fallback: a crisp grotesk plus a utilitarian mono. figma’s ai layer rides on a brand that already says collaboration and product building. the multi-color system, playful primitives, and custom type communicate shared creation. ai here is framed as an extension of the design surface rather than a separate alien assistant." data-type="Creative and productivity AI" style="--accent:#A259FF">
+<div class="card-top">
+<div>
+<p class="eyebrow">22 · AI-assisted design platform</p>
+<h2>Figma AI / Figma Make</h2>
+</div>
+<div aria-label="Light and dark palette map preview" class="preview"><div class="preview-title">Palette map</div><div class="preview-row"><span class="preview-label">Light</span><div class="preview-bar"><i style="background:#FFFFFF" title="Light: White #FFFFFF"></i><i style="background:#F24E1E" title="Light: Red-orange #F24E1E"></i><i style="background:#FF7262" title="Light: Coral #FF7262"></i><i style="background:#A259FF" title="Light: Violet #A259FF"></i><i style="background:#1ABCFE" title="Light: Blue #1ABCFE"></i><i style="background:#0ACF83" title="Light: Green #0ACF83"></i></div></div><div class="preview-row"><span class="preview-label">Dark</span><div class="preview-bar"><i style="background:#0D0D0D" title="Dark: Dark canvas #0D0D0D"></i><i style="background:#FFFFFF" title="Dark: White #FFFFFF"></i><i style="background:#A259FF" title="Dark: Violet #A259FF"></i><i style="background:#1ABCFE" title="Dark: Blue #1ABCFE"></i><i style="background:#0ACF83" title="Dark: Green #0ACF83"></i></div></div></div>
+</div>
+<div class="badges">
+<span>Creative and productivity AI</span>
+<span>Official type/thesis, mixed palette</span>
+</div>
+<p class="note">Figma’s typography and brand refresh are official; icon/brand color hexes are drawn from brand color references and common Figma mark usage.</p>
+<div class="modes">
+<section>
+<h3>Light palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#F24E1E" style="--sw:#F24E1E; --swtext:#FFFFFF" title="Copy #F24E1E"><span>Red-orange</span><b>#F24E1E</b></button><button class="swatch" data-hex="#FF7262" style="--sw:#FF7262; --swtext:#111111" title="Copy #FF7262"><span>Coral</span><b>#FF7262</b></button><button class="swatch" data-hex="#A259FF" style="--sw:#A259FF; --swtext:#FFFFFF" title="Copy #A259FF"><span>Violet</span><b>#A259FF</b></button><button class="swatch" data-hex="#1ABCFE" style="--sw:#1ABCFE; --swtext:#FFFFFF" title="Copy #1ABCFE"><span>Blue</span><b>#1ABCFE</b></button><button class="swatch" data-hex="#0ACF83" style="--sw:#0ACF83; --swtext:#FFFFFF" title="Copy #0ACF83"><span>Green</span><b>#0ACF83</b></button></div>
+</section>
+<section>
+<h3>Dark palette</h3>
+<div class="swatches"><button class="swatch" data-hex="#0D0D0D" style="--sw:#0D0D0D; --swtext:#FFFFFF" title="Copy #0D0D0D"><span>Dark canvas</span><b>#0D0D0D</b></button><button class="swatch" data-hex="#FFFFFF" style="--sw:#FFFFFF; --swtext:#111111" title="Copy #FFFFFF"><span>White</span><b>#FFFFFF</b></button><button class="swatch" data-hex="#A259FF" style="--sw:#A259FF; --swtext:#FFFFFF" title="Copy #A259FF"><span>Violet</span><b>#A259FF</b></button><button class="swatch" data-hex="#1ABCFE" style="--sw:#1ABCFE; --swtext:#FFFFFF" title="Copy #1ABCFE"><span>Blue</span><b>#1ABCFE</b></button><button class="swatch" data-hex="#0ACF83" style="--sw:#0ACF83; --swtext:#FFFFFF" title="Copy #0ACF83"><span>Green</span><b>#0ACF83</b></button></div>
+</section>
+</div>
+<div class="font-block">
+<h3>Fonts / closest match</h3>
+<p>Figma Sans and Figma Mono, designed with Grilli Type. Closest fallback: a crisp grotesk plus a utilitarian mono.</p>
+<div class="font-sample" style='--font-heading: "Figma Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-body: "Figma Sans", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; --font-mono: "Figma Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;'><div class="font-sample-tag">Rendered sample · Figma Sans unavailable, Inter fallback</div><div class="font-sample-display">Figma AI / Figma Make</div><div class="font-sample-glyphs">Aa Bb Cc Dd Ee Ff · 0123456789 · agentic workflow</div><div class="font-sample-body">Sample sentence: complex work should feel legible, capable, and under control.</div><div class="font-sample-mono">mono sample: tokens / tools / traces / 0xA11Y</div></div></div>
+<div class="thesis">
+<h3>Design thesis</h3>
+<p>Figma’s AI layer rides on a brand that already says collaboration and product building. The multi-color system, playful primitives, and custom type communicate shared creation. AI here is framed as an extension of the design surface rather than a separate alien assistant.</p>
+</div>
+<details>
+<summary>Design signals and sources</summary>
+<ul><li>The five-color mark is modular, like interface components.</li><li>Custom type supports a more mature but still playful visual language.</li><li>AI fits into an existing collaboration narrative.</li></ul>
+<div class="sources"><a href="https://www.figma.com/blog/the-story-of-creating-figma-sans/" rel="noopener noreferrer" target="_blank">Figma Sans story</a><a href="https://www.figma.com/using-the-figma-brand/" rel="noopener noreferrer" target="_blank">Figma brand usage</a><a href="https://www.figma.com/blog/figma-on-figma-evolving-our-visual-language/" rel="noopener noreferrer" target="_blank">Figma brand refresh</a></div>
+</details>
+</article>
+</section>
+<div class="empty" id="empty">No matching entries. The palette goblin found nothing under that filter.</div>
+</main>
+<footer class="footer wrap">
+<p><strong>Method note:</strong> Brand palettes are not always identical to product UI design tokens. The light/dark palettes here are practical catalog palettes: the colors most relevant for branding, marketing surfaces, and recognizability. When a brand does not publish full light/dark tokens, this page provides a visually faithful approximation and labels it accordingly.</p>
+<p>Compiled as a standalone HTML reference. Public web fonts are requested only for the type samples when available; custom/proprietary brand fonts fall back to close public or system matches.</p>
+</footer>
+<div class="toast" id="toast">Copied</div>
+<script>
+const search = document.getElementById('search');
+const cards = Array.from(document.querySelectorAll('.card'));
+const empty = document.getElementById('empty');
+let active = 'All';
+function applyFilters() {
+  const q = search.value.trim().toLowerCase();
+  let shown = 0;
+  cards.forEach(card => {
+    const type = card.dataset.type;
+    const text = card.dataset.search;
+    const okType = active === 'All' || type === active;
+    const okSearch = !q || text.includes(q);
+    const show = okType && okSearch;
+    card.style.display = show ? '' : 'none';
+    if (show) shown++;
+  });
+  empty.style.display = shown ? 'none' : 'block';
+}
+document.querySelectorAll('.filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    active = btn.dataset.filter;
+    applyFilters();
+  });
+});
+search.addEventListener('input', applyFilters);
+const toast = document.getElementById('toast');
+document.querySelectorAll('.swatch').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const hex = btn.dataset.hex;
+    try { await navigator.clipboard.writeText(hex); } catch (e) {}
+    toast.textContent = 'Copied ' + hex;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1250);
+  });
+});
+</script>
+</body>
+</html>

@@ -130,6 +130,14 @@
       align-self: flex-start;
     }
 
+    /* Palette card */
+    .card-palette:hover {
+      box-shadow: 0 0 30px rgba(255, 153, 51, 0.2);
+      border-color: rgba(255, 153, 51, 0.35);
+    }
+    .card-palette .card-title { color: #ff9933; }
+    .card-palette .card-tag { background: rgba(255, 153, 51, 0.12); color: #ff9933; }
+
     /* Greenhouse card */
     .card-greenhouse:hover {
       box-shadow: 0 0 30px rgba(244, 143, 177, 0.2);
@@ -181,6 +189,13 @@
     <p class="tagline">Infographics, visualizers &amp; data tools</p>
 
     <div class="tool-grid">
+      <a href="ai_design_palette_catalog.html" class="tool-card card-palette">
+        <span class="card-icon">🎨</span>
+        <span class="card-title">AI Design Palette</span>
+        <span class="card-desc">Catalog of AI app and agentic tool design systems — typography, colors, and UI patterns from leading products.</span>
+        <span class="card-tag">catalog</span>
+      </a>
+
       <a href="greenhouse-todo/index.html" class="tool-card card-greenhouse">
         <span class="card-icon">🌷</span>
         <span class="card-title">Greenhouse To-Do</span>
