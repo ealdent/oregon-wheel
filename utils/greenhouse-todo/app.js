@@ -62,10 +62,14 @@ function saveTodosToLocal() {
         const { mesh, ...rest } = t;
         return rest;
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        todos: dataToSave,
-        simulatedTimeOffset: simulatedTimeOffset
-    }));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            todos: dataToSave,
+            simulatedTimeOffset: simulatedTimeOffset
+        }));
+    } catch (e) {
+        console.error('Failed to save todos', e);
+    }
 }
 
 function loadTodosFromLocal() {
@@ -2791,8 +2795,13 @@ btnCheckin.addEventListener('click', function() {
     }, 2000);
 });
 
-init();
-animate();
+// Only initialize if not in test environment
+if (typeof window === 'undefined' || !window.__TEST_ENV__) {
+    if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+        init();
+        animate();
+    }
+}
 
 btnComplete.addEventListener('click', function() {
     if (activeTodo) {
@@ -2972,3 +2981,6 @@ function performTapInteraction(clientX, clientY) {
         openTodoModal(hit.todo);
     }
 }
+
+// Export for tests
+export { saveTodosToLocal };
