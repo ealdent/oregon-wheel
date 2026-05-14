@@ -407,13 +407,34 @@ function spawnBGBubbles(){
 // ═══════════════════════════════════════════════
 function buildDock(){
   const wrap=document.getElementById('tower-cards');
-  wrap.innerHTML='';
+  wrap.replaceChildren();
   wrap.style.cssText='display:flex;gap:8px;flex:1;overflow-x:auto';
   TOWERS.forEach((t,i)=>{
     const c=document.createElement('div');
     c.className='tower-card';
     c.dataset.i=i;
-    c.innerHTML=`<div class="tc-emoji">${t.emoji}</div><div class="tc-name">${t.name}</div><div class="tc-cost">🦪 ${t.cost}</div><div class="tc-tag">${t.tag}</div>`;
+
+    const emojiDiv=document.createElement('div');
+    emojiDiv.className='tc-emoji';
+    emojiDiv.textContent=t.emoji;
+
+    const nameDiv=document.createElement('div');
+    nameDiv.className='tc-name';
+    nameDiv.textContent=t.name;
+
+    const costDiv=document.createElement('div');
+    costDiv.className='tc-cost';
+    costDiv.textContent=`🦪 ${t.cost}`;
+
+    const tagDiv=document.createElement('div');
+    tagDiv.className='tc-tag';
+    tagDiv.textContent=t.tag;
+
+    c.appendChild(emojiDiv);
+    c.appendChild(nameDiv);
+    c.appendChild(costDiv);
+    c.appendChild(tagDiv);
+
     c.addEventListener('click',()=>pickType(i));
     wrap.appendChild(c);
   });
