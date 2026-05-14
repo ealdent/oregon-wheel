@@ -2668,7 +2668,6 @@ function updatePlantVisual(todo) {
 window.greenhouseDev = {
     fastForwardDays(n = 1) {
         simulatedTimeOffset += n * 86400000;
-        console.log(`Fast forwarded ${n} day(s). Offset is now ${simulatedTimeOffset / 86400000} days.`);
     },
     clearSave() {
         localStorage.removeItem(STORAGE_KEY);
