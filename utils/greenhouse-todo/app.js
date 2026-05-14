@@ -2791,8 +2791,8 @@ btnCheckin.addEventListener('click', function() {
     }, 2000);
 });
 
-init();
-animate();
+if (typeof module === "undefined" || !module.exports) { init(); }
+if (typeof module === "undefined" || !module.exports) { animate(); }
 
 btnComplete.addEventListener('click', function() {
     if (activeTodo) {
@@ -2971,4 +2971,16 @@ function performTapInteraction(clientX, clientY) {
     } else if (hit.kind === 'plant' && !hit.todo.completed) {
         openTodoModal(hit.todo);
     }
+}
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        saveTodosToLocal,
+        loadTodosFromLocal,
+        get todos() { return todos; },
+        set todos(val) { todos = val; },
+        get simulatedTimeOffset() { return simulatedTimeOffset; },
+        set simulatedTimeOffset(val) { simulatedTimeOffset = val; },
+        createPlant: typeof createPlant !== 'undefined' ? createPlant : null
+    };
 }
