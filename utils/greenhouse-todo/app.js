@@ -126,16 +126,17 @@ const todoTitle = document.getElementById('todo-title');
 const todoDesc = document.getElementById('todo-desc');
 const todoUrgency = document.getElementById('todo-urgency');
 
-function init() {
-    // 1. Scene
+function setupScene() {
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0xc8dfee, 0.005); // soft humid haze
+}
 
-    // 2. Camera
+function setupCamera() {
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 2000);
     camera.position.y = 1.6;
+}
 
-    // 3. Renderer (PBR pipeline)
+function setupRenderer() {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -146,7 +147,9 @@ function init() {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(renderer.domElement);
+}
 
+function setupLighting() {
     // 4. Image-based lighting via procedural room environment (gives nice IBL on PBR materials)
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
@@ -181,7 +184,9 @@ function init() {
     warmFill = new THREE.PointLight(0xffd9a0, 0, 30, 1.6);
     warmFill.position.set(0, 3.5, -20);
     scene.add(warmFill);
+}
 
+function setupControls() {
     // 5. Controls
     controls = new PointerLockControls(camera, document.body);
 
@@ -283,6 +288,27 @@ function init() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2(0, 0); // Always center for crosshair
 
+    // Auto-retry requestPointerLock when Chrome rejects it during the
+    // ~1.25s post-Escape cooldown. Without this the first ESC press on the
+    // pause overlay silently fails and the user has to press multiple times.
+    document.addEventListener('pointerlockerror', () => {
+        if (lockRetryScheduled) return;
+        if (isTouchDevice) return;
+        lockRetryScheduled = true;
+        setTimeout(() => {
+            lockRetryScheduled = false;
+            if (controls.isLocked) return;
+            const todoOpen = todoModal.style.display !== 'none';
+            const addOpen = addTodoModal.style.display !== 'none';
+            if (todoOpen || addOpen) return; // user is reading a modal
+            const wantsWalking = uiContainer.style.display === 'flex'
+                || blocker.style.display !== 'none';
+            if (wantsWalking) controls.lock();
+        }, 1350);
+    });
+}
+
+function setupDiagnostics() {
     // 7b. FPS / stats overlay (hidden by default; F toggles)
     stats = new Stats();
     stats.dom.style.position = 'fixed';
@@ -316,25 +342,42 @@ function init() {
         'min-width: 220px'
     ].join('; ');
     document.body.appendChild(diagPanel);
+}
 
-    // Auto-retry requestPointerLock when Chrome rejects it during the
-    // ~1.25s post-Escape cooldown. Without this the first ESC press on the
-    // pause overlay silently fails and the user has to press multiple times.
-    document.addEventListener('pointerlockerror', () => {
-        if (lockRetryScheduled) return;
-        if (isTouchDevice) return;
-        lockRetryScheduled = true;
-        setTimeout(() => {
-            lockRetryScheduled = false;
-            if (controls.isLocked) return;
-            const todoOpen = todoModal.style.display !== 'none';
-            const addOpen = addTodoModal.style.display !== 'none';
-            if (todoOpen || addOpen) return; // user is reading a modal
-            const wantsWalking = uiContainer.style.display === 'flex'
-                || blocker.style.display !== 'none';
-            if (wantsWalking) controls.lock();
-        }, 1350);
-    });
+function setupPostProcessing() {
+    // 10. Post-processing — bloom for soft highlights through the glass
+    composer = new EffectComposer(renderer);
+    composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    composer.setSize(window.innerWidth, window.innerHeight);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.10, // strength — gentle bloom so it doesn't fake ambient brightness
+        0.55, // radius
+        0.97  // threshold (only true highlights bloom)
+    );
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+}
+
+function init() {
+    // 1. Scene
+    setupScene();
+
+    // 2. Camera
+    setupCamera();
+
+    // 3. Renderer (PBR pipeline)
+    setupRenderer();
+
+    // 4. Lighting
+    setupLighting();
+
+    // 5. Controls
+    setupControls();
+
+    // 6. Diagnostics
+    setupDiagnostics();
 
     // 8. Build Greenhouse Environment
     buildGreenhouse();
@@ -349,19 +392,8 @@ function init() {
     // 10. Load Saved Data
     loadTodosFromLocal();
 
-    // 10. Post-processing — bloom for soft highlights through the glass
-    composer = new EffectComposer(renderer);
-    composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    composer.setSize(window.innerWidth, window.innerHeight);
-    composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.10, // strength — gentle bloom so it doesn't fake ambient brightness
-        0.55, // radius
-        0.97  // threshold (only true highlights bloom)
-    );
-    composer.addPass(bloom);
-    composer.addPass(new OutputPass());
+    // 11. Post-processing
+    setupPostProcessing();
 
     // Window resize handler
     window.addEventListener('resize', onWindowResize);
