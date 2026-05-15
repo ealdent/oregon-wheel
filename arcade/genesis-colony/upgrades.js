@@ -3,7 +3,13 @@ function updatePauseStats() {
   const el = document.getElementById('pause-stats');
   const stats = game ? game.weaponStats : {};
   const keys = Object.keys(stats).filter(k => stats[k].damage > 0 || stats[k].kills > 0);
-  if (keys.length === 0) { el.innerHTML = '<div class="no-stats">No weapon stats yet</div>'; return; }
+  if (keys.length === 0) {
+    const div = document.createElement('div');
+    div.className = 'no-stats';
+    div.textContent = 'No weapon stats yet';
+    el.replaceChildren(div);
+    return;
+  }
   // Check for prestige names
   const getName = (key) => {
     if (WEAPON_NAMES[key]) return WEAPON_NAMES[key];
@@ -11,13 +17,29 @@ function updatePauseStats() {
     return w ? w.name : key;
   };
   const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n.toString();
-  let html = '<table><tr><th>Weapon</th><th>Kills</th><th>Damage</th></tr>';
+
+  const table = document.createElement('table');
+  const headerRow = document.createElement('tr');
+  const th1 = document.createElement('th'); th1.textContent = 'Weapon';
+  const th2 = document.createElement('th'); th2.textContent = 'Kills';
+  const th3 = document.createElement('th'); th3.textContent = 'Damage';
+  headerRow.appendChild(th1);
+  headerRow.appendChild(th2);
+  headerRow.appendChild(th3);
+  table.appendChild(headerRow);
+
   keys.sort((a, b) => stats[b].damage - stats[a].damage);
   for (const k of keys) {
-    html += `<tr><td>${getName(k)}</td><td>${fmt(stats[k].kills)}</td><td>${fmt(stats[k].damage)}</td></tr>`;
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = getName(k);
+    const td2 = document.createElement('td'); td2.textContent = fmt(stats[k].kills);
+    const td3 = document.createElement('td'); td3.textContent = fmt(stats[k].damage);
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tr.appendChild(td3);
+    table.appendChild(tr);
   }
-  html += '</table>';
-  el.innerHTML = html;
+  el.replaceChildren(table);
 }
 
 // ============ UPGRADE SYSTEM ============
