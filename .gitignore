@@ -6,5 +6,8 @@
 *.pem
 *.key
 node_modules/
+
+# pytest
 __pycache__/
 *.pyc
+.coverage
