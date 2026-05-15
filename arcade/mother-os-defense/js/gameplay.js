@@ -885,3 +885,10 @@ function triggerGameOver() {
   log("Mother OS link severed.");
   showToast("Sector lost. Reboot available.");
 }
+
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    isFullRefundEligible,
+  };
+}

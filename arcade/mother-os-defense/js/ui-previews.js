@@ -1,5 +1,31 @@
 "use strict";
 
+function drawPreviewGrid(p, width, height, opts = {}) {
+  const {
+    strokeStyle = "rgba(97,255,126,0.14)",
+    xStart = 16,
+    xStep = 24,
+    yStart = 12,
+    yStep = 14,
+    xMargin = 8,
+    yMargin = 10,
+  } = opts;
+  p.strokeStyle = strokeStyle;
+  p.lineWidth = 1;
+  for (let y = yStart; y < height; y += yStep) {
+    p.beginPath();
+    p.moveTo(xMargin, y);
+    p.lineTo(width - xMargin, y);
+    p.stroke();
+  }
+  for (let x = xStart; x < width; x += xStep) {
+    p.beginPath();
+    p.moveTo(x, yMargin);
+    p.lineTo(x, height - yMargin);
+    p.stroke();
+  }
+}
+
 function buildTowerCards() {
   els.towerList.innerHTML = "";
   for (const tower of towerDefs) {
@@ -31,20 +57,15 @@ function renderTowerPreview(canvas, tower) {
   p.save();
   p.fillStyle = "rgba(0,10,4,0.9)";
   p.fillRect(0, 0, canvas.width, canvas.height);
-  p.strokeStyle = "rgba(97,255,126,0.12)";
-  p.lineWidth = 1;
-  for (let y = 10; y < canvas.height; y += 12) {
-    p.beginPath();
-    p.moveTo(6, y);
-    p.lineTo(canvas.width - 6, y);
-    p.stroke();
-  }
-  for (let x = 12; x < canvas.width; x += 18) {
-    p.beginPath();
-    p.moveTo(x, 8);
-    p.lineTo(x, canvas.height - 8);
-    p.stroke();
-  }
+  drawPreviewGrid(p, canvas.width, canvas.height, {
+    strokeStyle: "rgba(97,255,126,0.12)",
+    xStart: 12,
+    xStep: 18,
+    yStart: 10,
+    yStep: 12,
+    xMargin: 6,
+    yMargin: 8
+  });
   p.restore();
   p.save();
   p.translate(canvas.width / 2, canvas.height / 2 + 24);
@@ -62,20 +83,7 @@ function renderTowerDetailPreview(canvas, tower) {
   p.save();
   p.fillStyle = "rgba(0,10,4,0.94)";
   p.fillRect(0, 0, canvas.width, canvas.height);
-  p.strokeStyle = "rgba(97,255,126,0.14)";
-  p.lineWidth = 1;
-  for (let y = 12; y < canvas.height; y += 14) {
-    p.beginPath();
-    p.moveTo(8, y);
-    p.lineTo(canvas.width - 8, y);
-    p.stroke();
-  }
-  for (let x = 16; x < canvas.width; x += 24) {
-    p.beginPath();
-    p.moveTo(x, 10);
-    p.lineTo(x, canvas.height - 10);
-    p.stroke();
-  }
+  drawPreviewGrid(p, canvas.width, canvas.height);
   p.strokeStyle = "rgba(124,232,255,0.2)";
   for (const [x, y, sx, sy] of [[16, 16, 1, 1], [canvas.width - 16, 16, -1, 1], [16, canvas.height - 16, 1, -1], [canvas.width - 16, canvas.height - 16, -1, -1]]) {
     p.beginPath();
@@ -111,20 +119,7 @@ function renderThreatPreview(canvas, type) {
   p.save();
   p.fillStyle = "rgba(0,10,4,0.92)";
   p.fillRect(0, 0, canvas.width, canvas.height);
-  p.strokeStyle = "rgba(97,255,126,0.14)";
-  p.lineWidth = 1;
-  for (let y = 12; y < canvas.height; y += 14) {
-    p.beginPath();
-    p.moveTo(8, y);
-    p.lineTo(canvas.width - 8, y);
-    p.stroke();
-  }
-  for (let x = 16; x < canvas.width; x += 24) {
-    p.beginPath();
-    p.moveTo(x, 10);
-    p.lineTo(x, canvas.height - 10);
-    p.stroke();
-  }
+  drawPreviewGrid(p, canvas.width, canvas.height);
   p.strokeStyle = "rgba(124,232,255,0.18)";
   for (const [x, y, sx, sy] of [[16, 16, 1, 1], [canvas.width - 16, 16, -1, 1], [16, canvas.height - 16, 1, -1], [canvas.width - 16, canvas.height - 16, -1, -1]]) {
     p.beginPath();
