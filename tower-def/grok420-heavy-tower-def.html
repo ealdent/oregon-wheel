@@ -22,7 +22,6 @@
         .tower-card.selected { border:4px solid var(--accent); background:#fff9e6; }
         .tower-emoji { font-size:42px; width:56px; height:56px; display:flex; align-items:center; justify-content:center; background:white; border-radius:50%; }
         .overlay { position:absolute; inset:0; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; z-index:100; border-radius:20px; }
-        .modal { background:white; border-radius:24px; padding:30px 40px; text-align:center; max-width:420px; }
         button { font-family:'Comic Neue',cursive; font-weight:700; font-size:18px; padding:10px 24px; border:none; border-radius:9999px; cursor:pointer; }
         .btn-primary { background:#ff8ec4; color:white; }
     </style>
@@ -41,15 +40,13 @@
     <main>
         <div id="game-container">
             <canvas id="canvas" width="800" height="600"></canvas>
-            
             <div id="wave-complete-overlay" class="overlay">
-                <div class="modal">
+                <div class="modal" style="background:white;border-radius:24px;padding:30px 40px;text-align:center;">
                     <h2>🌟 Wave Cleared! 🌟</h2>
                     <button onclick="startNextWave()" class="btn-primary" style="font-size:24px;padding:14px 40px;">Next Wave →</button>
                 </div>
             </div>
         </div>
-
         <div class="sidebar" id="sidebar"></div>
     </main>
 
@@ -63,17 +60,25 @@
         let towers = [], enemies = [], projectiles = [], particles = [];
         let selectedTowerType = null;
         let mouseX = 0, mouseY = 0;
-        let lastTime = 0;
+        let lastTime = 0, spawnTimer = 0;
+        let waveEnemiesQueue = [], enemiesSpawned = 0, totalEnemiesThisWave = 0;
 
-        const towerTypes = [ /* same 5 towers as before - shortened for space */ 
-            {name:"Daisy Shooter",emoji:"🌼",color:"#7ed957",baseCost:60,baseRange:160,baseDamage:18,baseFireRate:420,description:"Fast seeds!"},
-            {name:"Cactus Blaster",emoji:"🌵",color:"#3b8e3b",baseCost:95,baseRange:135,baseDamage:42,baseFireRate:1100,description:"Heavy needles"},
-            {name:"Ice Cream Freezer",emoji:"🍦",color:"#67e8f9",baseCost:110,baseRange:145,baseDamage:12,baseFireRate:680,description:"Chills enemies!"},
-            {name:"Owl Sniper",emoji:"🦉",color:"#a78bfa",baseCost:130,baseRange:240,baseDamage:55,baseFireRate:1350,description:"Long range!"},
-            {name:"Sparkle Wizard",emoji:"✨",color:"#facc15",baseCost:150,baseRange:170,baseDamage:28,baseFireRate:820,description:"Magic bolts"}
+        const towerTypes = [
+            {name:"Daisy Shooter",emoji:"🌼",color:"#7ed957",baseCost:60,baseRange:160,baseDamage:18,baseFireRate:420,baseProjSpeed:380,description:"Fast seeds!"},
+            {name:"Cactus Blaster",emoji:"🌵",color:"#3b8e3b",baseCost:95,baseRange:135,baseDamage:42,baseFireRate:1100,baseProjSpeed:220,description:"Heavy needles"},
+            {name:"Ice Cream Freezer",emoji:"🍦",color:"#67e8f9",baseCost:110,baseRange:145,baseDamage:12,baseFireRate:680,baseProjSpeed:260,description:"Chills enemies!"},
+            {name:"Owl Sniper",emoji:"🦉",color:"#a78bfa",baseCost:130,baseRange:240,baseDamage:55,baseFireRate:1350,baseProjSpeed:520,description:"Long range!"},
+            {name:"Sparkle Wizard",emoji:"✨",color:"#facc15",baseCost:150,baseRange:170,baseDamage:28,baseFireRate:820,baseProjSpeed:310,description:"Magic bolts"}
         ];
 
-        function generateRandomPath() { /* same as before */ 
+        const enemyTypes = [
+            {id:0,name:"Bug",hp:55,speed:105,color:"#3b8e3b",reward:12,size:19},
+            {id:1,name:"Speedy Bee",hp:28,speed:185,color:"#ffeb3b",reward:18,size:16},
+            {id:2,name:"Tank Turtle",hp:210,speed:52,color:"#4a90e2",reward:28,size:24},
+            {id:3,name:"Golem",hp:145,speed:78,color:"#8d5524",reward:22,size:22}
+        ];
+
+        function generateRandomPath() {
             path = []; pathTiles.clear();
             let col = 0, row = Math.floor(Math.random()*7)+2;
             path.push({x:col*TILE_SIZE+TILE_SIZE/2, y:row*TILE_SIZE+TILE_SIZE/2});
@@ -89,41 +94,28 @@
             return path;
         }
 
-        function drawBackground() { /* same as before - grass + path */ 
+        function drawBackground() {
             ctx.fillStyle = '#7ed957'; ctx.fillRect(0,0,800,600);
             ctx.lineWidth = TILE_SIZE*0.9; ctx.strokeStyle = '#e8b88a';
             ctx.beginPath(); ctx.moveTo(path[0].x,path[0].y);
             for(let i=1;i<path.length;i++) ctx.lineTo(path[i].x,path[i].y);
             ctx.stroke();
-            // start & end markers
-            ctx.fillStyle = '#ff8ec4'; ctx.fillRect(10,path[0].y-28,28,56);
-            ctx.fillStyle = '#f8c8a8'; ctx.fillRect(762,path[path.length-1].y-34,38,68);
         }
 
         function drawGhost() {
             if (selectedTowerType === null) return;
             const t = towerTypes[selectedTowerType];
-            ctx.globalAlpha = 0.35;
+            ctx.globalAlpha = 0.4;
             ctx.fillStyle = t.color;
-            ctx.beginPath();
-            ctx.arc(mouseX, mouseY, 22, 0, Math.PI*2);
-            ctx.fill();
-            ctx.font = '26px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#fff';
-            ctx.fillText(t.emoji, mouseX, mouseY);
+            ctx.beginPath(); ctx.arc(mouseX, mouseY, 22, 0, Math.PI*2); ctx.fill();
             ctx.globalAlpha = 1;
-            
-            // range circle
-            ctx.strokeStyle = 'rgba(255,140,200,0.6)';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.arc(mouseX, mouseY, t.baseRange, 0, Math.PI*2);
-            ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = '26px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(t.emoji, mouseX, mouseY);
+            ctx.strokeStyle = 'rgba(255,140,200,0.5)'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(mouseX, mouseY, t.baseRange, 0, Math.PI*2); ctx.stroke();
         }
 
-        function renderSidebar() { /* same shop rendering as before */ 
+        function renderSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.innerHTML = `<div class="panel-title">🛒 Tower Shop</div>`;
             towerTypes.forEach((t,i)=>{
@@ -137,68 +129,103 @@
 
         function tryPlaceTower(gridX, gridY) {
             if (selectedTowerType === null) return false;
-            const key = `${gridX},${gridY}`;
-            if (pathTiles.has(key)) return false;
+            if (pathTiles.has(`${gridX},${gridY}`)) return false;
             const cost = towerTypes[selectedTowerType].baseCost;
             if (money < cost) return false;
             money -= cost;
-            towers.push({
-                x: gridX*TILE_SIZE + TILE_SIZE/2,
-                y: gridY*TILE_SIZE + TILE_SIZE/2,
-                type: selectedTowerType,
-                level: 1,
-                range: towerTypes[selectedTowerType].baseRange
-            });
+            towers.push({x:gridX*TILE_SIZE+TILE_SIZE/2, y:gridY*TILE_SIZE+TILE_SIZE/2, type:selectedTowerType, level:1, range:towerTypes[selectedTowerType].baseRange, nextShot:Date.now()});
             selectedTowerType = null;
             renderSidebar();
             document.getElementById('money').textContent = money;
             return true;
         }
 
-        function gameLoop() {
+        function spawnEnemy(typeId) {
+            const e = enemyTypes[typeId];
+            enemies.push({x:path[0].x, y:path[0].y, type:typeId, health:e.hp, maxHealth:e.hp, speed:e.speed, reward:e.reward, size:e.size, color:e.color, waypoint:1, distanceTraveled:0, slowUntil:0});
+        }
+
+        function generateWave(w) {
+            waveEnemiesQueue = [];
+            let count = 8 + w * 3;
+            for(let i=0;i<count;i++){
+                let type = 0;
+                if(w>4 && Math.random()<0.3) type=1;
+                else if(w>7 && Math.random()<0.35) type=2;
+                else if(w>11 && Math.random()<0.25) type=3;
+                waveEnemiesQueue.push(type);
+            }
+            totalEnemiesThisWave = waveEnemiesQueue.length;
+            enemiesSpawned = 0;
+            spawnTimer = Date.now() + 800;
+        }
+
+        function gameLoop(ts) {
+            if(!lastTime) lastTime = ts;
+            const dt = ts - lastTime; lastTime = ts;
             ctx.clearRect(0,0,800,600);
             drawBackground();
-            towers.forEach(t=> {
+            towers.forEach(t => {
                 ctx.fillStyle = towerTypes[t.type].color;
                 ctx.beginPath(); ctx.arc(t.x,t.y,22,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.font='26px Arial'; ctx.textAlign='center'; ctx.fillText(towerTypes[t.type].emoji,t.x,t.y);
+                ctx.fillStyle = '#fff'; ctx.font='26px Arial'; ctx.fillText(towerTypes[t.type].emoji,t.x,t.y);
             });
+            // enemies
+            const now = Date.now();
+            for(let i=enemies.length-1;i>=0;i--){
+                const e = enemies[i];
+                if(e.waypoint >= path.length){ lives--; enemies.splice(i,1); document.getElementById('lives').textContent = lives; continue; }
+                const target = path[e.waypoint];
+                const dx = target.x - e.x, dy = target.y - e.y, dist = Math.hypot(dx,dy);
+                if(dist < 8) e.waypoint++;
+                else {
+                    const move = e.speed * (dt/1000);
+                    e.x += (dx/dist)*move; e.y += (dy/dist)*move; e.distanceTraveled += move;
+                }
+                ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(e.x,e.y,e.size,0,Math.PI*2); ctx.fill();
+            }
+            // spawn
+            if(waveEnemiesQueue.length > 0 && enemiesSpawned < totalEnemiesThisWave && now > spawnTimer){
+                spawnEnemy(waveEnemiesQueue[enemiesSpawned]);
+                enemiesSpawned++;
+                spawnTimer = now + 400;
+            }
             drawGhost();
             requestAnimationFrame(gameLoop);
         }
 
-        function handleClick(e) {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const gridX = Math.floor(x / TILE_SIZE);
-            const gridY = Math.floor(y / TILE_SIZE);
-            
-            if (selectedTowerType !== null) {
-                tryPlaceTower(gridX, gridY);
-            }
-        }
-
-        canvas.addEventListener('mousemove', e => {
+        canvas.addEventListener('mousemove', e=>{
             const rect = canvas.getBoundingClientRect();
             mouseX = e.clientX - rect.left;
             mouseY = e.clientY - rect.top;
         });
 
-        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('click', e=>{
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left, y = e.clientY - rect.top;
+            const gx = Math.floor(x/TILE_SIZE), gy = Math.floor(y/TILE_SIZE);
+            tryPlaceTower(gx, gy);
+        });
 
-        function startFirstWave() {
-            wave = 1;
-            gameRunning = true;
+        function startFirstWave(){
+            wave = 1; gameRunning = true; betweenWaves = false;
             document.getElementById('start-wave-btn').style.display = 'none';
+            generateWave(1);
         }
 
-        function init() {
+        function startNextWave(){
+            document.getElementById('wave-complete-overlay').style.display = 'none';
+            wave++;
+            generateWave(wave);
+            gameRunning = true;
+        }
+
+        function init(){
             path = generateRandomPath();
             renderSidebar();
             document.getElementById('start-wave-btn').onclick = startFirstWave;
             requestAnimationFrame(gameLoop);
-            console.log('✅ Fixed version loaded - ghost preview added!');
+            console.log('%c✅ Full game loaded with ghost preview!', 'color:#ff8ec4;font-size:16px');
         }
         window.onload = init;
     </script>
