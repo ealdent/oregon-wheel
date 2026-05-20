@@ -1,3 +1,24 @@
+# Canon T5i TOC Link Hit Area Fix
+
+## Spec
+
+- [x] Make all six hero table-of-contents buttons clickable.
+- [x] Preserve the existing visual design.
+- [x] Verify hover/click behavior for both left and right columns.
+
+## Plan
+
+- [x] Inspect the TOC and surrounding hero-card CSS.
+- [x] Remove pointer hit-testing from the decorative hero overlay.
+- [x] Verify the right-column links in the browser and run static checks.
+
+## Review
+
+- The right-column TOC links were blocked by the decorative radial pseudo-element inside `.hero-card`.
+- Added `pointer-events: none` to the overlay and explicit content stacking so the overlay cannot intercept clicks or hovers.
+- Strengthened TOC hover/focus styling so active cards are easier to see.
+- Verified each TOC card center resolves to its own link, all six links update the URL hash when clicked, console warnings/errors are empty, inline script compilation passes, and `git diff --check` passes.
+
 # Canon T5i Control Trainer Mapping Correction
 
 ## Spec
