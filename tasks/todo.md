@@ -1,3 +1,29 @@
+# Canon T5i Control Trainer Mapping Correction
+
+## Spec
+
+- [x] Remap the top-plate diagram so the viewer-facing-from-back layout matches a Canon Rebel T5i more closely.
+- [x] Separate the back-panel controls so `*`, AF point selection, Q, cross keys, SET, Av/plus-minus, playback, and erase are visually distinct.
+- [x] Improve hotspot and label colors for easy scanning against the dark camera drawing.
+- [x] Fix label/text fit so hotspot text stays inside its intended shape.
+- [x] Verify the controls section in the in-app browser on the available narrow viewport.
+
+## Plan
+
+- [x] Inspect Canon T5i/700D control references and current SVG structure.
+- [x] Replace the top/back SVG geometry and label treatment with clearer control positions.
+- [x] Tune CSS for high-contrast hotspot rings, text pills, and selected states.
+- [x] Run static checks and Browser QA, then record the review.
+
+## Review
+
+- Corrected the top-plate diagram to show the photographer-side/right-hand control cluster together: mode dial, power switch, ISO, Main Dial, and shutter are now grouped on the right, with flash release on the opposite side.
+- Rebuilt the back-control map so the LCD, top-left Menu/INFO controls, upper-right Live View / AE lock / AF point controls, Q, Av/plus-minus, D-pad/SET, playback, and erase are separated.
+- Replaced low-contrast transparent hotspot labels with high-contrast dark label pills, yellow rings, and green active states.
+- Fixed the real tab-display bug: SVGs were being forced to `display:block`, and SVG `.hidden` property assignment was not toggling the actual `hidden` attribute. Tabs now use `toggleAttribute`.
+- Verified via localhost in the in-app browser because direct `file://` browser automation was blocked. Top ISO and back Q hotspot clicks updated the readout correctly, and console warnings/errors were empty.
+- Static verification passed with inline script compilation and `git diff --check`.
+
 # Campaign Tree Layout And Road Connectors
 
 ## Spec

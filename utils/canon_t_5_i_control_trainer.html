@@ -86,12 +86,17 @@
     .diagram-shell{position:relative;padding:14px;border-radius:22px;background:linear-gradient(180deg, rgba(8,12,22,.65), rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.1);min-height:520px}
     .diagram-title{display:flex;align-items:center;justify-content:space-between;margin:2px 4px 12px;color:#dce6f7;font-weight:800}
     .svg-frame{width:100%;height:auto;display:block;border-radius:18px;background:rgba(255,255,255,.03)}
+    .svg-frame[hidden], #viewfinderDiagram[hidden]{display:none}
     .hotspot{cursor:pointer;outline:none}
-    .hotspot .ring{fill:rgba(120,215,255,.13);stroke:rgba(120,215,255,.84);stroke-width:3;transition:.16s ease}
-    .hotspot:hover .ring,.hotspot:focus .ring{fill:rgba(255,203,119,.23);stroke:var(--brand-2);filter:drop-shadow(0 0 8px rgba(255,203,119,.25))}
+    .hotspot .ring{fill:rgba(255,218,92,.2);stroke:#ffdc4a;stroke-width:4;transition:.16s ease}
+    .hotspot .label-bg{fill:#06101d;stroke:#ffdc4a;stroke-width:2}
+    .hotspot:hover .ring,.hotspot:focus .ring{fill:rgba(255,255,255,.28);stroke:#fff3a3;filter:drop-shadow(0 0 9px rgba(255,220,74,.4))}
+    .hotspot:hover .label-bg,.hotspot:focus .label-bg{stroke:#fff3a3}
     .hotspot.active .ring{fill:rgba(120,230,176,.28);stroke:var(--green)}
-    .hotspot text{pointer-events:none;font-size:12px;font-weight:900;fill:#06101d}
-    .label-line{stroke:rgba(120,215,255,.5);stroke-width:2;stroke-dasharray:4 5}
+    .hotspot.active .label-bg{stroke:var(--green);fill:#082118}
+    .hotspot text{pointer-events:none;font-size:13px;font-weight:900;fill:#fff;paint-order:stroke;stroke:#06101d;stroke-width:3px;stroke-linejoin:round}
+    .hotspot text.small{font-size:11px}
+    .map-note{fill:#dce6f7;font-size:13px;font-weight:700}
     .camera-shape{fill:#d7dde8;stroke:#6e7c94;stroke-width:2}
     .camera-dark{fill:#20283a;stroke:#566278;stroke-width:2}
     .camera-mid{fill:#8e9bb0;stroke:#59657b;stroke-width:2}
@@ -211,7 +216,7 @@
         <div>
           <div class="eyebrow">Canon EOS Rebel T5i / EOS 700D</div>
           <h1>Control trainer</h1>
-          <p class="lead">A hands-on map for the buttons, dials, exposure triangle, creative modes, and the tiny cockpit logic of your Rebel T5i. Click the camera. Twist the virtual dials. Make deliberate photos instead of negotiating with Auto like it’s a raccoon in the pantry.</p>
+          <p class="lead">A hands-on map for the buttons, dials, exposure triangle, creative modes, and the tiny cockpit logic of your Rebel T5i. Click the camera. Twist the virtual dials. Make deliberate photos instead of letting Auto guess what matters.</p>
         </div>
         <div class="badge-row" aria-label="Page features">
           <span class="badge">Clickable camera diagrams</span>
@@ -267,126 +272,148 @@
         <div class="control-stage">
           <div class="diagram-shell panel">
             <div class="diagram-title">
-              <span id="diagramTitle">Top plate controls</span>
+              <span id="diagramTitle">Top plate from back</span>
               <span class="mode-pill" id="modePill">Mode: M</span>
             </div>
             <div class="camera-tabs" role="tablist" aria-label="Camera view">
-              <button class="tab-btn active" data-view="top">Top plate</button>
-              <button class="tab-btn" data-view="back">Back</button>
+              <button class="tab-btn active" data-view="top" data-default-control="modeDial">Top plate</button>
+              <button class="tab-btn" data-view="back" data-default-control="liveView">Back</button>
               <button class="tab-btn" data-view="viewfinder">Viewfinder display</button>
             </div>
 
-            <svg id="topDiagram" class="svg-frame" viewBox="0 0 760 560" aria-label="Top of Canon Rebel T5i diagram" role="img">
+            <svg id="topDiagram" class="svg-frame" viewBox="0 0 760 560" aria-label="Top of Canon Rebel T5i diagram viewed from behind the camera" role="img">
               <defs>
                 <linearGradient id="bodyGrad" x1="0" x2="1"><stop offset="0" stop-color="#e4e9f2"/><stop offset="1" stop-color="#a9b4c7"/></linearGradient>
-                <linearGradient id="darkGrad" x1="0" x2="1"><stop offset="0" stop-color="#2d3549"/><stop offset="1" stop-color="#111827"/></linearGradient>
+                <linearGradient id="gripGrad" x1="0" x2="1"><stop offset="0" stop-color="#8794ab"/><stop offset="1" stop-color="#4e5c72"/></linearGradient>
               </defs>
-              <rect x="35" y="170" width="690" height="255" rx="58" fill="url(#bodyGrad)" stroke="#66748b" stroke-width="3"/>
-              <rect x="238" y="110" width="210" height="98" rx="38" fill="url(#bodyGrad)" stroke="#66748b" stroke-width="3"/>
-              <rect x="274" y="80" width="140" height="70" rx="26" fill="#20283a" stroke="#6e7c94" stroke-width="3"/>
-              <circle cx="350" cy="302" r="118" class="lens"/>
-              <circle cx="350" cy="302" r="84" fill="#20283a" stroke="#8896ac" stroke-width="3"/>
-              <circle cx="350" cy="302" r="52" class="glass"/>
-              <rect x="70" y="205" width="165" height="86" rx="32" fill="#cbd4e3" stroke="#66748b" stroke-width="3"/>
-              <rect x="507" y="196" width="167" height="112" rx="32" fill="#cbd4e3" stroke="#66748b" stroke-width="3"/>
-              <circle cx="602" cy="246" r="58" fill="#21283a" stroke="#697893" stroke-width="3"/>
-              <circle cx="602" cy="246" r="42" fill="#313b52" stroke="#91a0b7" stroke-width="2"/>
-              <text x="602" y="222" text-anchor="middle" fill="#f4f0e8" font-size="16" font-weight="900">Mode</text>
-              <text x="602" y="246" text-anchor="middle" fill="#ffcb77" font-size="13" font-family="monospace">P Tv Av M</text>
-              <text x="602" y="269" text-anchor="middle" fill="#78d7ff" font-size="13" font-family="monospace">A+ SCN</text>
-              <ellipse cx="140" cy="215" rx="46" ry="25" fill="#161d2e" stroke="#718099" stroke-width="3"/>
-              <circle cx="125" cy="215" r="12" fill="#ff6b6b"/>
-              <circle cx="205" cy="186" r="22" fill="#20283a" stroke="#7c8ca6" stroke-width="3"/>
-              <rect x="172" y="138" width="74" height="26" rx="13" fill="#20283a" stroke="#7c8ca6" stroke-width="2"/>
-              <rect x="478" y="138" width="80" height="28" rx="14" fill="#20283a" stroke="#7c8ca6" stroke-width="2"/>
-              <rect x="480" y="344" width="138" height="38" rx="19" fill="#20283a" stroke="#7c8ca6" stroke-width="2"/>
-              <text x="545" y="368" text-anchor="middle" fill="#f4f0e8" font-size="15" font-family="monospace">ON · OFF · 🎥</text>
+              <text x="380" y="44" text-anchor="middle" class="map-note">Top plate viewed from behind the camera: the right-hand controls are grouped on the right.</text>
+              <rect x="58" y="178" width="642" height="246" rx="54" fill="url(#bodyGrad)" stroke="#66748b" stroke-width="3"/>
+              <rect x="108" y="128" width="552" height="132" rx="38" fill="#cbd4e3" stroke="#66748b" stroke-width="3"/>
+              <path d="M278 175 L306 96 H454 L484 175 Z" fill="#d7dde8" stroke="#66748b" stroke-width="3"/>
+              <rect x="326" y="100" width="112" height="34" rx="10" fill="#182033" stroke="#6e7c94" stroke-width="3"/>
+              <text x="382" y="123" text-anchor="middle" fill="#dce6f7" font-size="14" font-weight="900">HOT SHOE</text>
+              <path d="M544 174 C620 144 700 180 704 282 L704 372 C697 414 658 438 596 422 L552 398 Z" fill="url(#gripGrad)" stroke="#66748b" stroke-width="3"/>
+              <circle cx="352" cy="310" r="122" class="lens"/>
+              <circle cx="352" cy="310" r="87" fill="#20283a" stroke="#8896ac" stroke-width="3"/>
+              <circle cx="352" cy="310" r="54" class="glass"/>
+              <rect x="80" y="218" width="164" height="92" rx="32" fill="#bfc9da" stroke="#66748b" stroke-width="3"/>
+              <path d="M216 182 C236 154 274 156 292 187 L268 222 L218 220 Z" fill="#20283a" stroke="#6e7c94" stroke-width="3"/>
+
+              <circle cx="576" cy="194" r="60" fill="#20283a" stroke="#697893" stroke-width="3"/>
+              <circle cx="576" cy="194" r="43" fill="#313b52" stroke="#91a0b7" stroke-width="2"/>
+              <text x="576" y="174" text-anchor="middle" fill="#f4f0e8" font-size="15" font-weight="900">MODE</text>
+              <text x="576" y="196" text-anchor="middle" fill="#ffcb77" font-size="12" font-family="monospace">P Tv Av M</text>
+              <text x="576" y="216" text-anchor="middle" fill="#78d7ff" font-size="12" font-family="monospace">A+ SCN</text>
+              <rect x="626" y="168" width="54" height="54" rx="17" fill="#1a2234" stroke="#7c8ca6" stroke-width="3"/>
+              <text x="653" y="189" text-anchor="middle" fill="#f4f0e8" font-size="10" font-weight="900">OFF</text>
+              <text x="653" y="204" text-anchor="middle" fill="#78e6b0" font-size="10" font-weight="900">ON</text>
+              <text x="653" y="219" text-anchor="middle" fill="#ffcb77" font-size="9" font-weight="900">MOV</text>
+              <rect x="506" y="278" width="54" height="34" rx="15" fill="#20283a" stroke="#7c8ca6" stroke-width="3"/>
+              <circle cx="592" cy="302" r="28" fill="#20283a" stroke="#7c8ca6" stroke-width="3"/>
+              <path d="M574 291 L610 291 M572 302 L612 302 M574 313 L610 313" stroke="#9aa8bf" stroke-width="2"/>
+              <ellipse cx="651" cy="320" rx="44" ry="27" fill="#161d2e" stroke="#718099" stroke-width="3"/>
+              <circle cx="651" cy="320" r="15" fill="#ff6b6b" stroke="#ffd2d2" stroke-width="2"/>
+              <circle cx="246" cy="202" r="24" fill="#20283a" stroke="#7c8ca6" stroke-width="3"/>
 
               <g class="hotspot active" data-control="modeDial" role="button" tabindex="0" aria-label="Mode dial">
-                <circle class="ring" cx="602" cy="246" r="72"/><text x="602" y="251" text-anchor="middle">MODE</text>
-              </g>
-              <g class="hotspot" data-control="shutter" role="button" tabindex="0" aria-label="Shutter button">
-                <circle class="ring" cx="125" cy="215" r="32"/><text x="125" y="220" text-anchor="middle">SH</text>
-              </g>
-              <g class="hotspot" data-control="mainDial" role="button" tabindex="0" aria-label="Main dial">
-                <circle class="ring" cx="205" cy="186" r="35"/><text x="205" y="191" text-anchor="middle">6</text>
-              </g>
-              <g class="hotspot" data-control="iso" role="button" tabindex="0" aria-label="ISO button">
-                <circle class="ring" cx="209" cy="151" r="31"/><text x="209" y="156" text-anchor="middle">ISO</text>
-              </g>
-              <g class="hotspot" data-control="flash" role="button" tabindex="0" aria-label="Flash button">
-                <circle class="ring" cx="518" cy="152" r="31"/><text x="518" y="157" text-anchor="middle">⚡</text>
+                <circle class="ring" cx="576" cy="194" r="73"/>
+                <rect class="label-bg" x="541" y="181" width="70" height="26" rx="8"/><text x="576" y="199" text-anchor="middle">MODE</text>
               </g>
               <g class="hotspot" data-control="power" role="button" tabindex="0" aria-label="Power switch">
-                <circle class="ring" cx="550" cy="363" r="42"/><text x="550" y="368" text-anchor="middle">PWR</text>
+                <circle class="ring" cx="653" cy="195" r="38"/>
+                <rect class="label-bg" x="630" y="183" width="46" height="24" rx="8"/><text x="653" y="200" text-anchor="middle">PWR</text>
+              </g>
+              <g class="hotspot" data-control="iso" role="button" tabindex="0" aria-label="ISO button">
+                <circle class="ring" cx="533" cy="295" r="32"/>
+                <rect class="label-bg" x="513" y="283" width="40" height="24" rx="8"/><text x="533" y="300" text-anchor="middle">ISO</text>
+              </g>
+              <g class="hotspot" data-control="mainDial" role="button" tabindex="0" aria-label="Main dial">
+                <circle class="ring" cx="592" cy="302" r="36"/>
+                <rect class="label-bg" x="569" y="290" width="46" height="24" rx="8"/><text x="592" y="307" text-anchor="middle">DIAL</text>
+              </g>
+              <g class="hotspot" data-control="shutter" role="button" tabindex="0" aria-label="Shutter button">
+                <circle class="ring" cx="651" cy="320" r="40"/>
+                <rect class="label-bg" x="613" y="308" width="76" height="24" rx="8"/><text x="651" y="325" text-anchor="middle">SHUTTER</text>
+              </g>
+              <g class="hotspot" data-control="flash" role="button" tabindex="0" aria-label="Flash button">
+                <circle class="ring" cx="246" cy="202" r="33"/>
+                <rect class="label-bg" x="222" y="190" width="48" height="24" rx="8"/><text x="246" y="207" text-anchor="middle">FLASH</text>
               </g>
 
-              <path class="label-line" d="M170 120 L209 151"/><text x="55" y="117" fill="#dce6f7" font-size="16">ISO speed</text>
-              <path class="label-line" d="M72 160 L125 215"/><text x="52" y="156" fill="#dce6f7" font-size="16">Shutter</text>
-              <path class="label-line" d="M242 121 L205 186"/><text x="244" y="117" fill="#dce6f7" font-size="16">Main dial</text>
-              <path class="label-line" d="M572 120 L518 152"/><text x="578" y="118" fill="#dce6f7" font-size="16">Flash</text>
-              <path class="label-line" d="M668 152 L602 246"/><text x="668" y="148" fill="#dce6f7" font-size="16">Mode dial</text>
-              <path class="label-line" d="M642 385 L550 363"/><text x="644" y="390" fill="#dce6f7" font-size="16">Power/movie</text>
             </svg>
 
             <svg id="backDiagram" class="svg-frame" viewBox="0 0 760 560" aria-label="Back of Canon Rebel T5i diagram" role="img" hidden>
-              <rect x="70" y="90" width="620" height="390" rx="52" fill="url(#bodyGrad)" stroke="#66748b" stroke-width="3"/>
-              <rect x="125" y="158" width="330" height="242" rx="20" fill="#111827" stroke="#6e7c94" stroke-width="4"/>
-              <rect x="151" y="184" width="278" height="190" rx="10" fill="#20283a" stroke="#91a0b7" stroke-width="2"/>
-              <text x="290" y="280" text-anchor="middle" fill="#78d7ff" font-size="28" font-weight="900">LCD / Touch</text>
-              <rect x="292" y="84" width="170" height="70" rx="28" fill="#1a2234" stroke="#6e7c94" stroke-width="3"/>
-              <rect x="338" y="105" width="78" height="30" rx="8" fill="#0a0e18" stroke="#91a0b7"/>
-              <circle cx="548" cy="185" r="34" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <circle cx="620" cy="185" r="28" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <circle cx="620" cy="270" r="58" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <circle cx="620" cy="270" r="24" fill="#111827" stroke="#91a0b7" stroke-width="2"/>
-              <rect x="514" y="252" width="56" height="36" rx="16" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <rect x="520" y="342" width="80" height="42" rx="18" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <rect x="615" y="342" width="48" height="42" rx="18" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <rect x="95" y="118" width="78" height="34" rx="15" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <rect x="92" y="410" width="64" height="34" rx="15" fill="#20283a" stroke="#718099" stroke-width="3"/>
-              <rect x="175" y="410" width="64" height="34" rx="15" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <text x="380" y="44" text-anchor="middle" class="map-note">Back controls: screen on the left, thumb controls on the right, playback buttons along the lower-left edge.</text>
+              <rect x="56" y="82" width="650" height="400" rx="52" fill="#cbd4e3" stroke="#66748b" stroke-width="3"/>
+              <path d="M514 102 C600 80 690 118 706 214 L706 410 C696 462 648 492 564 470 L518 430 Z" fill="#8794ab" stroke="#66748b" stroke-width="3"/>
+              <rect x="132" y="160" width="326" height="238" rx="22" fill="#111827" stroke="#6e7c94" stroke-width="4"/>
+              <rect x="158" y="187" width="274" height="183" rx="10" fill="#20283a" stroke="#91a0b7" stroke-width="2"/>
+              <text x="295" y="282" text-anchor="middle" fill="#78d7ff" font-size="28" font-weight="900">LCD / TOUCH</text>
+              <rect x="300" y="88" width="168" height="70" rx="28" fill="#1a2234" stroke="#6e7c94" stroke-width="3"/>
+              <rect x="344" y="108" width="80" height="31" rx="8" fill="#0a0e18" stroke="#91a0b7"/>
+
+              <rect x="94" y="118" width="78" height="34" rx="15" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <rect x="184" y="118" width="74" height="34" rx="15" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <rect x="92" y="416" width="72" height="36" rx="16" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <rect x="184" y="416" width="72" height="36" rx="16" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <circle cx="520" cy="152" r="30" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <circle cx="586" cy="152" r="28" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <circle cx="650" cy="152" r="28" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <rect x="498" y="222" width="58" height="40" rx="17" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <rect x="494" y="318" width="70" height="42" rx="18" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <circle cx="626" cy="292" r="68" fill="#20283a" stroke="#718099" stroke-width="3"/>
+              <path d="M626 216 L650 266 H602 Z M626 368 L602 318 H650 Z M550 292 L600 268 V316 Z M702 292 L652 316 V268 Z" fill="#323d54" stroke="#91a0b7" stroke-width="2"/>
+              <circle cx="626" cy="292" r="25" fill="#101725" stroke="#91a0b7" stroke-width="2"/>
+              <text x="626" y="241" text-anchor="middle" fill="#dce6f7" font-size="10" font-weight="900">WB</text>
+              <text x="626" y="348" text-anchor="middle" fill="#dce6f7" font-size="10" font-weight="900">DRIVE</text>
+              <text x="574" y="296" text-anchor="middle" fill="#dce6f7" font-size="10" font-weight="900">STYLE</text>
+              <text x="678" y="296" text-anchor="middle" fill="#dce6f7" font-size="10" font-weight="900">AF</text>
 
               <g class="hotspot" data-control="menu" role="button" tabindex="0" aria-label="Menu button">
-                <circle class="ring" cx="134" cy="135" r="30"/><text x="134" y="140" text-anchor="middle">MENU</text>
+                <circle class="ring" cx="133" cy="135" r="31"/>
+                <rect class="label-bg" x="103" y="123" width="60" height="24" rx="8"/><text x="133" y="140" text-anchor="middle">MENU</text>
               </g>
               <g class="hotspot" data-control="info" role="button" tabindex="0" aria-label="Info button">
-                <circle class="ring" cx="207" cy="135" r="30"/><text x="207" y="140" text-anchor="middle">INFO</text>
+                <circle class="ring" cx="221" cy="135" r="31"/>
+                <rect class="label-bg" x="195" y="123" width="52" height="24" rx="8"/><text x="221" y="140" text-anchor="middle">INFO</text>
               </g>
               <g class="hotspot" data-control="liveView" role="button" tabindex="0" aria-label="Live View and movie button">
-                <circle class="ring" cx="548" cy="185" r="42"/><text x="548" y="190" text-anchor="middle">LV</text>
+                <circle class="ring" cx="520" cy="152" r="39"/>
+                <rect class="label-bg" x="496" y="140" width="48" height="24" rx="8"/><text x="520" y="157" text-anchor="middle">LV</text>
               </g>
               <g class="hotspot" data-control="aeLock" role="button" tabindex="0" aria-label="AE lock button">
-                <circle class="ring" cx="620" cy="185" r="37"/><text x="620" y="190" text-anchor="middle">*</text>
+                <circle class="ring" cx="586" cy="152" r="36"/>
+                <rect class="label-bg" x="568" y="140" width="36" height="24" rx="8"/><text x="586" y="157" text-anchor="middle">*</text>
               </g>
               <g class="hotspot" data-control="afPoint" role="button" tabindex="0" aria-label="AF point selection button">
-                <circle class="ring" cx="672" cy="185" r="34"/><text x="672" y="190" text-anchor="middle">AF</text>
+                <circle class="ring" cx="650" cy="152" r="36"/>
+                <rect class="label-bg" x="632" y="140" width="36" height="24" rx="8"/><text x="650" y="157" text-anchor="middle">AF</text>
               </g>
               <g class="hotspot" data-control="quick" role="button" tabindex="0" aria-label="Quick control button">
-                <circle class="ring" cx="542" cy="270" r="39"/><text x="542" y="275" text-anchor="middle">Q</text>
-              </g>
-              <g class="hotspot" data-control="crossKeys" role="button" tabindex="0" aria-label="Cross keys">
-                <circle class="ring" cx="620" cy="270" r="72"/><text x="620" y="275" text-anchor="middle">KEYS</text>
-              </g>
-              <g class="hotspot" data-control="set" role="button" tabindex="0" aria-label="Set button">
-                <circle class="ring" cx="620" cy="270" r="32"/><text x="620" y="275" text-anchor="middle">SET</text>
+                <circle class="ring" cx="527" cy="242" r="39"/>
+                <rect class="label-bg" x="511" y="230" width="32" height="24" rx="8"/><text x="527" y="247" text-anchor="middle">Q</text>
               </g>
               <g class="hotspot" data-control="avButton" role="button" tabindex="0" aria-label="Aperture Exposure compensation button">
-                <circle class="ring" cx="560" cy="363" r="43"/><text x="560" y="368" text-anchor="middle">Av±</text>
+                <circle class="ring" cx="529" cy="339" r="42"/>
+                <rect class="label-bg" x="504" y="327" width="50" height="24" rx="8"/><text x="529" y="344" text-anchor="middle">Av±</text>
+              </g>
+              <g class="hotspot" data-control="crossKeys" role="button" tabindex="0" aria-label="Cross keys">
+                <circle class="ring" cx="626" cy="292" r="77"/>
+                <rect class="label-bg" x="588" y="381" width="76" height="24" rx="8"/><text x="626" y="398" text-anchor="middle">ARROWS</text>
+              </g>
+              <g class="hotspot" data-control="set" role="button" tabindex="0" aria-label="Set button">
+                <circle class="ring" cx="626" cy="292" r="32"/>
+                <rect class="label-bg" x="607" y="280" width="38" height="24" rx="8"/><text x="626" y="297" text-anchor="middle">SET</text>
               </g>
               <g class="hotspot" data-control="playback" role="button" tabindex="0" aria-label="Playback button">
-                <circle class="ring" cx="126" cy="427" r="34"/><text x="126" y="432" text-anchor="middle">▶</text>
+                <circle class="ring" cx="128" cy="434" r="35"/>
+                <rect class="label-bg" x="105" y="422" width="46" height="24" rx="8"/><text x="128" y="439" text-anchor="middle">PLAY</text>
               </g>
               <g class="hotspot" data-control="erase" role="button" tabindex="0" aria-label="Erase button">
-                <circle class="ring" cx="207" cy="427" r="34"/><text x="207" y="432" text-anchor="middle">DEL</text>
+                <circle class="ring" cx="220" cy="434" r="35"/>
+                <rect class="label-bg" x="198" y="422" width="44" height="24" rx="8"/><text x="220" y="439" text-anchor="middle">DEL</text>
               </g>
 
-              <path class="label-line" d="M500 130 L548 185"/><text x="466" y="124" fill="#dce6f7" font-size="16">Live View / Movie</text>
-              <path class="label-line" d="M662 132 L620 185"/><text x="666" y="128" fill="#dce6f7" font-size="16">AE lock</text>
-              <path class="label-line" d="M708 220 L672 185"/><text x="704" y="239" fill="#dce6f7" font-size="16">AF point</text>
-              <path class="label-line" d="M484 270 L542 270"/><text x="442" y="276" fill="#dce6f7" font-size="16">Q menu</text>
-              <path class="label-line" d="M690 315 L620 270"/><text x="675" y="333" fill="#dce6f7" font-size="16">Cross keys + SET</text>
-              <path class="label-line" d="M492 400 L560 363"/><text x="382" y="410" fill="#dce6f7" font-size="16">Av / exposure comp</text>
             </svg>
 
             <div id="viewfinderDiagram" hidden>
@@ -646,7 +673,7 @@
     },
     flash:{
       name:'Flash button', overview:'Raises the built-in flash in Creative Zone modes.',
-      mode:{auto:'In many Basic modes the camera raises flash automatically if it thinks it needs it; Flash Off disables that.',p:'Press to raise the built-in flash, then shoot.',tv:'Press to raise flash. Watch sync limits and harsh direct-light goblinry.',av:'Press to raise flash. Useful for fill flash, but shutter may behave differently depending flash settings.',m:'Press to raise flash. Manual ambient exposure plus E-TTL flash can be very useful.',movie:'No built-in flash during movie recording.',playback:'No shooting flash function.'},
+      mode:{auto:'In many Basic modes the camera raises flash automatically if it thinks it needs it; Flash Off disables that.',p:'Press to raise the built-in flash, then shoot.',tv:'Press to raise flash. Watch sync limits and harsh direct light.',av:'Press to raise flash. Useful for fill flash, but shutter may behave differently depending flash settings.',m:'Press to raise flash. Manual ambient exposure plus E-TTL flash can be very useful.',movie:'No built-in flash during movie recording.',playback:'No shooting flash function.'},
       steps:['Press the flash button to pop it up in Creative Zone.','Press the flash back down physically when done.','For better light, bounce an external flash when available.'],
       minis:[['Creative Zone','Manual pop-up.'],['Basic Zone','Often automatic.']]
     },
@@ -765,10 +792,13 @@
   document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('.tab-btn').forEach(x=>x.classList.toggle('active', x===b));
     const view = b.dataset.view;
-    document.getElementById('topDiagram').hidden = view !== 'top';
-    document.getElementById('backDiagram').hidden = view !== 'back';
-    document.getElementById('viewfinderDiagram').hidden = view !== 'viewfinder';
-    document.getElementById('diagramTitle').textContent = view === 'top' ? 'Top plate controls' : view === 'back' ? 'Back controls' : 'Viewfinder display';
+    document.getElementById('topDiagram').toggleAttribute('hidden', view !== 'top');
+    document.getElementById('backDiagram').toggleAttribute('hidden', view !== 'back');
+    document.getElementById('viewfinderDiagram').toggleAttribute('hidden', view !== 'viewfinder');
+    document.getElementById('diagramTitle').textContent = view === 'top' ? 'Top plate from back' : view === 'back' ? 'Back controls' : 'Viewfinder display';
+    if (b.dataset.defaultControl && !document.querySelector(`#${view}Diagram .hotspot[data-control="${currentControl}"]`)) {
+      setControl(b.dataset.defaultControl);
+    }
   }));
 
   function buildMeterTicks(el){
