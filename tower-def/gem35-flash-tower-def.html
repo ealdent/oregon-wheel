@@ -1,0 +1,3483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slime Garden Defense: Blobs vs Bugs</title>
+  <!-- Import Fredoka Font for a cute, cartoony style -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #eaf4e3;
+      --panel-bg: rgba(255, 255, 255, 0.9);
+      --panel-border: rgba(255, 255, 255, 0.4);
+      --text-main: #3e2723;
+      --text-muted: #6d4c41;
+      --primary: #7cb342;
+      --primary-hover: #689f38;
+      --accent-coral: #ff7043;
+      --accent-coral-hover: #f4511e;
+      --accent-blue: #29b6f6;
+      --accent-blue-hover: #039be5;
+      --gold: #fbc02d;
+      --gold-hover: #f9a825;
+      --shadow-color: rgba(93, 110, 81, 0.15);
+      --card-radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    body {
+      background: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* Cozy clouds background animation */
+    .sky-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      background: linear-gradient(to bottom, #dcedc8 0%, #f1f8e9 100%);
+    }
+
+    .clouds {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.35;
+      pointer-events: none;
+      background: 
+        radial-gradient(circle at 10% 20%, white 40px, transparent 45px),
+        radial-gradient(circle at 15% 23%, white 55px, transparent 60px),
+        radial-gradient(circle at 20% 20%, white 40px, transparent 45px),
+        radial-gradient(circle at 75% 60%, white 35px, transparent 40px),
+        radial-gradient(circle at 79% 62%, white 45px, transparent 50px),
+        radial-gradient(circle at 83% 60%, white 35px, transparent 40px);
+      background-repeat: repeat-x;
+      animation: drift 120s linear infinite;
+    }
+
+    @keyframes drift {
+      from { background-position-x: 0; }
+      to { background-position-x: 1000px; }
+    }
+
+    .back-btn {
+      align-self: flex-start;
+      margin-bottom: 12px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s, transform 0.2s;
+    }
+    .back-btn:hover {
+      color: var(--text-main);
+      transform: translateX(-3px);
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #558b2f;
+      text-shadow: 2px 2px 0px white, 4px 4px 10px rgba(0,0,0,0.05);
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* Main Container */
+    .game-container {
+      display: grid;
+      grid-template-columns: 800px 320px;
+      gap: 20px;
+      max-width: 1140px;
+      width: 100%;
+    }
+
+    @media (max-width: 1140px) {
+      .game-container {
+        grid-template-columns: 1fr;
+        justify-items: center;
+      }
+      .canvas-wrapper {
+        width: 100%;
+        max-width: 800px;
+      }
+      .sidebar {
+        width: 100%;
+        max-width: 800px;
+      }
+    }
+
+    /* Canvas / Screen Area */
+    .canvas-wrapper {
+      position: relative;
+      background: #8d6e63; /* Wooden brown border */
+      padding: 10px;
+      border-radius: 20px;
+      box-shadow: 0 12px 28px rgba(78, 52, 46, 0.25);
+    }
+
+    canvas {
+      display: block;
+      background: #a1887f;
+      border-radius: 12px;
+      cursor: default;
+      width: 100%;
+      aspect-ratio: 800 / 560;
+    }
+
+    /* Controls Bar above canvas */
+    .top-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px var(--shadow-color);
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      padding: 8px 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+      color: white;
+    }
+
+    .btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.15);
+    }
+
+    .btn-green {
+      background: var(--primary);
+    }
+    .btn-green:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-coral {
+      background: var(--accent-coral);
+    }
+    .btn-coral:hover {
+      background: var(--accent-coral-hover);
+    }
+
+    .btn-blue {
+      background: var(--accent-blue);
+    }
+    .btn-blue:hover {
+      background: var(--accent-blue-hover);
+    }
+
+    .btn-small {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    .speed-btn {
+      background: #b0bec5;
+      color: #37474f;
+    }
+    .speed-btn.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    /* Sidebar Panels */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--card-radius);
+      padding: 16px;
+      box-shadow: 0 8px 24px var(--shadow-color);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      border-bottom: 2px dashed #dcedc8;
+      padding-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Stats Panel */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .stat-val {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-val.gold { color: #f57f17; }
+    .stat-val.lives { color: #d84315; }
+    .stat-val.wave { color: #2e7d32; }
+
+    /* Shop/Towers Panel */
+    .towers-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tower-card {
+      display: grid;
+      grid-template-columns: 46px 1fr 65px;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+      padding: 6px 10px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tower-card:hover {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: #dcedc8;
+      transform: scale(1.02);
+    }
+
+    .tower-card.selected {
+      background: #f1f8e9;
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(124, 179, 66, 0.2);
+    }
+
+    .tower-card.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .tower-card.disabled:hover {
+      transform: none;
+      border-color: transparent;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .tower-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      position: relative;
+    }
+
+    .avatar-pea { background: #7ed957; }
+    .avatar-cherry { background: #ff5757; }
+    .avatar-frost { background: #57b3ff; }
+    .avatar-zap { background: #ffd43f; }
+    .avatar-booster { background: #ff66b3; }
+
+    .tower-details {
+      padding-left: 10px;
+    }
+
+    .tower-name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .tower-desc {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .tower-cost-tag {
+      background: #fff9c4;
+      border: 1px solid #fbc02d;
+      color: #f57f17;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 2px 6px;
+      border-radius: 20px;
+    }
+    .tower-card.disabled .tower-cost-tag {
+      background: #eeeeee;
+      border-color: #bdbdbd;
+      color: #757575;
+    }
+
+    /* Selected Tower Info / Upgrades Panel */
+    .selected-tower-panel {
+      display: none;
+    }
+    .selected-tower-panel.active {
+      display: block;
+      animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .upgrade-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .upgrade-stats {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .stat-change {
+      color: var(--primary-hover);
+      font-weight: 600;
+    }
+
+    .btn-upgrade {
+      background: var(--gold);
+      color: #5d4037;
+    }
+    .btn-upgrade:hover:not(:disabled) {
+      background: var(--gold-hover);
+    }
+    .btn-upgrade:disabled {
+      background: #e0e0e0;
+      color: #9e9e9e;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-sell {
+      background: #e57373;
+    }
+    .btn-sell:hover {
+      background: #ef5350;
+    }
+
+    /* Segmented Target Priority Selector */
+    .priority-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      background: #efebe9;
+      padding: 3px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .priority-btn {
+      border: none;
+      background: none;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 2px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .priority-btn.active {
+      background: white;
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    /* Wave Preview / Intermission Panel overlay on canvas */
+    .intermission-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.95);
+      border: 3px solid var(--primary);
+      border-radius: var(--card-radius);
+      padding: 24px;
+      width: 420px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      display: none;
+      z-index: 10;
+      animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes scaleIn {
+      from { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
+      to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    .intermission-overlay.active {
+      display: block;
+    }
+
+    .intermission-title {
+      font-size: 1.4rem;
+      color: #33691e;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .intermission-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .next-enemies-list {
+      background: #f1f8e9;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .enemy-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+
+    .enemy-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .enemy-icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .enemy-icon.ladybug { background: #ff4d4d; }
+    .enemy-icon.caterpillar { background: #9ccc65; }
+    .enemy-icon.bee { background: #ffeb3b; }
+    .enemy-icon.spider { background: #ab47bc; }
+    .enemy-icon.snail { background: #d7ccc8; }
+    .enemy-icon.boss { background: #00acc1; }
+
+    .wave-tip {
+      font-size: 0.78rem;
+      color: #795548;
+      font-style: italic;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+
+    .checkbox-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      margin-top: 10px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    /* Modal Screens (Game Over / Victory) */
+    .game-modal {
+      position: absolute;
+      inset: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      text-align: center;
+      display: none;
+    }
+
+    .game-modal.active {
+      display: flex;
+      animation: modalFade 0.3s ease;
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-emoji {
+      font-size: 4rem;
+      margin-bottom: 16px;
+      animation: bounceEmoji 1.5s infinite;
+    }
+
+    @keyframes bounceEmoji {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .modal-title {
+      font-size: 2.2rem;
+      color: var(--text-main);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .modal-title.win { color: #558b2f; }
+    .modal-title.lose { color: #c62828; }
+
+    .modal-stat {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* Sound and Visual Options Bar */
+    .sound-toggle-btn {
+      background: #cfd8dc;
+      color: #455a64;
+    }
+    .sound-toggle-btn.muted {
+      background: #ef9a9a;
+      color: #b71c1c;
+    }
+
+    /* Tooltips */
+    .tip-box {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+      margin-top: auto;
+    }
+
+    .shortcut-tag {
+      background: #e0e0e0;
+      border-radius: 4px;
+      padding: 1px 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="sky-bg"></div>
+  <div class="clouds"></div>
+
+  <a href="index.html" class="back-btn">&larr; back to selection</a>
+
+  <header>
+    <h1>Slime Garden Defense</h1>
+    <div class="subtitle">Cute Blobs vs Insect Invaders</div>
+  </header>
+
+  <div class="game-container">
+    <!-- Left Hand: Canvas and Wave Controls -->
+    <div style="display: flex; flex-direction: column; width:100%;">
+      <div class="top-controls">
+        <div class="control-group">
+          <button class="btn btn-coral" id="btn-restart">New Track</button>
+          <button class="btn speed-btn active" id="speed-1x">1x</button>
+          <button class="btn speed-btn" id="speed-2x">2x</button>
+          <button class="btn speed-btn" id="speed-4x">4x</button>
+        </div>
+        <div class="control-group">
+          <button class="btn sound-toggle-btn" id="btn-mute">🔊 Sound On</button>
+          <button class="btn btn-blue" id="btn-grid-toggle">Grid Off</button>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper">
+        <canvas id="gameCanvas" width="800" height="560"></canvas>
+
+        <!-- Intermission Overlay -->
+        <div class="intermission-overlay" id="intermission-panel">
+          <div class="intermission-title">Wave Cleared!</div>
+          <div class="intermission-subtitle">Prepare your Garden for Wave <span id="lbl-next-wave">1</span></div>
+          
+          <div class="next-enemies-list">
+            <div style="font-weight:700; font-size:0.88rem; margin-bottom:4px; color:var(--text-main);">Incoming Bugs:</div>
+            <div id="next-enemies-details">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          
+          <div class="wave-tip">
+            <strong>Tip:</strong> <span id="lbl-wave-tip">Place Frost Slimes at bends to group enemies together for Cherry Slime splash attacks!</span>
+          </div>
+
+          <button class="btn btn-green" id="btn-start-wave" style="padding: 12px 28px; font-size: 1.05rem;">Start Wave</button>
+          
+          <div>
+            <label class="checkbox-container">
+              <input type="checkbox" id="chk-auto-start"> Auto-Start Waves
+            </label>
+          </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div class="game-modal" id="modal-gameover">
+          <div class="modal-emoji">🐛</div>
+          <div class="modal-title lose">Garden Overrun!</div>
+          <div class="modal-stat">The bugs ate your sprouts. You made it to Wave <span id="lbl-lose-wave">0</span>.</div>
+          <button class="btn btn-green" id="btn-retry-lose" style="padding: 12px 28px; font-size: 1.05rem;">Try Again</button>
+        </div>
+
+        <!-- Victory Modal -->
+        <div class="game-modal" id="modal-victory">
+          <div class="modal-emoji">👑</div>
+          <div class="modal-title win">Garden Restored!</div>
+          <div class="modal-stat">You successfully defended the sprouts from all 20 waves! Final Score: <span id="lbl-win-score">0</span>.</div>
+          <div style="display:flex; gap:12px;">
+            <button class="btn btn-green" id="btn-win-replay" style="padding: 12px 28px; font-size: 1.05rem;">Play Again</button>
+            <button class="btn btn-blue" id="btn-win-endless" style="padding: 12px 28px; font-size: 1.05rem;">Endless Mode</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Hand: Shop, Stats, and Details -->
+    <div class="sidebar">
+      <!-- Stats Panel -->
+      <div class="card">
+        <div class="card-title">Sprout Hub</div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">Gold</span>
+            <span class="stat-val gold" id="lbl-gold">200</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Sprouts (HP)</span>
+            <span class="stat-val lives" id="lbl-lives">20</span>
+          </div>
+          <div class="stat-box" style="grid-column: span 2;">
+            <span class="stat-label">Wave Progression</span>
+            <span class="stat-val wave"><span id="lbl-current-wave">0</span> / 20</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Towers Shop -->
+      <div class="card">
+        <div class="card-title">Plant Sprouts</div>
+        <div class="towers-grid" id="towers-shop">
+          <!-- Tower cards generated dynamically -->
+        </div>
+      </div>
+
+      <!-- Selected Tower Inspector -->
+      <div class="card selected-tower-panel" id="inspector-card">
+        <div class="card-title">
+          <span>Sprout Details</span>
+          <button class="btn btn-small btn-coral" id="btn-close-inspector" style="padding: 2px 8px;">X</button>
+        </div>
+        <div>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div class="tower-avatar" id="inspect-avatar">🌱</div>
+            <div>
+              <div id="inspect-name" style="font-weight:700; font-size:1rem;">Pea Slime</div>
+              <div id="inspect-level" style="font-size:0.75rem; color:var(--text-muted);">Level 1</div>
+            </div>
+          </div>
+
+          <div style="font-size:0.8rem; line-height:1.4; margin-bottom:10px; border-bottom:1px solid #efebe9; padding-bottom:8px;">
+            <div id="inspect-desc">Fires single peas. Good starter tower.</div>
+          </div>
+
+          <div class="upgrade-row">
+            <div class="upgrade-stats" id="inspect-stats">
+              Range: 150<br>
+              Damage: 10<br>
+              Speed: 1.0s
+            </div>
+          </div>
+
+          <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-upgrade" id="btn-upgrade-tower" style="width:100%;">
+              Upgrade <span id="lbl-upgrade-cost">80</span>g
+            </button>
+            <button class="btn btn-sell" id="btn-sell-tower" style="width:100%;">
+              Recycle Sprout (+<span id="lbl-sell-val">70</span>g)
+            </button>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">TARGET PRIORITY:</div>
+            <div class="priority-selector">
+              <button class="priority-btn" data-priority="first">FIRST</button>
+              <button class="priority-btn" data-priority="last">LAST</button>
+              <button class="priority-btn" data-priority="strongest">STRONG</button>
+              <button class="priority-btn" data-priority="weakest">WEAK</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Tips -->
+      <div class="card tip-box">
+        <strong>Hotkeys:</strong> Use <span class="shortcut-tag">1</span>-<span class="shortcut-tag">5</span> to quickly select slimes. Press <span class="shortcut-tag">ESC</span> to cancel placement.
+        <br><br>
+        <strong>Intermission:</strong> Plant, select, and upgrade your towers peacefully between waves. Auto-Start can be checked to speed up consecutive rounds.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Web Audio API Synthesizer ---
+    const SoundEffects = {
+      ctx: null,
+      muted: false,
+      init() {
+        try {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+          console.warn("Web Audio not supported:", e);
+        }
+      },
+      play(type) {
+        if (this.muted) return;
+        if (!this.ctx) this.init();
+        if (!this.ctx) return;
+        
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+        
+        const now = this.ctx.currentTime;
+        
+        switch (type) {
+          case 'shoot': {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(350, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.12);
+            
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.12);
+            
+            osc.start(now);
+            osc.stop(now + 0.12);
+            break;
+          }
+          case 'laser': {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.linearRampToValueAtTime(800, now + 0.08);
+            
+            gain.gain.setValueAtTime(0.03, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.08);
+            
+            osc.start(now);
+            osc.stop(now + 0.08);
+            break;
+          }
+          case 'place': {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.exponentialRampToValueAtTime(320, now + 0.12);
+            
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.12);
+            
+            osc.start(now);
+            osc.stop(now + 0.12);
+            break;
+          }
+          case 'upgrade': {
+            const notes = [329.63, 392.00, 523.25, 659.25]; // E4, G4, C5, E5
+            notes.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+              
+              gain.gain.setValueAtTime(0.05, now + idx * 0.06);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.18);
+              
+              osc.start(now + idx * 0.06);
+              osc.stop(now + idx * 0.06 + 0.22);
+            });
+            break;
+          }
+          case 'pop': {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(280, now);
+            osc.frequency.exponentialRampToValueAtTime(70, now + 0.08);
+            
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.08);
+            
+            osc.start(now);
+            osc.stop(now + 0.08);
+            break;
+          }
+          case 'hit': {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.setValueAtTime(80, now + 0.03);
+            
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.05);
+            
+            osc.start(now);
+            osc.stop(now + 0.05);
+            break;
+          }
+          case 'hurt': {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(50, now + 0.15);
+            
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+            
+            osc.start(now);
+            osc.stop(now + 0.15);
+            break;
+          }
+          case 'win': {
+            const scale = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+            scale.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+              
+              gain.gain.setValueAtTime(0.05, now + idx * 0.08);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+              
+              osc.start(now + idx * 0.08);
+              osc.stop(now + idx * 0.08 + 0.4);
+            });
+            break;
+          }
+          case 'lose': {
+            const scale = [220.00, 207.65, 196.00, 185.00, 164.81];
+            scale.forEach((freq, idx) => {
+              const osc = this.ctx.createOscillator();
+              const gain = this.ctx.createGain();
+              osc.connect(gain);
+              gain.connect(this.ctx.destination);
+              
+              osc.type = 'sawtooth';
+              osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+              
+              gain.gain.setValueAtTime(0.08, now + idx * 0.15);
+              gain.gain.linearRampToValueAtTime(0.001, now + idx * 0.15 + 0.22);
+              
+              osc.start(now + idx * 0.15);
+              osc.stop(now + idx * 0.15 + 0.3);
+            });
+            break;
+          }
+        }
+      }
+    };
+
+    // Initialize Audio Context on first body click
+    function unlockAudio() {
+      SoundEffects.init();
+      document.body.removeEventListener('click', unlockAudio);
+      document.body.removeEventListener('touchstart', unlockAudio);
+    }
+    document.body.addEventListener('click', unlockAudio);
+    document.body.addEventListener('touchstart', unlockAudio);
+
+    // --- Core Tower configuration ---
+    const TOWER_TYPES = {
+      pea: {
+        id: 'pea',
+        name: 'Pea Slime',
+        baseCost: 100,
+        avatarClass: 'avatar-pea',
+        emoji: '🟢',
+        color: '#7ed957',
+        baseRange: 150,
+        baseDamage: 10,
+        baseCooldown: 1000, // ms
+        description: 'Fires single pea seeds. Reliable starter defense.',
+        levels: [
+          { name: 'Pea Slime', range: 150, damage: 10, cooldown: 1000, cost: 100, desc: 'Fires single pea seeds.' },
+          { name: 'Twin Sprout', range: 160, damage: 15, cooldown: 900, cost: 80, desc: 'Fires faster with double sprouts.' },
+          { name: 'Gatling Sprout', range: 170, damage: 20, cooldown: 700, cost: 150, desc: 'Fires rapid bursts of seeds!' },
+          { name: 'Mega Pea Blaster', range: 190, damage: 45, cooldown: 650, cost: 250, desc: 'Launches heavy seed pods.' },
+          { name: 'Pea Emperor', range: 220, damage: 90, cooldown: 500, cost: 400, desc: 'Royal seedling fires golden seeds.' }
+        ]
+      },
+      cherry: {
+        id: 'cherry',
+        name: 'Cherry Slime',
+        baseCost: 150,
+        avatarClass: 'avatar-cherry',
+        emoji: '🍒',
+        color: '#ff5757',
+        baseRange: 120,
+        baseDamage: 30,
+        baseCooldown: 2500,
+        description: 'Lobs heavy explosive cherries. Deals splash damage.',
+        levels: [
+          { name: 'Cherry Slime', range: 120, damage: 30, cooldown: 2500, cost: 150, desc: 'Lobs explosive cherries.' },
+          { name: 'Cherry Bomber', range: 130, damage: 55, cooldown: 2200, cost: 120, desc: 'Stronger blasts with a larger splash.' },
+          { name: 'Volcano Slime', range: 140, damage: 90, cooldown: 2000, cost: 200, desc: 'Lobs hot lava boulders.' },
+          { name: 'Meteor Slime', range: 150, damage: 160, cooldown: 1800, cost: 300, desc: 'Summons cosmic meteor cherries!' },
+          { name: 'Cherry Overlord', range: 170, damage: 300, cooldown: 1500, cost: 500, desc: 'Massive explosive cataclysms.' }
+        ]
+      },
+      frost: {
+        id: 'frost',
+        name: 'Frost Slime',
+        baseCost: 120,
+        avatarClass: 'avatar-frost',
+        emoji: '❄️',
+        color: '#57b3ff',
+        baseRange: 100,
+        baseDamage: 5,
+        baseCooldown: 1200,
+        description: 'Slows down bugs with frost. Helps splash towers hit.',
+        levels: [
+          { name: 'Frost Slime', range: 100, damage: 5, cooldown: 1200, slowPercent: 0.30, cost: 120, desc: 'Slows bugs by 30%.' },
+          { name: 'Ice Cone Slime', range: 110, damage: 10, cooldown: 1100, slowPercent: 0.45, cost: 100, desc: 'Slows bugs by 45%.' },
+          { name: 'Blizzard Slime', range: 125, damage: 18, cooldown: 1000, slowPercent: 0.60, cost: 180, desc: 'Slows bugs by 60% with micro-blasts.' },
+          { name: 'Absolute Zero', range: 140, damage: 30, cooldown: 900, slowPercent: 0.75, cost: 280, desc: 'Chills bugs by 75%, freezing them.' },
+          { name: 'Frost Monarch', range: 160, damage: 60, cooldown: 800, slowPercent: 0.85, cost: 450, desc: 'Ultimate freezing blizzard aura.' }
+        ]
+      },
+      zap: {
+        id: 'zap',
+        name: 'Zap Slime',
+        baseCost: 200,
+        avatarClass: 'avatar-zap',
+        emoji: '⚡',
+        color: '#ffd43f',
+        baseRange: 130,
+        baseDamage: 8,
+        baseCooldown: 1500,
+        description: 'Shoots lightning that chains to multiple bugs.',
+        levels: [
+          { name: 'Zap Slime', range: 130, damage: 8, cooldown: 1500, chains: 2, cost: 200, desc: 'Zaps and chains to 2 bugs.' },
+          { name: 'Tesla Slime', range: 140, damage: 15, cooldown: 1300, chains: 3, cost: 150, desc: 'Electric arcs chain to 3 bugs.' },
+          { name: 'Lightning Lord', range: 150, damage: 28, cooldown: 1100, chains: 4, cost: 250, desc: 'Storm bolts strike up to 4 bugs.' },
+          { name: 'Storm Call', range: 170, damage: 50, cooldown: 900, chains: 6, cost: 380, desc: 'Supercharged forks hit 6 bugs.' },
+          { name: 'Electro Overdrive', range: 190, damage: 100, cooldown: 650, chains: 8, cost: 550, desc: 'Infinite electricity arcs 8 times!' }
+        ]
+      },
+      booster: {
+        id: 'booster',
+        name: 'Booster Slime',
+        baseCost: 180,
+        avatarClass: 'avatar-booster',
+        emoji: '🌸',
+        color: '#ff66b3',
+        baseRange: 90,
+        baseDamage: 0,
+        baseCooldown: 2000,
+        description: 'Increases attack speed of all nearby slimes.',
+        levels: [
+          { name: 'Booster Slime', range: 90, speedBoost: 0.15, cost: 180, desc: 'Boosts attack rate by 15%.' },
+          { name: 'Star Slime', range: 100, speedBoost: 0.22, cost: 130, desc: 'Joyous light boosts rate by 22%.' },
+          { name: 'Melody Slime', range: 110, speedBoost: 0.30, cost: 220, desc: 'Melodic aura boosts rate by 30%.' },
+          { name: 'Prism Bloom', range: 125, speedBoost: 0.40, cost: 350, desc: 'Rainbow prism boosts rate by 40%.' },
+          { name: 'Aura Sovereign', range: 140, speedBoost: 0.50, damageBoost: 0.15, cost: 500, desc: 'Unlocks +50% rate and +15% damage!' }
+        ]
+      }
+    };
+
+    // --- Enemy configurations ---
+    const ENEMY_TYPES = {
+      ladybug: {
+        name: 'Ladybug Scout',
+        speed: 1.1,
+        maxHp: 35,
+        gold: 15,
+        radius: 12,
+        color: '#ff4d4d',
+        desc: 'Standard scout bug. Quick but fragile.'
+      },
+      caterpillar: {
+        name: 'Squishy Caterpillar',
+        speed: 0.7,
+        maxHp: 80,
+        gold: 25,
+        radius: 11,
+        color: '#9ccc65',
+        desc: 'Tough worm. Segmented body.'
+      },
+      bee: {
+        name: 'Swift Bee',
+        speed: 1.8,
+        maxHp: 45,
+        gold: 20,
+        radius: 10,
+        color: '#ffeb3b',
+        desc: 'Very fast. Flaps wings.'
+      },
+      spider: {
+        name: 'Creepy Spider',
+        speed: 1.2,
+        maxHp: 160,
+        gold: 40,
+        radius: 13,
+        color: '#ab47bc',
+        desc: 'Nimble walker. Wiggles legs.'
+      },
+      snail: {
+        name: 'Healing Snail',
+        speed: 0.45,
+        maxHp: 500,
+        gold: 75,
+        radius: 14,
+        color: '#d7ccc8',
+        desc: 'Very slow. Regenerates health over time.'
+      },
+      beetle: {
+        name: 'Armored Beetle',
+        speed: 0.6,
+        maxHp: 1000,
+        gold: 120,
+        radius: 16,
+        color: '#00acc1',
+        desc: 'Mini boss bug. Heavy plating.'
+      },
+      boss: {
+        name: 'Insect Emperor',
+        speed: 0.4,
+        maxHp: 6500,
+        gold: 500,
+        radius: 24,
+        color: '#5d4037',
+        desc: 'The Great Bug King. Spawns with a crown.'
+      }
+    };
+
+    // --- 20 waves details ---
+    const WAVES = [
+      { enemies: [{type: 'ladybug', count: 6, spacing: 1200}], tip: 'Build Pea Slimes near the starting segments of the path.' },
+      { enemies: [{type: 'ladybug', count: 10, spacing: 1000}, {type: 'caterpillar', count: 4, spacing: 1400}], tip: 'Squishy Caterpillars are slower but have double the health of Ladybugs.' },
+      { enemies: [{type: 'caterpillar', count: 10, spacing: 900}, {type: 'bee', count: 5, spacing: 700}], tip: 'Swift Bees move extremely fast! Build Pea Slimes to shoot them down.' },
+      { enemies: [{type: 'ladybug', count: 12, spacing: 700}, {type: 'bee', count: 10, spacing: 600}], tip: 'Try placing a Frost Slime near curves to slow down group runners.' },
+      { enemies: [{type: 'caterpillar', count: 14, spacing: 800}, {type: 'spider', count: 5, spacing: 1100}], tip: 'Spiders are tough insect walkers. Upgrade your Pea Slimes!' },
+      { enemies: [{type: 'bee', count: 15, spacing: 500}, {type: 'spider', count: 8, spacing: 800}], tip: 'Cherry Slimes deal area splash damage. Group them with Frost Slimes!' },
+      { enemies: [{type: 'beetle', count: 1, spacing: 0}, {type: 'ladybug', count: 12, spacing: 600}], tip: 'Behold the Armored Beetle! It has heavy plating. Place high-damage towers.' },
+      { enemies: [{type: 'spider', count: 12, spacing: 700}, {type: 'beetle', count: 2, spacing: 2000}], tip: 'Zap Slimes shoot electricity that chains to multiple bugs. Great for swarms.' },
+      { enemies: [{type: 'snail', count: 2, spacing: 3000}, {type: 'bee', count: 18, spacing: 400}], tip: 'Snails are super slow but recover health. Use heavy damage towers!' },
+      { enemies: [{type: 'beetle', count: 4, spacing: 1500}, {type: 'snail', count: 3, spacing: 1800}], tip: 'Wave 10 Boss! Snails and Beetles are tanky. Build a Booster Slime.' },
+      { enemies: [{type: 'ladybug', count: 30, spacing: 350}], tip: 'Warning: Swarm Wave! Quick chain zaps or area explosions are helpful.' },
+      { enemies: [{type: 'bee', count: 24, spacing: 400}, {type: 'spider', count: 14, spacing: 600}], tip: 'Keep upgrading your towers. A Level 3 Sprout handles runners much better.' },
+      { enemies: [{type: 'beetle', count: 8, spacing: 1000}, {type: 'caterpillar', count: 20, spacing: 400}], tip: 'Make sure your slimes have overlapping ranges so they helper each other.' },
+      { enemies: [{type: 'snail', count: 6, spacing: 1200}, {type: 'spider', count: 16, spacing: 500}], tip: 'Booster Slimes increase the fire rate of all sprouts in their circle.' },
+      { enemies: [{type: 'beetle', count: 10, spacing: 900}, {type: 'snail', count: 5, spacing: 1100}], tip: 'Level 4 slimes gain significant stat leaps and unique abilities.' },
+      { enemies: [{type: 'bee', count: 35, spacing: 300}, {type: 'ladybug', count: 25, spacing: 350}], tip: 'A fast sprint wave! Zap and Frost slimes are essential.' },
+      { enemies: [{type: 'spider', count: 25, spacing: 450}, {type: 'snail', count: 8, spacing: 1000}], tip: 'Almost at the end! Maximize your setups by selling weak placements.' },
+      { enemies: [{type: 'beetle', count: 16, spacing: 700}, {type: 'bee', count: 25, spacing: 400}], tip: 'Heavily armored bugs combined with fast runners. Check target priorities.' },
+      { enemies: [{type: 'snail', count: 12, spacing: 800}, {type: 'beetle', count: 14, spacing: 700}, {type: 'spider', count: 20, spacing: 500}], tip: 'Prepare your garden for a massive insect siege. Keep upgrading.' },
+      { enemies: [{type: 'boss', count: 1, spacing: 0}, {type: 'bee', count: 20, spacing: 400}, {type: 'beetle', count: 12, spacing: 700}], tip: 'THE FINAL SHOWDOWN! Defeat the giant Insect Emperor to save the Garden!' }
+    ];
+
+    // --- Game State variables ---
+    const gridCols = 20;
+    const gridRows = 14;
+    const tileSize = 40; // pixels
+
+    let gameState = {
+      gold: 200,
+      lives: 20,
+      score: 0,
+      wave: 0, // 0 means before game start
+      endlessMode: false,
+      speedMultiplier: 1,
+      inIntermission: true,
+      autoStartWaves: false,
+      gridEnabled: false,
+      
+      towers: [],
+      enemies: [],
+      projectiles: [],
+      particles: [],
+      floatingTexts: [],
+      
+      selectedShopTower: null, // tower code string to place
+      selectedPlacedTower: null, // tower object clicked
+      
+      pathGrid: [], // 2D array [col][row] (true = path, false = grass)
+      pathCells: [], // ordered list of grid cells {x, y}
+      pixelPath: [], // smoothed pixel control points
+      uniformPath: [], // uniformly-spaced waypoints
+      
+      waveSpawnQueue: [],
+      nextSpawnTimer: 0,
+      intermissionTimer: 0, // countdown timer for auto-start
+      
+      lastTime: 0,
+      canvasWidth: 800,
+      canvasHeight: 560
+    };
+
+    // Decoration arrays (flowers, mushrooms) populated once per map regeneration
+    let mapDecorations = [];
+
+    // Offscreen background canvas cache for smooth 60fps performance
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 800;
+    bgCanvas.height = 560;
+    const bgCtx = bgCanvas.getContext('2d');
+
+    // --- HTML Elements cache ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const lblGold = document.getElementById('lbl-gold');
+    const lblLives = document.getElementById('lbl-lives');
+    const lblCurrentWave = document.getElementById('lbl-current-wave');
+    const lblNextWave = document.getElementById('lbl-next-wave');
+    const lblWaveTip = document.getElementById('lbl-wave-tip');
+    const towersShop = document.getElementById('towers-shop');
+    
+    const btnRestart = document.getElementById('btn-restart');
+    const btnMute = document.getElementById('btn-mute');
+    const btnGridToggle = document.getElementById('btn-grid-toggle');
+    const chkAutoStart = document.getElementById('chk-auto-start');
+    const btnStartWave = document.getElementById('btn-start-wave');
+    const intermissionPanel = document.getElementById('intermission-panel');
+    const nextEnemiesDetails = document.getElementById('next-enemies-details');
+    
+    const inspectorCard = document.getElementById('inspector-card');
+    const inspectAvatar = document.getElementById('inspect-avatar');
+    const inspectName = document.getElementById('inspect-name');
+    const inspectLevel = document.getElementById('inspect-level');
+    const inspectDesc = document.getElementById('inspect-desc');
+    const inspectStats = document.getElementById('inspect-stats');
+    const btnUpgradeTower = document.getElementById('btn-upgrade-tower');
+    const btnSellTower = document.getElementById('btn-sell-tower');
+    const lblUpgradeCost = document.getElementById('lbl-upgrade-cost');
+    const lblSellVal = document.getElementById('lbl-sell-val');
+    const btnCloseInspector = document.getElementById('btn-close-inspector');
+    
+    const modalGameOver = document.getElementById('modal-gameover');
+    const lblLoseWave = document.getElementById('lbl-lose-wave');
+    const btnRetryLose = document.getElementById('btn-retry-lose');
+    
+    const modalVictory = document.getElementById('modal-victory');
+    const lblWinScore = document.getElementById('lbl-win-score');
+    const btnWinReplay = document.getElementById('btn-win-replay');
+    const btnWinEndless = document.getElementById('btn-win-endless');
+
+    // --- Path Generation Algorithm ---
+    function generateRandomPath() {
+      let pathFound = false;
+      let attempts = 0;
+      
+      while (!pathFound && attempts < 100) {
+        attempts++;
+        // Reset grid representation
+        gameState.pathGrid = Array.from({length: gridCols}, () => Array(gridRows).fill(false));
+        
+        // Pick random start row on left (col 0)
+        let currentY = Math.floor(Math.random() * (gridRows - 6)) + 3; 
+        // Pick random end row on right (col 19)
+        let endY = Math.floor(Math.random() * (gridRows - 6)) + 3;
+        
+        let path = [{x: 0, y: currentY}];
+        gameState.pathGrid[0][currentY] = true;
+        
+        let currentX = 0;
+        let stuck = false;
+        
+        while (currentX < gridCols - 1) {
+          let candidates = [];
+          
+          // Right neighbor (heavily preferred)
+          if (currentX + 1 < gridCols && !gameState.pathGrid[currentX + 1][currentY]) {
+            candidates.push({x: currentX + 1, y: currentY, weight: 6});
+          }
+          // Up neighbor
+          if (currentY - 1 >= 2 && !gameState.pathGrid[currentX][currentY - 1]) {
+            // Check if moving up creates adjacent tiles which looks blocky
+            if (currentX > 0 && !gameState.pathGrid[currentX - 1][currentY - 1]) {
+              candidates.push({x: currentX, y: currentY - 1, weight: 2});
+            }
+          }
+          // Down neighbor
+          if (currentY + 1 < gridRows - 2 && !gameState.pathGrid[currentX][currentY + 1]) {
+            if (currentX > 0 && !gameState.pathGrid[currentX - 1][currentY + 1]) {
+              candidates.push({x: currentX, y: currentY + 1, weight: 2});
+            }
+          }
+          
+          if (candidates.length === 0) {
+            stuck = true;
+            break;
+          }
+          
+          // Weighted random selection
+          let totalWeight = candidates.reduce((sum, c) => sum + c.weight, 0);
+          let r = Math.random() * totalWeight;
+          let runningSum = 0;
+          let selected = candidates[0];
+          for (let c of candidates) {
+            runningSum += c.weight;
+            if (r <= runningSum) {
+              selected = c;
+              break;
+            }
+          }
+          
+          currentX = selected.x;
+          currentY = selected.y;
+          path.push({x: currentX, y: currentY});
+          gameState.pathGrid[currentX][currentY] = true;
+        }
+        
+        // Hook to end row if we made it to col 19
+        if (!stuck) {
+          // If the path is too short/straight, regenerate to make it interesting
+          if (path.length >= 24) {
+            gameState.pathCells = path;
+            pathFound = true;
+          }
+        }
+      }
+      
+      if (!pathFound) {
+        // Fallback straight-ish chicane
+        gameState.pathGrid = Array.from({length: gridCols}, () => Array(gridRows).fill(false));
+        let path = [];
+        let mid = Math.floor(gridRows / 2);
+        for (let col = 0; col < gridCols; col++) {
+          path.push({x: col, y: mid});
+          gameState.pathGrid[col][mid] = true;
+        }
+        gameState.pathCells = path;
+      }
+      
+      // Calculate pixel path centers
+      const controlPoints = gameState.pathCells.map(cell => ({
+        x: cell.x * tileSize + tileSize / 2,
+        y: cell.y * tileSize + tileSize / 2
+      }));
+      
+      // Smooth using corner cutting (Chaikin's algorithm)
+      const smoothed = smoothPoints(controlPoints, 2);
+      
+      // Interpolate uniformly at 2px intervals
+      gameState.uniformPath = makeUniformWaypoints(smoothed, 2);
+    }
+
+    function smoothPoints(points, iterations) {
+      let current = [...points];
+      for (let iter = 0; iter < iterations; iter++) {
+        const next = [];
+        next.push(current[0]);
+        for (let i = 0; i < current.length - 1; i++) {
+          const p0 = current[i];
+          const p1 = current[i + 1];
+          next.push({
+            x: p0.x * 0.75 + p1.x * 0.25,
+            y: p0.y * 0.75 + p1.y * 0.25
+          });
+          next.push({
+            x: p0.x * 0.25 + p1.x * 0.75,
+            y: p0.y * 0.25 + p1.y * 0.75
+          });
+        }
+        next.push(current[current.length - 1]);
+        current = next;
+      }
+      return current;
+    }
+
+    function makeUniformWaypoints(points, spacing) {
+      const uniform = [];
+      if (points.length === 0) return uniform;
+      
+      uniform.push({x: points[0].x, y: points[0].y});
+      let lastPoint = points[0];
+      let distanceBuffer = 0;
+      
+      for (let i = 1; i < points.length; i++) {
+        const p = points[i];
+        const dx = p.x - lastPoint.x;
+        const dy = p.y - lastPoint.y;
+        const dist = Math.hypot(dx, dy);
+        
+        if (dist === 0) continue;
+        
+        let travel = dist;
+        let dirX = dx / dist;
+        let dirY = dy / dist;
+        
+        while (distanceBuffer + travel >= spacing) {
+          const needed = spacing - distanceBuffer;
+          const nextX = lastPoint.x + dirX * needed;
+          const nextY = lastPoint.y + dirY * needed;
+          uniform.push({x: nextX, y: nextY});
+          lastPoint = {x: nextX, y: nextY};
+          travel -= needed;
+          distanceBuffer = 0;
+        }
+        
+        distanceBuffer += travel;
+        lastPoint = p;
+      }
+      return uniform;
+    }
+
+    // Generate grass decorations
+    function generateDecorations() {
+      mapDecorations = [];
+      const flowerColors = ['#ffd54f', '#ff8a65', '#f06292', '#ba68c8', '#4fc3f7'];
+      
+      for (let col = 0; col < gridCols; col++) {
+        for (let row = 0; row < gridRows; row++) {
+          if (!gameState.pathGrid[col][row]) {
+            // Random chance to place a flower, clover or mushroom
+            const rand = Math.random();
+            if (rand < 0.2) {
+              const x = col * tileSize + Math.random() * (tileSize - 12) + 6;
+              const y = row * tileSize + Math.random() * (tileSize - 12) + 6;
+              
+              if (rand < 0.08) {
+                // Flower
+                mapDecorations.push({
+                  type: 'flower',
+                  x, y,
+                  color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+                  size: 4 + Math.random() * 3
+                });
+              } else if (rand < 0.16) {
+                // Clover
+                mapDecorations.push({
+                  type: 'clover',
+                  x, y,
+                  size: 3 + Math.random() * 2,
+                  rotation: Math.random() * Math.PI
+                });
+              } else {
+                // Mushroom
+                mapDecorations.push({
+                  type: 'mushroom',
+                  x, y,
+                  size: 4 + Math.random() * 2
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function recalculateBoosterBuffs() {
+      // Reset buffs first
+      gameState.towers.forEach(t => {
+        t.cooldownMultiplier = 1;
+        t.damageMultiplier = 1;
+      });
+      
+      gameState.towers.forEach(t => {
+        if (t.type === 'booster') {
+          const cfg = TOWER_TYPES.booster.levels[t.level - 1];
+          // Find towers within booster range
+          gameState.towers.forEach(other => {
+            if (other !== t) {
+              const dist = Math.hypot(other.x - t.x, other.y - t.y);
+              if (dist <= t.range) {
+                // Apply multiplicative rate boost
+                other.cooldownMultiplier *= (1 - cfg.speedBoost);
+                if (cfg.damageBoost) {
+                  other.damageMultiplier *= (1 + cfg.damageBoost);
+                }
+              }
+            }
+          });
+        }
+      });
+    }
+
+    function renderBackgroundCache() {
+      // Clear with background green
+      bgCtx.fillStyle = '#bce6a4';
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+      // Draw decorations and road to offscreen canvas
+      drawDecorations(bgCtx);
+      drawRoad(bgCtx);
+    }
+
+    // --- UI Renderers & Setup ---
+    function setupShopUI() {
+      towersShop.innerHTML = '';
+      Object.keys(TOWER_TYPES).forEach((key, idx) => {
+        const type = TOWER_TYPES[key];
+        const card = document.createElement('div');
+        card.className = `tower-card ${gameState.gold < type.baseCost ? 'disabled' : ''}`;
+        card.id = `shop-card-${key}`;
+        card.setAttribute('data-tower', key);
+        
+        card.innerHTML = `
+          <div class="tower-avatar ${type.avatarClass}">${type.emoji}</div>
+          <div class="tower-details">
+            <div class="tower-name">${type.name} <span class="shortcut-tag">${idx + 1}</span></div>
+            <div class="tower-desc">${type.description}</div>
+          </div>
+          <div class="tower-cost-tag">${type.baseCost}g</div>
+        `;
+        
+        card.addEventListener('click', () => selectTowerFromShop(key));
+        towersShop.appendChild(card);
+      });
+    }
+
+    function updateShopAffordability() {
+      Object.keys(TOWER_TYPES).forEach(key => {
+        const type = TOWER_TYPES[key];
+        const card = document.getElementById(`shop-card-${key}`);
+        if (card) {
+          if (gameState.gold < type.baseCost) {
+            card.classList.add('disabled');
+          } else {
+            card.classList.remove('disabled');
+          }
+        }
+      });
+    }
+
+    function updateStatsUI() {
+      lblGold.textContent = gameState.gold;
+      lblLives.textContent = gameState.lives;
+      lblCurrentWave.textContent = gameState.wave;
+      updateShopAffordability();
+      if (gameState.selectedPlacedTower) {
+        updateInspectorCard(gameState.selectedPlacedTower);
+      }
+    }
+
+    function selectTowerFromShop(key) {
+      if (gameState.gold < TOWER_TYPES[key].baseCost) {
+        SoundEffects.play('hit');
+        return;
+      }
+      
+      // Deselect placed tower inspector
+      deselectPlacedTower();
+      
+      if (gameState.selectedShopTower === key) {
+        // Toggle off
+        gameState.selectedShopTower = null;
+        document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+      } else {
+        gameState.selectedShopTower = key;
+        document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+        const card = document.getElementById(`shop-card-${key}`);
+        if (card) card.classList.add('selected');
+      }
+    }
+
+    function selectPlacedTower(tower) {
+      gameState.selectedShopTower = null;
+      document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+      
+      gameState.selectedPlacedTower = tower;
+      inspectorCard.classList.add('active');
+      updateInspectorCard(tower);
+      SoundEffects.play('place');
+    }
+
+    function deselectPlacedTower() {
+      gameState.selectedPlacedTower = null;
+      inspectorCard.classList.remove('active');
+    }
+
+    function updateInspectorCard(tower) {
+      const typeCfg = TOWER_TYPES[tower.type];
+      const currentLvlCfg = typeCfg.levels[tower.level - 1];
+      const maxLevel = typeCfg.levels.length;
+      
+      inspectAvatar.className = `tower-avatar ${typeCfg.avatarClass}`;
+      inspectAvatar.textContent = typeCfg.emoji;
+      inspectName.textContent = currentLvlCfg.name;
+      inspectLevel.textContent = `Level ${tower.level} (Max ${maxLevel})`;
+      inspectDesc.textContent = currentLvlCfg.desc;
+      
+      // Calculate current stats with booster multipliers
+      const isRateBoosted = tower.cooldownMultiplier < 1;
+      const isDmgBoosted = tower.damageMultiplier > 1;
+      
+      let statsText = `Range: ${Math.round(tower.range)}`;
+      if (currentLvlCfg.damage > 0) {
+        const finalDmg = Math.round(tower.damage);
+        statsText += `<br>Damage: ${finalDmg} ${isDmgBoosted ? '<span style="color:#d84315;">(Buffed)</span>' : ''}`;
+        
+        const finalCooldown = (currentLvlCfg.cooldown * tower.cooldownMultiplier / 1000).toFixed(2);
+        statsText += `<br>Attack Speed: ${finalCooldown}s ${isRateBoosted ? '<span style="color:#7cb342;">(Buffed)</span>' : ''}`;
+      } else if (tower.type === 'booster') {
+        statsText += `<br>Speed Boost: +${Math.round(currentLvlCfg.speedBoost * 100)}%`;
+        if (currentLvlCfg.damageBoost) {
+          statsText += `<br>Damage Boost: +${Math.round(currentLvlCfg.damageBoost * 100)}%`;
+        }
+      }
+      
+      if (currentLvlCfg.slowPercent) {
+        statsText += `<br>Slow: ${Math.round(currentLvlCfg.slowPercent * 100)}%`;
+      }
+      if (currentLvlCfg.chains) {
+        statsText += `<br>Lightning Chains: ${currentLvlCfg.chains}`;
+      }
+      
+      inspectStats.innerHTML = statsText;
+      
+      // Handle upgrade option
+      if (tower.level < maxLevel) {
+        const nextLvlCfg = typeCfg.levels[tower.level];
+        btnUpgradeTower.style.display = 'block';
+        lblUpgradeCost.textContent = nextLvlCfg.cost;
+        
+        // Show next stats previews
+        let statsPreview = `<br><span style="font-weight:600; color:var(--text-main); font-size:0.75rem;">NEXT UPGRADE PREVIEW:</span><br>`;
+        if (nextLvlCfg.range !== currentLvlCfg.range) {
+          statsPreview += `Range: ${currentLvlCfg.range} &rarr; <span class="stat-change">${nextLvlCfg.range}</span><br>`;
+        }
+        if (nextLvlCfg.damage && nextLvlCfg.damage !== currentLvlCfg.damage) {
+          statsPreview += `Damage: ${currentLvlCfg.damage} &rarr; <span class="stat-change">${nextLvlCfg.damage}</span><br>`;
+        }
+        if (nextLvlCfg.cooldown && nextLvlCfg.cooldown !== currentLvlCfg.cooldown) {
+          statsPreview += `Speed: ${(currentLvlCfg.cooldown/1000).toFixed(2)}s &rarr; <span class="stat-change">${(nextLvlCfg.cooldown/1000).toFixed(2)}s</span><br>`;
+        }
+        if (nextLvlCfg.slowPercent && nextLvlCfg.slowPercent !== currentLvlCfg.slowPercent) {
+          statsPreview += `Slow: ${Math.round(currentLvlCfg.slowPercent*100)}% &rarr; <span class="stat-change">${Math.round(nextLvlCfg.slowPercent*100)}%</span><br>`;
+        }
+        if (nextLvlCfg.chains && nextLvlCfg.chains !== currentLvlCfg.chains) {
+          statsPreview += `Chains: ${currentLvlCfg.chains} &rarr; <span class="stat-change">${nextLvlCfg.chains}</span><br>`;
+        }
+        if (nextLvlCfg.speedBoost && nextLvlCfg.speedBoost !== currentLvlCfg.speedBoost) {
+          statsPreview += `Speed Boost: +${Math.round(currentLvlCfg.speedBoost*100)}% &rarr; <span class="stat-change">+${Math.round(nextLvlCfg.speedBoost*100)}%</span><br>`;
+        }
+        
+        inspectStats.innerHTML += statsPreview;
+        
+        if (gameState.gold >= nextLvlCfg.cost) {
+          btnUpgradeTower.disabled = false;
+        } else {
+          btnUpgradeTower.disabled = true;
+        }
+      } else {
+        btnUpgradeTower.style.display = 'none';
+      }
+      
+      // Sell refund calculations (70% of total gold invested)
+      lblSellVal.textContent = Math.floor(tower.totalCostInvested * 0.7);
+      
+      // Update Target priority button classes
+      document.querySelectorAll('.priority-btn').forEach(btn => {
+        if (btn.getAttribute('data-priority') === tower.targetPriority) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    // Upgrade selected tower
+    btnUpgradeTower.addEventListener('click', () => {
+      const tower = gameState.selectedPlacedTower;
+      if (!tower) return;
+      
+      const typeCfg = TOWER_TYPES[tower.type];
+      const nextLvlCfg = typeCfg.levels[tower.level];
+      
+      if (gameState.gold >= nextLvlCfg.cost) {
+        gameState.gold -= nextLvlCfg.cost;
+        tower.level++;
+        tower.totalCostInvested += nextLvlCfg.cost;
+        
+        // Reload level specific parameters
+        tower.range = nextLvlCfg.range;
+        tower.damage = nextLvlCfg.damage || 0;
+        
+        tower.squish = 0.4; // Wobble on upgrade
+        
+        recalculateBoosterBuffs();
+        
+        SoundEffects.play('upgrade');
+        spawnParticles(tower.x, tower.y, '#ffd43f', 15);
+        updateStatsUI();
+      }
+    });
+
+    // Sell selected tower
+    btnSellTower.addEventListener('click', () => {
+      const tower = gameState.selectedPlacedTower;
+      if (!tower) return;
+      
+      const refund = Math.floor(tower.totalCostInvested * 0.7);
+      gameState.gold += refund;
+      
+      // Remove tower
+      gameState.towers = gameState.towers.filter(t => t !== tower);
+      deselectPlacedTower();
+      
+      recalculateBoosterBuffs();
+      
+      SoundEffects.play('pop');
+      spawnParticles(tower.x, tower.y, '#d7ccc8', 8);
+      updateStatsUI();
+    });
+
+    // Target priority selector
+    document.querySelectorAll('.priority-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tower = gameState.selectedPlacedTower;
+        if (!tower) return;
+        
+        const priority = btn.getAttribute('data-priority');
+        tower.targetPriority = priority;
+        
+        document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        SoundEffects.play('click');
+      });
+    });
+
+    btnCloseInspector.addEventListener('click', deselectPlacedTower);
+
+    // Speed Controls
+    document.getElementById('speed-1x').addEventListener('click', () => setSpeed(1));
+    document.getElementById('speed-2x').addEventListener('click', () => setSpeed(2));
+    document.getElementById('speed-4x').addEventListener('click', () => setSpeed(4));
+
+    function setSpeed(mult) {
+      gameState.speedMultiplier = mult;
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById(`speed-${mult}x`).classList.add('active');
+      SoundEffects.play('click');
+    }
+
+    // Mute control
+    btnMute.addEventListener('click', () => {
+      SoundEffects.muted = !SoundEffects.muted;
+      if (SoundEffects.muted) {
+        btnMute.textContent = '🔇 Muted';
+        btnMute.classList.add('muted');
+      } else {
+        btnMute.textContent = '🔊 Sound On';
+        btnMute.classList.remove('muted');
+        SoundEffects.play('shoot');
+      }
+    });
+
+    // Grid toggle
+    btnGridToggle.addEventListener('click', () => {
+      gameState.gridEnabled = !gameState.gridEnabled;
+      btnGridToggle.textContent = gameState.gridEnabled ? 'Grid On' : 'Grid Off';
+      btnGridToggle.classList.toggle('btn-green', gameState.gridEnabled);
+      btnGridToggle.classList.toggle('btn-blue', !gameState.gridEnabled);
+      SoundEffects.play('click');
+    });
+
+    // New Track regeneration
+    btnRestart.addEventListener('click', () => {
+      if (confirm('Create a new random track? This will reset all current garden defenses.')) {
+        initializeGame();
+        SoundEffects.play('win');
+      }
+    });
+
+    // Spawning waves
+    btnStartWave.addEventListener('click', startActiveWave);
+
+    function triggerIntermission() {
+      gameState.inIntermission = true;
+      
+      // Calculate reward for clearing
+      if (gameState.wave > 0) {
+        const reward = WAVES[gameState.wave - 1].reward || (50 + gameState.wave * 10);
+        gameState.gold += reward;
+        createFloatingText(gameState.canvasWidth / 2, 80, `Wave Cleared! +${reward}g`, '#7cb342', 2.5);
+      }
+      
+      updateStatsUI();
+      
+      if (gameState.wave >= 20 && !gameState.endlessMode) {
+        triggerVictory();
+        return;
+      }
+      
+      // Pre-fill intermission details
+      const nextWaveIdx = gameState.wave;
+      lblNextWave.textContent = nextWaveIdx + 1;
+      
+      // Format incoming bugs lists
+      let enemyConfigList = [];
+      if (gameState.endlessMode) {
+        // Endless scaling waves
+        enemyConfigList.push({name: 'Ladybugs', count: 10 + gameState.wave * 2});
+        enemyConfigList.push({name: 'Caterpillars', count: 5 + gameState.wave});
+        enemyConfigList.push({name: 'Armored Beetles', count: Math.floor(gameState.wave / 2)});
+        lblWaveTip.textContent = "Endless Mode! Bugs will get progressively faster and stronger.";
+      } else {
+        const nextWave = WAVES[nextWaveIdx];
+        lblWaveTip.textContent = nextWave.tip;
+        
+        nextWave.enemies.forEach(group => {
+          const cfg = ENEMY_TYPES[group.type];
+          enemyConfigList.push({name: cfg.name, count: group.count, type: group.type});
+        });
+      }
+      
+      nextEnemiesDetails.innerHTML = enemyConfigList.map(item => `
+        <div class="enemy-row">
+          <span class="enemy-badge">
+            <span class="enemy-icon ${item.type || 'ladybug'}"></span>
+            ${item.name}
+          </span>
+          <span style="font-weight:700;">x${item.count}</span>
+        </div>
+      `).join('');
+      
+      intermissionPanel.classList.add('active');
+      
+      // Setup auto start timer
+      if (gameState.autoStartWaves) {
+        gameState.intermissionTimer = 180; // 3 seconds at 60fps
+      }
+      
+      SoundEffects.play('win');
+    }
+
+    function startActiveWave() {
+      intermissionPanel.classList.remove('active');
+      gameState.inIntermission = false;
+      
+      gameState.wave++;
+      updateStatsUI();
+      
+      SoundEffects.play('upgrade');
+      
+      // Prepare Spawn Queue
+      gameState.waveSpawnQueue = [];
+      
+      if (gameState.endlessMode) {
+        // Generate endless wave composition dynamically
+        const scalingFactor = Math.pow(1.08, gameState.wave);
+        const countMult = Math.min(5, 1 + gameState.wave * 0.1);
+        
+        const compositions = [
+          { type: 'ladybug', count: Math.round(10 * countMult) },
+          { type: 'caterpillar', count: Math.round(5 * countMult) },
+          { type: 'bee', count: Math.round(4 * countMult) },
+          { type: 'spider', count: Math.round(3 * countMult) }
+        ];
+        
+        if (gameState.wave > 5) compositions.push({ type: 'snail', count: Math.floor(gameState.wave / 4) });
+        if (gameState.wave > 8) compositions.push({ type: 'beetle', count: Math.floor(gameState.wave / 3) });
+        
+        compositions.forEach(comp => {
+          if (comp.count > 0) {
+            for (let i = 0; i < comp.count; i++) {
+              gameState.waveSpawnQueue.push({
+                type: comp.type,
+                hpMultiplier: scalingFactor,
+                speedMultiplier: Math.min(1.5, 1 + gameState.wave * 0.015),
+                delay: 600 + Math.random() * 600
+              });
+            }
+          }
+        });
+      } else {
+        // Standard Wave Spawning
+        const waveDef = WAVES[gameState.wave - 1];
+        waveDef.enemies.forEach(group => {
+          for (let i = 0; i < group.count; i++) {
+            gameState.waveSpawnQueue.push({
+              type: group.type,
+              hpMultiplier: 1,
+              speedMultiplier: 1,
+              delay: group.spacing
+            });
+          }
+        });
+      }
+      
+      gameState.nextSpawnTimer = 30; // brief delay before first spawn
+    }
+
+    chkAutoStart.addEventListener('change', (e) => {
+      gameState.autoStartWaves = e.target.checked;
+      if (gameState.autoStartWaves && gameState.inIntermission) {
+        gameState.intermissionTimer = 180;
+      }
+    });
+
+    // --- Spawn enemies and initialize game ---
+    function spawnEnemy(type, hpMult, speedMult) {
+      const cfg = ENEMY_TYPES[type];
+      const enemy = {
+        type,
+        name: cfg.name,
+        speed: cfg.speed * speedMult,
+        maxHp: Math.round(cfg.maxHp * hpMult),
+        hp: Math.round(cfg.maxHp * hpMult),
+        gold: cfg.gold,
+        radius: cfg.radius,
+        color: cfg.color,
+        
+        // Progress index in uniformPath array
+        pathIndex: 0,
+        
+        x: gameState.uniformPath[0].x,
+        y: gameState.uniformPath[0].y,
+        angle: 0,
+        
+        // Status effect multipliers
+        slowFactor: 1,
+        slowTimer: 0,
+        electricShockTimer: 0,
+        
+        // Animations
+        bobPhase: Math.random() * 100,
+        wingFlap: 0
+      };
+      
+      gameState.enemies.push(enemy);
+    }
+
+    function triggerGameOver() {
+      SoundEffects.play('lose');
+      lblLoseWave.textContent = gameState.wave;
+      modalGameOver.classList.add('active');
+    }
+
+    function triggerVictory() {
+      SoundEffects.play('win');
+      lblWinScore.textContent = gameState.score;
+      modalVictory.classList.add('active');
+    }
+
+    btnRetryLose.addEventListener('click', () => {
+      modalGameOver.classList.remove('active');
+      initializeGame();
+    });
+
+    btnWinReplay.addEventListener('click', () => {
+      modalVictory.classList.remove('active');
+      initializeGame();
+    });
+
+    btnWinEndless.addEventListener('click', () => {
+      modalVictory.classList.remove('active');
+      gameState.endlessMode = true;
+      triggerIntermission();
+    });
+
+    function initializeGame() {
+      gameState.gold = 200;
+      gameState.lives = 20;
+      gameState.score = 0;
+      gameState.wave = 0;
+      gameState.endlessMode = false;
+      gameState.inIntermission = true;
+      gameState.towers = [];
+      gameState.enemies = [];
+      gameState.projectiles = [];
+      gameState.particles = [];
+      gameState.floatingTexts = [];
+      gameState.selectedShopTower = null;
+      gameState.selectedPlacedTower = null;
+      
+      generateRandomPath();
+      generateDecorations();
+      recalculateBoosterBuffs();
+      renderBackgroundCache();
+      setupShopUI();
+      deselectPlacedTower();
+      updateStatsUI();
+      
+      triggerIntermission();
+    }
+
+    // --- Interactive Mouse Handlers ---
+    let hoverCol = -1;
+    let hoverRow = -1;
+    let canvasMouseX = 0;
+    let canvasMouseY = 0;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      // Account for visual sizing scaling
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      canvasMouseX = (e.clientX - rect.left) * scaleX;
+      canvasMouseY = (e.clientY - rect.top) * scaleY;
+      
+      hoverCol = Math.floor(canvasMouseX / tileSize);
+      hoverRow = Math.floor(canvasMouseY / tileSize);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      hoverCol = -1;
+      hoverRow = -1;
+    });
+
+    canvas.addEventListener('click', () => {
+      if (hoverCol === -1 || hoverRow === -1) return;
+      
+      // 1. Placing Mode
+      if (gameState.selectedShopTower) {
+        const typeCfg = TOWER_TYPES[gameState.selectedShopTower];
+        
+        if (canPlaceTower(hoverCol, hoverRow, typeCfg.baseCost)) {
+          // Deduct gold
+          gameState.gold -= typeCfg.baseCost;
+          
+          // Add tower centered on the grid cell
+          const newTower = {
+            type: gameState.selectedShopTower,
+            col: hoverCol,
+            row: hoverRow,
+            x: hoverCol * tileSize + tileSize / 2,
+            y: hoverRow * tileSize + tileSize / 2,
+            level: 1,
+            range: typeCfg.baseRange,
+            damage: typeCfg.baseDamage || 0,
+            cooldownTimer: 0,
+            totalCostInvested: typeCfg.baseCost,
+            targetPriority: 'first', // first, last, strongest, weakest
+            
+            // Buff overrides
+            cooldownMultiplier: 1,
+            damageMultiplier: 1,
+            
+            // Anim squish factor
+            squish: 0.2,
+            wobbleSpeed: 0.15
+          };
+          
+           gameState.towers.push(newTower);
+          recalculateBoosterBuffs();
+          
+          SoundEffects.play('place');
+          spawnParticles(newTower.x, newTower.y, typeCfg.color, 12);
+          
+          // Deselect placing if holding shift is NOT checked (default cancel after one placement)
+          gameState.selectedShopTower = null;
+          document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+          
+          // Select newly placed tower
+          selectPlacedTower(newTower);
+          updateStatsUI();
+        } else {
+          SoundEffects.play('hit');
+          createFloatingText(canvasMouseX, canvasMouseY, "Blocked!", "#d84315", 1.2);
+        }
+      } 
+      // 2. Select Existing Tower Mode
+      else {
+        const clickedTower = gameState.towers.find(t => t.col === hoverCol && t.row === hoverRow);
+        if (clickedTower) {
+          selectPlacedTower(clickedTower);
+        } else {
+          deselectPlacedTower();
+        }
+      }
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        gameState.selectedShopTower = null;
+        document.querySelectorAll('.tower-card').forEach(c => c.classList.remove('selected'));
+        deselectPlacedTower();
+      }
+      // Hotkeys 1-5 for towers
+      if (['1', '2', '3', '4', '5'].includes(e.key)) {
+        const keys = Object.keys(TOWER_TYPES);
+        const index = parseInt(e.key) - 1;
+        if (index < keys.length) {
+          selectTowerFromShop(keys[index]);
+        }
+      }
+    });
+
+    function canPlaceTower(col, row, cost) {
+      if (gameState.gold < cost) return false;
+      
+      // Grid limits
+      if (col < 0 || col >= gridCols || row < 2 || row >= gridRows) return false; // top rows for controls
+      
+      // Cannot place on path
+      if (gameState.pathGrid[col][row]) return false;
+      
+      // Cannot overlap towers
+      const overlap = gameState.towers.some(t => t.col === col && t.row === row);
+      if (overlap) return false;
+      
+      return true;
+    }
+
+    // --- Particle and Float Text Utilities ---
+    function spawnParticles(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 3;
+        gameState.particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color,
+          radius: 2 + Math.random() * 3,
+          alpha: 1,
+          decay: 0.02 + Math.random() * 0.03
+        });
+      }
+    }
+
+    function createFloatingText(x, y, text, color, scale = 1) {
+      gameState.floatingTexts.push({
+        x, y,
+        text,
+        color,
+        scale,
+        alpha: 1,
+        vy: -0.6
+      });
+    }
+
+    // --- Main Game Loop & Game Logic Update ---
+    function updateGame(dt) {
+      // Scale dt with game speed multiplier
+      const tickDt = dt * gameState.speedMultiplier;
+      
+      // 1. Intermission timer update
+      if (gameState.inIntermission && gameState.autoStartWaves) {
+        gameState.intermissionTimer -= tickDt;
+        if (gameState.intermissionTimer <= 0) {
+          startActiveWave();
+        }
+      }
+      
+      // 2. Wave spawning
+      if (!gameState.inIntermission && gameState.waveSpawnQueue.length > 0) {
+        gameState.nextSpawnTimer -= tickDt * 1000; // timer is in ms
+        if (gameState.nextSpawnTimer <= 0) {
+          const spawnItem = gameState.waveSpawnQueue.shift();
+          spawnEnemy(spawnItem.type, spawnItem.hpMultiplier, spawnItem.speedMultiplier);
+          gameState.nextSpawnTimer = spawnItem.delay;
+        }
+      }
+      
+      // Check if wave is completed
+      if (!gameState.inIntermission && gameState.enemies.length === 0 && gameState.waveSpawnQueue.length === 0) {
+        triggerIntermission();
+      }
+      
+      // 3. Booster buffs are calculated statically on tower changes for performance
+      
+      // 4. Update Towers (Attacking)
+      gameState.towers.forEach(t => {
+        // Reduce cooldown timer
+        if (t.cooldownTimer > 0) {
+          t.cooldownTimer -= tickDt * 1000;
+        }
+        
+        // Wobble decay
+        if (t.squish > 0) {
+          t.squish -= 0.02 * tickDt;
+        }
+        
+        // Support towers like booster don't attack directly
+        if (t.type === 'booster') return;
+        
+        const typeCfg = TOWER_TYPES[t.type];
+        const lvlCfg = typeCfg.levels[t.level - 1];
+        
+        // Recalculate stats with buffs
+        t.damage = (lvlCfg.damage || 0) * t.damageMultiplier;
+        const actualCooldown = lvlCfg.cooldown * t.cooldownMultiplier;
+        
+        // Attack when ready
+        if (t.cooldownTimer <= 0) {
+          // Find target bugs in range
+          const targets = gameState.enemies.filter(e => {
+            const dist = Math.hypot(e.x - t.x, e.y - t.y);
+            return dist <= t.range;
+          });
+          
+          if (targets.length > 0) {
+            // Sort targets based on priority
+            sortTargets(targets, t.targetPriority);
+            
+            const mainTarget = targets[0];
+            
+            // Perform attack actions
+            performTowerAttack(t, mainTarget, actualCooldown);
+          }
+        }
+      });
+      
+      // 5. Update Enemies
+      for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+        const e = gameState.enemies[i];
+        
+        // Slow effect timer decay
+        if (e.slowTimer > 0) {
+          e.slowTimer -= tickDt * 1000;
+          if (e.slowTimer <= 0) e.slowFactor = 1;
+        }
+        // Zap electric shock decay
+        if (e.electricShockTimer > 0) {
+          e.electricShockTimer -= tickDt * 60;
+        }
+        
+        // Snail self regeneration
+        if (e.type === 'snail' && e.hp < e.maxHp) {
+          e.hp = Math.min(e.maxHp, e.hp + 0.1 * tickDt * 60);
+        }
+        
+        // Calculate speed
+        const currentSpeed = e.speed * e.slowFactor * tickDt * 60;
+        e.pathIndex += currentSpeed;
+        
+        // Check path completion
+        if (e.pathIndex >= gameState.uniformPath.length - 1) {
+          // Leaked! Deduct HP
+          gameState.lives = Math.max(0, gameState.lives - 1);
+          SoundEffects.play('hurt');
+          createFloatingText(e.x, e.y, "-1 Sprout", "#c62828", 1.5);
+          gameState.enemies.splice(i, 1);
+          
+          updateStatsUI();
+          if (gameState.lives <= 0) {
+            triggerGameOver();
+          }
+          continue;
+        }
+        
+        // Update pixel coordinates
+        const idx = Math.floor(e.pathIndex);
+        const p1 = gameState.uniformPath[idx];
+        const p2 = gameState.uniformPath[idx + 1] || p1;
+        
+        e.x = p1.x;
+        e.y = p1.y;
+        e.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        
+        // Crawl animations
+        e.bobPhase += currentSpeed * 0.8;
+        e.wingFlap += currentSpeed * 1.5;
+      }
+      
+      // 6. Update Projectiles
+      for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
+        const p = gameState.projectiles[i];
+        
+        if (p.type === 'pea' || p.type === 'frost') {
+          // Direct tracking
+          const dx = p.target.x - p.x;
+          const dy = p.target.y - p.y;
+          const dist = Math.hypot(dx, dy);
+          
+          if (dist < 10) {
+            // Hit!
+            hitEnemy(p.target, p.damage, p.type === 'frost' ? p.slowPercent : 0);
+            gameState.projectiles.splice(i, 1);
+            continue;
+          }
+          
+          // Move towards target
+          const moveDist = p.speed * tickDt * 60;
+          p.x += (dx / dist) * moveDist;
+          p.y += (dy / dist) * moveDist;
+        } 
+        else if (p.type === 'cherry') {
+          // Arc physics towards static coordinate
+          p.progress += p.speed * tickDt * 60;
+          
+          if (p.progress >= 1) {
+            // Explode!
+            explodeCherry(p.targetX, p.targetY, p.damage, p.splashRadius);
+            gameState.projectiles.splice(i, 1);
+            continue;
+          }
+          
+          // Interpolate coordinates
+          p.x = p.startX + (p.targetX - p.startX) * p.progress;
+          p.y = p.startY + (p.targetY - p.startY) * p.progress;
+          
+          // Parabolic arc offset
+          const arcHeight = 70;
+          p.yOffset = -Math.sin(p.progress * Math.PI) * arcHeight;
+        }
+      }
+      
+      // 7. Update Particles
+      for (let i = gameState.particles.length - 1; i >= 0; i--) {
+        const pt = gameState.particles[i];
+        pt.x += pt.vx * tickDt * 60;
+        pt.y += pt.vy * tickDt * 60;
+        pt.alpha -= pt.decay * tickDt * 60;
+        if (pt.alpha <= 0) {
+          gameState.particles.splice(i, 1);
+        }
+      }
+      
+      // 8. Update Floating Texts
+      for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = gameState.floatingTexts[i];
+        ft.y += ft.vy * tickDt * 60;
+        ft.alpha -= 0.015 * tickDt * 60;
+        if (ft.alpha <= 0) {
+          gameState.floatingTexts.splice(i, 1);
+        }
+      }
+    }
+
+    function sortTargets(targets, priority) {
+      if (priority === 'first') {
+        targets.sort((a, b) => b.pathIndex - a.pathIndex);
+      } else if (priority === 'last') {
+        targets.sort((a, b) => a.pathIndex - b.pathIndex);
+      } else if (priority === 'strongest') {
+        targets.sort((a, b) => b.hp - a.hp);
+      } else if (priority === 'weakest') {
+        targets.sort((a, b) => a.hp - b.hp);
+      }
+    }
+
+    function performTowerAttack(tower, mainTarget, cooldownVal) {
+      tower.squish = 0.35; // Squash animation
+      tower.cooldownTimer = cooldownVal;
+      
+      const typeCfg = TOWER_TYPES[tower.type];
+      const lvlCfg = typeCfg.levels[tower.level - 1];
+      
+      switch (tower.type) {
+        case 'pea':
+          SoundEffects.play('shoot');
+          gameState.projectiles.push({
+            type: 'pea',
+            x: tower.x,
+            y: tower.y - 12,
+            damage: tower.damage,
+            speed: 7,
+            target: mainTarget
+          });
+          break;
+          
+        case 'frost':
+          SoundEffects.play('laser');
+          gameState.projectiles.push({
+            type: 'frost',
+            x: tower.x,
+            y: tower.y - 12,
+            damage: tower.damage,
+            slowPercent: lvlCfg.slowPercent,
+            speed: 6,
+            target: mainTarget
+          });
+          break;
+          
+        case 'cherry':
+          SoundEffects.play('shoot');
+          // Lob coordinates predicting slightly ahead of target path
+          const leadIdx = Math.min(gameState.uniformPath.length - 1, Math.floor(mainTarget.pathIndex + mainTarget.speed * 25));
+          const targetCoord = gameState.uniformPath[leadIdx];
+          
+          gameState.projectiles.push({
+            type: 'cherry',
+            startX: tower.x,
+            startY: tower.y - 12,
+            x: tower.x,
+            y: tower.y - 12,
+            yOffset: 0,
+            progress: 0,
+            speed: 0.02,
+            targetX: targetCoord.x,
+            targetY: targetCoord.y,
+            damage: tower.damage,
+            splashRadius: 60 + (tower.level * 8)
+          });
+          break;
+          
+        case 'zap':
+          SoundEffects.play('laser');
+          // Hit immediately with electric chain lightning
+          const numTargets = lvlCfg.chains;
+          let currentChain = mainTarget;
+          let hitList = [currentChain];
+          
+          // Zap visual triggers
+          let zapLines = [];
+          
+          // First strike
+          hitEnemy(currentChain, tower.damage, 0);
+          currentChain.electricShockTimer = 8;
+          zapLines.push({fromX: tower.x, fromY: tower.y - 16, toX: currentChain.x, toY: currentChain.y});
+          
+          // Chain to others
+          for (let c = 1; c < numTargets; c++) {
+            const nextChain = gameState.enemies.find(e => {
+              if (hitList.includes(e)) return false;
+              const dist = Math.hypot(e.x - currentChain.x, e.y - currentChain.y);
+              return dist <= 90; // chain range
+            });
+            
+            if (nextChain) {
+              hitEnemy(nextChain, tower.damage * 0.8, 0); // chains do slightly less damage
+              nextChain.electricShockTimer = 8;
+              zapLines.push({fromX: currentChain.x, fromY: currentChain.y, toX: nextChain.x, toY: nextChain.y});
+              currentChain = nextChain;
+              hitList.push(currentChain);
+            } else {
+              break;
+            }
+          }
+          
+          // Lightning spark particles
+          zapLines.forEach(line => {
+            spawnParticles(line.toX, line.toY, '#ffe082', 3);
+          });
+          
+          // Push special lightning line graphics into particles with tiny durations
+          gameState.particles.push({
+            type: 'lightning',
+            lines: zapLines,
+            alpha: 1,
+            decay: 0.15
+          });
+          break;
+      }
+    }
+
+    function hitEnemy(enemy, damage, slowPercent) {
+      if (slowPercent > 0) {
+        enemy.slowFactor = Math.min(enemy.slowFactor, 1 - slowPercent);
+        enemy.slowTimer = 2200; // slow lasts 2.2s
+      }
+      
+      enemy.hp -= damage;
+      SoundEffects.play('hit');
+      
+      // Floating damage indicator
+      createFloatingText(enemy.x, enemy.y + Math.random()*10 - 5, `-${Math.round(damage)}`, slowPercent > 0 ? '#0288d1' : '#d84315', 0.8);
+      spawnParticles(enemy.x, enemy.y, enemy.color, 3);
+      
+      // Check death
+      if (enemy.hp <= 0) {
+        const rewardGold = enemy.gold;
+        gameState.gold += rewardGold;
+        gameState.score += enemy.gold * 10;
+        
+        SoundEffects.play('pop');
+        createFloatingText(enemy.x, enemy.y - 12, `+${rewardGold}g`, '#f57f17', 1.2);
+        spawnParticles(enemy.x, enemy.y, enemy.color, 12);
+        
+        // Remove enemy
+        gameState.enemies = gameState.enemies.filter(e => e !== enemy);
+        updateStatsUI();
+      }
+    }
+
+    function explodeCherry(x, y, damage, radius) {
+      SoundEffects.play('pop');
+      
+      // Visual blast particles
+      spawnParticles(x, y, '#ff5757', 20);
+      spawnParticles(x, y, '#ffb74d', 10);
+      
+      // Push special blast wave graphic
+      gameState.particles.push({
+        type: 'blastwave',
+        x, y,
+        radius: 10,
+        maxRadius: radius,
+        alpha: 1,
+        decay: 0.08
+      });
+      
+      // Apply damage to all enemies in radius
+      gameState.enemies.forEach(e => {
+        const dist = Math.hypot(e.x - x, e.y - y);
+        if (dist <= radius) {
+          // Scale damage based on distance from center (fadeout splash)
+          const ratio = 1 - (dist / radius) * 0.4;
+          const finalDmg = damage * ratio;
+          
+          e.hp -= finalDmg;
+          createFloatingText(e.x, e.y, `-${Math.round(finalDmg)}`, '#e53935', 0.95);
+          spawnParticles(e.x, e.y, e.color, 3);
+        }
+      });
+      
+      // Filter out dead enemies
+      for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+        const e = gameState.enemies[i];
+        if (e.hp <= 0) {
+          const rewardGold = e.gold;
+          gameState.gold += rewardGold;
+          gameState.score += e.gold * 10;
+          createFloatingText(e.x, e.y - 12, `+${rewardGold}g`, '#f57f17', 1.2);
+          spawnParticles(e.x, e.y, e.color, 10);
+          gameState.enemies.splice(i, 1);
+        }
+      }
+      
+      updateStatsUI();
+    }
+
+    // --- High-Fidelity Canvas Drawing ---
+    function drawGame(t) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 1. Draw cached background canvas (grass, decorations, road, pebbles)
+      ctx.drawImage(bgCanvas, 0, 0);
+      
+      // Draw grid coordinates lightly if enabled
+      if (gameState.gridEnabled) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let col = 0; col < gridCols; col++) {
+          ctx.moveTo(col * tileSize, 0);
+          ctx.lineTo(col * tileSize, canvas.height);
+        }
+        for (let row = 0; row < gridRows; row++) {
+          ctx.moveTo(0, row * tileSize);
+          ctx.lineTo(canvas.width, row * tileSize);
+        }
+        ctx.stroke();
+      }
+      
+      // 4. Draw Towers Range preview if placing or selecting
+      if (gameState.selectedShopTower) {
+        const typeCfg = TOWER_TYPES[gameState.selectedShopTower];
+        // Draw range circle at hover tile
+        if (hoverCol !== -1 && hoverRow !== -1) {
+          const posX = hoverCol * tileSize + tileSize / 2;
+          const posY = hoverRow * tileSize + tileSize / 2;
+          
+          ctx.beginPath();
+          ctx.arc(posX, posY, typeCfg.baseRange, 0, Math.PI * 2);
+          const canPlace = canPlaceTower(hoverCol, hoverRow, typeCfg.baseCost);
+          ctx.fillStyle = canPlace ? 'rgba(124, 179, 66, 0.15)' : 'rgba(211, 47, 47, 0.15)';
+          ctx.fill();
+          ctx.strokeStyle = canPlace ? 'rgba(124, 179, 66, 0.5)' : 'rgba(211, 47, 47, 0.5)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          
+          // Draw placement hover box
+          ctx.fillStyle = canPlace ? 'rgba(124, 179, 66, 0.3)' : 'rgba(211, 47, 47, 0.3)';
+          ctx.fillRect(hoverCol * tileSize, hoverRow * tileSize, tileSize, tileSize);
+        }
+      }
+      
+      if (gameState.selectedPlacedTower) {
+        const tower = gameState.selectedPlacedTower;
+        ctx.beginPath();
+        ctx.arc(tower.x, tower.y, tower.range, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(3, 155, 229, 0.08)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(3, 155, 229, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Highlight square
+        ctx.strokeStyle = 'rgba(3, 155, 229, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tower.col * tileSize, tower.row * tileSize, tileSize, tileSize);
+      }
+      
+      // 5. Draw Enemies
+      gameState.enemies.forEach(e => drawEnemyObj(e, t));
+      
+      // 6. Draw Projectiles
+      gameState.projectiles.forEach(p => drawProjectileObj(p));
+      
+      // 7. Draw Booster Slimes Pulsing Range Buff Visuals
+      gameState.towers.forEach(twr => {
+        if (twr.type === 'booster') {
+          const pulseRadius = twr.range * (0.8 + 0.2 * Math.sin(t * 0.005));
+          ctx.beginPath();
+          ctx.arc(twr.x, twr.y, pulseRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 102, 179, 0.22)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+      });
+      
+      // 8. Draw Towers (Cute slimes)
+      gameState.towers.forEach(twr => drawTowerObj(twr, t));
+      
+      // 9. Draw Special Custom Particles (Blastwave / Lightning)
+      drawSpecialParticles();
+      
+      // 10. Draw Normal Spark particles as square sparks (extremely fast)
+      gameState.particles.forEach(pt => {
+        if (pt.type) return; // skip custom ones drawn above
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = pt.alpha;
+        ctx.fillRect(pt.x - pt.radius, pt.y - pt.radius, pt.radius * 2, pt.radius * 2);
+      });
+      ctx.globalAlpha = 1;
+      
+      // 11. Draw Floating text overlays
+      gameState.floatingTexts.forEach(ft => {
+        ctx.font = `bold ${Math.round(14 * ft.scale)}px Fredoka`;
+        ctx.fillStyle = ft.color;
+        ctx.globalAlpha = ft.alpha;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'white';
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    function drawDecorations(c = ctx) {
+      mapDecorations.forEach(d => {
+        if (d.type === 'flower') {
+          c.fillStyle = d.color;
+          // Petals
+          for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2.5) {
+            c.beginPath();
+            c.arc(d.x + Math.cos(angle) * d.size, d.y + Math.sin(angle) * d.size, d.size * 0.8, 0, Math.PI * 2);
+            c.fill();
+          }
+          // Center
+          c.beginPath();
+          c.arc(d.x, d.y, d.size * 0.7, 0, Math.PI * 2);
+          c.fillStyle = '#ffffff';
+          c.fill();
+        } else if (d.type === 'clover') {
+          c.fillStyle = '#81c784';
+          c.save();
+          c.translate(d.x, d.y);
+          c.rotate(d.rotation);
+          // Draw 3 heart-shaped leaves
+          for (let i = 0; i < 3; i++) {
+            c.rotate((Math.PI * 2) / 3);
+            c.beginPath();
+            c.ellipse(0, -d.size, d.size * 0.75, d.size, 0, 0, Math.PI * 2);
+            c.fill();
+          }
+          c.restore();
+        } else if (d.type === 'mushroom') {
+          // Stem
+          c.fillStyle = '#efebe9';
+          c.fillRect(d.x - d.size * 0.4, d.y, d.size * 0.8, d.size * 1.2);
+          // Cap
+          c.fillStyle = '#ff7043';
+          c.beginPath();
+          c.arc(d.x, d.y, d.size * 1.3, Math.PI, 0);
+          c.fill();
+          // Spots
+          c.fillStyle = 'white';
+          c.beginPath();
+          c.arc(d.x - d.size*0.5, d.y - d.size*0.4, d.size*0.25, 0, Math.PI*2);
+          c.arc(d.x + d.size*0.4, d.y - d.size*0.5, d.size*0.3, 0, Math.PI*2);
+          c.fill();
+        }
+      });
+    }
+
+    function drawRoad(c = ctx) {
+      if (gameState.uniformPath.length === 0) return;
+      
+      // Draw outer brown earth border
+      c.beginPath();
+      c.lineWidth = 36;
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      c.strokeStyle = '#8d6e63'; // rich earth brown
+      
+      c.moveTo(gameState.uniformPath[0].x, gameState.uniformPath[0].y);
+      for (let i = 1; i < gameState.uniformPath.length; i++) {
+        c.lineTo(gameState.uniformPath[i].x, gameState.uniformPath[i].y);
+      }
+      c.stroke();
+      
+      // Draw inner sandy path
+      c.beginPath();
+      c.lineWidth = 28;
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      c.strokeStyle = '#d7ccc8'; // sandy gravel road
+      
+      c.moveTo(gameState.uniformPath[0].x, gameState.uniformPath[0].y);
+      for (let i = 1; i < gameState.uniformPath.length; i++) {
+        c.lineTo(gameState.uniformPath[i].x, gameState.uniformPath[i].y);
+      }
+      c.stroke();
+      
+      // Draw border pebbles along the path at intervals
+      c.fillStyle = '#cfd8dc';
+      for (let i = 0; i < gameState.uniformPath.length; i += 70) {
+        const pt = gameState.uniformPath[i];
+        // Draw slightly offset side rocks
+        const sideAngle = (i % 2 === 0 ? 1 : -1) * Math.PI/2;
+        const rockX = pt.x + Math.cos(sideAngle) * 16;
+        const rockY = pt.y + Math.sin(sideAngle) * 16;
+        c.beginPath();
+        c.arc(rockX, rockY, 3 + (i % 3), 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+
+    // Draw customizable cute slimes
+    function drawTowerObj(twr, t) {
+      const typeCfg = TOWER_TYPES[twr.type];
+      const radius = 15;
+      
+      // Wobbling squish animations
+      const wobble = 0.04 * Math.sin(t * 0.01 + twr.col * 2);
+      const currentRx = radius * (1 - twr.squish + wobble);
+      const currentRy = radius * (1 + twr.squish - wobble);
+      
+      // Draw shadow
+      ctx.beginPath();
+      ctx.ellipse(twr.x, twr.y + 12, radius * 1.1, 4, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fill();
+      
+      // Body fill
+      ctx.beginPath();
+      ctx.ellipse(twr.x, twr.y, currentRx, currentRy, 0, 0, Math.PI * 2);
+      ctx.fillStyle = typeCfg.color;
+      ctx.fill();
+      // Faint highlight gradient border
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Face elements (facing right/slightly down)
+      const lookOffset = 2;
+      
+      // Closed eyes for Frost Slime, normal cute eyes for others
+      if (twr.type === 'frost') {
+        // Sleepy sleeping arcs
+        ctx.strokeStyle = '#1e3d59';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        
+        ctx.beginPath();
+        ctx.arc(twr.x - 7 + lookOffset, twr.y - 1, 3, Math.PI, 0);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(twr.x + 4 + lookOffset, twr.y - 1, 3, Math.PI, 0);
+        ctx.stroke();
+      } else {
+        // Normal big white glare eyes
+        ctx.fillStyle = '#3e2723';
+        
+        ctx.beginPath();
+        ctx.arc(twr.x - 6 + lookOffset, twr.y - 2, 4, 0, Math.PI * 2);
+        ctx.arc(twr.x + 5 + lookOffset, twr.y - 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Glare highlight dots
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(twr.x - 7 + lookOffset, twr.y - 4, 1.3, 0, Math.PI * 2);
+        ctx.arc(twr.x + 4 + lookOffset, twr.y - 4, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Blush cheeks
+      ctx.fillStyle = 'rgba(244,143,177,0.6)';
+      ctx.beginPath();
+      ctx.arc(twr.x - 9 + lookOffset, twr.y + 2, 3.5, 0, Math.PI * 2);
+      ctx.arc(twr.x + 8 + lookOffset, twr.y + 2, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Mouth (smiling happy line)
+      ctx.strokeStyle = '#3e2723';
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      if (twr.type === 'zap') {
+        // Little energetic zig-zag mouth
+        ctx.moveTo(twr.x - 2 + lookOffset, twr.y + 1);
+        ctx.lineTo(twr.x + lookOffset, twr.y + 4);
+        ctx.lineTo(twr.x + 2 + lookOffset, twr.y + 1);
+      } else {
+        // Bubbly smile
+        ctx.arc(twr.x + lookOffset, twr.y + 1, 3.5, 0, Math.PI);
+      }
+      ctx.stroke();
+      
+      // Draw Level Accessories (Leaves, Wizard Hat, Crowns)
+      drawSlimeAccessories(twr, currentRy);
+    }
+
+    function drawSlimeAccessories(twr, ry) {
+      const topY = twr.y - ry + 2;
+      
+      // Level 2: Sprout leaf
+      if (twr.level === 2) {
+        ctx.fillStyle = '#81c784';
+        ctx.strokeStyle = '#2e7d32';
+        ctx.lineWidth = 1;
+        // Stem
+        ctx.beginPath();
+        ctx.moveTo(twr.x, topY);
+        ctx.quadraticCurveTo(twr.x, topY - 8, twr.x + 4, topY - 10);
+        ctx.stroke();
+        // Leaf
+        ctx.beginPath();
+        ctx.ellipse(twr.x + 4, topY - 10, 4, 2.5, Math.PI/4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      // Level 3: Flower Bloom
+      else if (twr.level === 3) {
+        const flowerColor = '#f06292';
+        ctx.fillStyle = flowerColor;
+        ctx.beginPath();
+        // 4 small petal circles
+        ctx.arc(twr.x - 3, topY - 6, 3, 0, Math.PI*2);
+        ctx.arc(twr.x + 3, topY - 6, 3, 0, Math.PI*2);
+        ctx.arc(twr.x, topY - 9, 3, 0, Math.PI*2);
+        ctx.arc(twr.x, topY - 3, 3, 0, Math.PI*2);
+        ctx.fill();
+        // Core
+        ctx.fillStyle = '#ffeb3b';
+        ctx.beginPath();
+        ctx.arc(twr.x, topY - 6, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Level 4: Purple Wizard Hat
+      else if (twr.level === 4) {
+        ctx.fillStyle = '#5e35b1';
+        ctx.beginPath();
+        ctx.moveTo(twr.x - 12, topY + 1);
+        ctx.lineTo(twr.x + 12, topY + 1);
+        ctx.quadraticCurveTo(twr.x, topY - 1, twr.x - 12, topY + 1);
+        ctx.fill(); // brim
+        
+        ctx.beginPath();
+        ctx.moveTo(twr.x - 7, topY);
+        ctx.quadraticCurveTo(twr.x - 3, topY - 12, twr.x + 5, topY - 16); // tip pointing back
+        ctx.lineTo(twr.x + 7, topY);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Shiny star on tip
+        ctx.fillStyle = '#ffeb3b';
+        ctx.beginPath();
+        ctx.arc(twr.x + 5, topY - 16, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Level 5: Golden Crown + Sparkle particles
+      else if (twr.level === 5) {
+        ctx.fillStyle = '#fbc02d';
+        ctx.strokeStyle = '#f57f17';
+        ctx.lineWidth = 1.2;
+        
+        ctx.beginPath();
+        ctx.moveTo(twr.x - 9, topY + 2);
+        ctx.lineTo(twr.x + 9, topY + 2);
+        ctx.lineTo(twr.x + 7, topY - 10);
+        ctx.lineTo(twr.x + 2, topY - 4);
+        ctx.lineTo(twr.x, topY - 12); // center point
+        ctx.lineTo(twr.x - 2, topY - 4);
+        ctx.lineTo(twr.x - 7, topY - 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Tiny crown rubies
+        ctx.fillStyle = '#ff1744';
+        ctx.beginPath();
+        ctx.arc(twr.x - 7, topY - 10, 1.2, 0, Math.PI*2);
+        ctx.arc(twr.x, topY - 12, 1.2, 0, Math.PI*2);
+        ctx.arc(twr.x + 7, topY - 10, 1.2, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Draw little floating sparks in drawing frame
+        if (Math.random() < 0.05) {
+          gameState.particles.push({
+            x: twr.x + (Math.random() * 32 - 16),
+            y: twr.y - 12 - (Math.random() * 15),
+            vx: 0, vy: -0.5,
+            color: '#fbc02d',
+            radius: 1.5 + Math.random(),
+            alpha: 1,
+            decay: 0.02
+          });
+        }
+      }
+    }
+
+    // Draw animated cartoon bugs
+    function drawEnemyObj(e, t) {
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.rotate(e.angle);
+      
+      // Segment bobbing offset
+      const bob = Math.sin(e.bobPhase) * 2;
+      
+      // Render body shadow
+      ctx.beginPath();
+      ctx.ellipse(0, 10, e.radius * 0.9, 4, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fill();
+      
+      // Apply blue ice glow tint if slowed
+      let colorOverride = e.color;
+      if (e.slowTimer > 0) {
+        colorOverride = '#80deea';
+      }
+      
+      switch (e.type) {
+        case 'ladybug':
+          // Wiggling legs
+          ctx.strokeStyle = '#3e2723';
+          ctx.lineWidth = 2.5;
+          for (let side of [-1, 1]) {
+            for (let offset of [-4, 0, 4]) {
+              ctx.beginPath();
+              ctx.moveTo(offset, 0);
+              const legWiggle = Math.sin(e.bobPhase + offset) * 4;
+              ctx.lineTo(offset + (side * 6), (side * 9) + legWiggle);
+              ctx.stroke();
+            }
+          }
+          // Body oval
+          ctx.fillStyle = colorOverride;
+          ctx.beginPath();
+          ctx.arc(0, 0 + bob, e.radius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Head black
+          ctx.fillStyle = '#2d1d1a';
+          ctx.beginPath();
+          ctx.arc(10, 0 + bob, 6, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Outer black border line
+          ctx.strokeStyle = '#2d1d1a';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.arc(0, 0 + bob, e.radius, 0, Math.PI*2);
+          ctx.stroke();
+          
+          // Split line down shell
+          ctx.beginPath();
+          ctx.moveTo(-e.radius, 0 + bob);
+          ctx.lineTo(e.radius, 0 + bob);
+          ctx.stroke();
+          
+          // Spots
+          ctx.fillStyle = '#2d1d1a';
+          ctx.beginPath();
+          ctx.arc(-4, -6 + bob, 2.5, 0, Math.PI*2);
+          ctx.arc(-4, 6 + bob, 2.5, 0, Math.PI*2);
+          ctx.arc(3, -5 + bob, 2.5, 0, Math.PI*2);
+          ctx.arc(3, 5 + bob, 2.5, 0, Math.PI*2);
+          ctx.fill();
+          
+          // Cute tiny eyes on head
+          ctx.fillStyle = 'white';
+          ctx.beginPath();
+          ctx.arc(12, -2 + bob, 1.8, 0, Math.PI * 2);
+          ctx.arc(12, 2 + bob, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+          
+        case 'caterpillar':
+          // Segments wiggling
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#3e2723';
+          
+          const numSegments = 4;
+          for (let i = numSegments - 1; i >= 0; i--) {
+            const segX = -i * 11;
+            const segBob = Math.sin(e.bobPhase - i * 1.2) * 3;
+            
+            // Draw wobbly segment shadow
+            ctx.beginPath();
+            ctx.ellipse(segX, 8, 8, 3, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.08)';
+            ctx.fill();
+            
+            // Alternating cute colors
+            ctx.fillStyle = (i % 2 === 0) ? colorOverride : '#7cb342';
+            ctx.beginPath();
+            ctx.arc(segX, segBob, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Head details on first segment
+            if (i === 0) {
+              // Little antennae
+              ctx.beginPath();
+              ctx.moveTo(3, segBob - 8);
+              ctx.quadraticCurveTo(8, segBob - 14, 10, segBob - 14);
+              ctx.moveTo(3, segBob - 5);
+              ctx.quadraticCurveTo(8, segBob - 11, 10, segBob - 11);
+              ctx.stroke();
+              
+              // Antennae bulb tips
+              ctx.fillStyle = '#ff7043';
+              ctx.beginPath();
+              ctx.arc(10, segBob - 14, 2, 0, Math.PI*2);
+              ctx.arc(10, segBob - 11, 2, 0, Math.PI*2);
+              ctx.fill();
+              
+              // Cute smile eyes
+              ctx.fillStyle = '#3e2723';
+              ctx.beginPath();
+              ctx.arc(5, segBob - 2, 2, 0, Math.PI * 2);
+              ctx.arc(5, segBob + 2, 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          break;
+          
+        case 'bee':
+          // Wing flap
+          const flap = Math.sin(e.wingFlap) * 0.9;
+          
+          // Translucent wings
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.strokeStyle = '#78909c';
+          ctx.lineWidth = 1.2;
+          
+          ctx.save();
+          ctx.translate(-4, -6);
+          ctx.scale(1, flap);
+          ctx.beginPath();
+          ctx.ellipse(0, -9, 5, 12, Math.PI/4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          
+          ctx.save();
+          ctx.translate(-4, 6);
+          ctx.scale(1, -flap);
+          ctx.beginPath();
+          ctx.ellipse(0, 9, 5, 12, -Math.PI/4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          
+          // Striped Body
+          const beeW = 16;
+          const beeH = 11;
+          
+          ctx.fillStyle = colorOverride;
+          ctx.beginPath();
+          ctx.ellipse(0, 0 + bob, beeW, beeH, 0, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Stinger
+          ctx.fillStyle = '#3e2723';
+          ctx.beginPath();
+          ctx.moveTo(-beeW, 0 + bob);
+          ctx.lineTo(-beeW - 4, -2 + bob);
+          ctx.lineTo(-beeW - 4, 2 + bob);
+          ctx.closePath();
+          ctx.fill();
+          
+          // Draw stripes
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#3e2723';
+          
+          ctx.beginPath();
+          ctx.moveTo(-6, -beeH + 1.5 + bob);
+          ctx.lineTo(-6, beeH - 1.5 + bob);
+          
+          ctx.moveTo(2, -beeH + bob);
+          ctx.lineTo(2, beeH + bob);
+          ctx.stroke();
+          
+          // Big bug eyes
+          ctx.fillStyle = '#3e2723';
+          ctx.beginPath();
+          ctx.arc(beeW - 4, -4 + bob, 3, 0, Math.PI*2);
+          ctx.arc(beeW - 4, 4 + bob, 3, 0, Math.PI*2);
+          ctx.fill();
+          break;
+          
+        case 'spider':
+          // Wiggling spider legs
+          ctx.strokeStyle = '#3e2723';
+          ctx.lineWidth = 2;
+          
+          for (let side of [-1, 1]) {
+            let idx = 0;
+            for (let offset of [-8, -3, 3, 8]) {
+              idx++;
+              ctx.beginPath();
+              ctx.moveTo(offset, 0);
+              const legAnim = Math.sin(e.bobPhase + idx) * 5;
+              const kneeX = offset + (side * 9);
+              const kneeY = (side * 8) + legAnim;
+              const footX = offset + (side * 17);
+              const footY = (side * 14) + legAnim * 0.7;
+              
+              ctx.lineTo(kneeX, kneeY);
+              ctx.lineTo(footX, footY);
+              ctx.stroke();
+            }
+          }
+          
+          // Spider fuzzy body
+          ctx.fillStyle = colorOverride;
+          ctx.beginPath();
+          ctx.arc(0, 0 + bob, e.radius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Outline
+          ctx.strokeStyle = '#2d1d1a';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Four red eyes
+          ctx.fillStyle = '#ff1744';
+          ctx.beginPath();
+          ctx.arc(7, -3 + bob, 1.8, 0, Math.PI*2);
+          ctx.arc(8, 0 + bob, 2.2, 0, Math.PI*2);
+          ctx.arc(7, 3 + bob, 1.8, 0, Math.PI*2);
+          ctx.arc(4, -5 + bob, 1.5, 0, Math.PI*2);
+          ctx.fill();
+          break;
+          
+        case 'snail':
+          // Squishy foot
+          ctx.fillStyle = '#d7ccc8';
+          ctx.beginPath();
+          ctx.ellipse(-4, 6 + bob, 16, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Shell spiral
+          ctx.fillStyle = colorOverride;
+          ctx.beginPath();
+          ctx.arc(-2, 0 + bob, 11, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Shell lines
+          ctx.strokeStyle = '#8d6e63';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(-2, 0 + bob, 11, 0, Math.PI*2);
+          ctx.stroke();
+          
+          // Swirly spiral detail inside shell
+          ctx.beginPath();
+          ctx.arc(-2, 0 + bob, 7, 0, Math.PI, false);
+          ctx.stroke();
+          
+          // Cute tentacles stalks
+          ctx.strokeStyle = '#d7ccc8';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(10, 3 + bob);
+          ctx.quadraticCurveTo(12, -4 + bob, 14, -6 + bob); // stalk left
+          ctx.moveTo(10, 6 + bob);
+          ctx.quadraticCurveTo(14, -1 + bob, 15, -3 + bob); // stalk right
+          ctx.stroke();
+          
+          // Eyes on tip
+          ctx.fillStyle = '#3e2723';
+          ctx.beginPath();
+          ctx.arc(14, -6 + bob, 1.5, 0, Math.PI*2);
+          ctx.arc(15, -3 + bob, 1.5, 0, Math.PI*2);
+          ctx.fill();
+          break;
+          
+        case 'beetle':
+          // Leg claws wiggling
+          ctx.strokeStyle = '#2d1d1a';
+          ctx.lineWidth = 3;
+          for (let side of [-1, 1]) {
+            for (let offset of [-6, 0, 6]) {
+              ctx.beginPath();
+              ctx.moveTo(offset, 0);
+              const legWiggle = Math.sin(e.bobPhase * 0.7 + offset) * 3;
+              ctx.lineTo(offset + (side * 9), (side * 11) + legWiggle);
+              ctx.stroke();
+            }
+          }
+          
+          // Big heavy armored body
+          ctx.fillStyle = colorOverride;
+          ctx.beginPath();
+          ctx.ellipse(0, 0 + bob, e.radius, e.radius * 0.85, 0, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Heavy shell divider
+          ctx.strokeStyle = '#2d1d1a';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-e.radius, 0 + bob);
+          ctx.lineTo(e.radius, 0 + bob);
+          ctx.stroke();
+          
+          // Heavy Rhino Horn at front
+          ctx.fillStyle = '#2d1d1a';
+          ctx.beginPath();
+          ctx.moveTo(e.radius - 2, -2 + bob);
+          ctx.quadraticCurveTo(e.radius + 10, -4 + bob, e.radius + 12, -8 + bob);
+          ctx.lineTo(e.radius + 14, -8 + bob);
+          ctx.quadraticCurveTo(e.radius + 12, 2 + bob, e.radius - 2, 4 + bob);
+          ctx.closePath();
+          ctx.fill();
+          break;
+          
+        case 'boss':
+          // Draw Giant Emperor Beetle
+          ctx.strokeStyle = '#2d1d1a';
+          ctx.lineWidth = 4;
+          for (let side of [-1, 1]) {
+            for (let offset of [-10, 0, 10]) {
+              ctx.beginPath();
+              ctx.moveTo(offset, 0);
+              const legWiggle = Math.sin(e.bobPhase * 0.6 + offset) * 3;
+              ctx.lineTo(offset + (side * 12), (side * 15) + legWiggle);
+              ctx.stroke();
+            }
+          }
+          
+          // Giant Shell
+          ctx.fillStyle = colorOverride;
+          ctx.beginPath();
+          ctx.ellipse(0, 0 + bob, e.radius, e.radius * 0.85, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          
+          ctx.beginPath();
+          ctx.moveTo(-e.radius, 0 + bob);
+          ctx.lineTo(e.radius, 0 + bob);
+          ctx.stroke();
+          
+          // Giant crown of the Insect Emperor
+          ctx.fillStyle = '#ffd54f';
+          ctx.strokeStyle = '#ff8f00';
+          ctx.lineWidth = 1.5;
+          ctx.save();
+          ctx.translate(e.radius - 12, -8 + bob);
+          ctx.rotate(Math.PI/2.5);
+          ctx.beginPath();
+          ctx.moveTo(-7, 0);
+          ctx.lineTo(7, 0);
+          ctx.lineTo(6, -8);
+          ctx.lineTo(2, -3);
+          ctx.lineTo(0, -10);
+          ctx.lineTo(-2, -3);
+          ctx.lineTo(-6, -8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          
+          // Giant horns
+          ctx.fillStyle = '#2d1d1a';
+          ctx.beginPath();
+          ctx.moveTo(e.radius - 4, -4 + bob);
+          ctx.quadraticCurveTo(e.radius + 16, -10 + bob, e.radius + 20, -18 + bob);
+          ctx.lineTo(e.radius + 23, -18 + bob);
+          ctx.quadraticCurveTo(e.radius + 18, 0 + bob, e.radius - 4, 6 + bob);
+          ctx.closePath();
+          ctx.fill();
+          break;
+      }
+      
+      ctx.restore();
+      
+      // Draw status particle indicators (ice sparkle / lightning zaps)
+      if (e.slowTimer > 0) {
+        // Draw frosty snowflake particles above
+        ctx.fillStyle = '#29b6f6';
+        ctx.font = '8px Fredoka';
+        ctx.fillText('❄️', e.x + Math.sin(t*0.01)*8, e.y - e.radius - 8);
+      }
+      if (e.electricShockTimer > 0) {
+        ctx.fillStyle = '#ffd54f';
+        ctx.font = '8px Fredoka';
+        ctx.fillText('⚡', e.x - 8 + Math.cos(t*0.015)*4, e.y - e.radius - 6);
+      }
+      
+      // Draw health bar
+      const barW = e.radius * 1.5;
+      const barH = 4;
+      const barX = e.x - barW / 2;
+      const barY = e.y - e.radius - 4;
+      
+      // Border background
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+      // Red background
+      ctx.fillStyle = '#e53935';
+      ctx.fillRect(barX, barY, barW, barH);
+      // Green fill
+      const hpRatio = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = '#4caf50';
+      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+    }
+
+    function drawProjectileObj(p) {
+      if (p.type === 'pea') {
+        // Draw green pea projectile
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#4caf50';
+        ctx.fill();
+        ctx.strokeStyle = '#2e7d32';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } 
+      else if (p.type === 'frost') {
+        // Draw icy snowflake star
+        ctx.fillStyle = '#29b6f6';
+        ctx.font = '11px Fredoka';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('❄️', p.x, p.y);
+      } 
+      else if (p.type === 'cherry') {
+        // Draw spinning lobbed cherries with yOffset arc
+        ctx.save();
+        ctx.translate(p.x, p.y + p.yOffset);
+        // Spin angle based on progress
+        ctx.rotate(p.progress * Math.PI * 6);
+        
+        // Cherry stem
+        ctx.strokeStyle = '#2e7d32';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-4, -10, -8, -14);
+        ctx.quadraticCurveTo(0, -10, 4, -14);
+        ctx.stroke();
+        
+        // Twin cherries
+        ctx.fillStyle = '#ff1744';
+        ctx.beginPath();
+        ctx.arc(-8, -14, 5, 0, Math.PI * 2);
+        ctx.arc(4, -14, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+      }
+    }
+
+    function drawSpecialParticles() {
+      gameState.particles.forEach(pt => {
+        if (!pt.type) return;
+        
+        if (pt.type === 'blastwave') {
+          // Exploding expanding ring
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 87, 34, ${pt.alpha})`;
+          ctx.lineWidth = 6 * pt.alpha;
+          ctx.stroke();
+          
+          // Draw inner yellow flash
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.radius * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 235, 59, ${pt.alpha * 0.3})`;
+          ctx.fill();
+          
+          // Grow blast radius
+          pt.radius += (pt.maxRadius - pt.radius) * 0.2;
+          pt.alpha -= pt.decay;
+        } 
+        else if (pt.type === 'lightning') {
+          // Sharp neon jagged lighting bolt lines
+          ctx.strokeStyle = `rgba(255, 213, 79, ${pt.alpha})`;
+          ctx.shadowColor = '#ffd54f';
+          ctx.shadowBlur = 8;
+          ctx.lineWidth = 3 * pt.alpha;
+          ctx.lineCap = 'round';
+          
+          pt.lines.forEach(line => {
+            ctx.beginPath();
+            ctx.moveTo(line.fromX, line.fromY);
+            
+            // Draw a few jagged bends between points
+            const midX = (line.fromX + line.toX) / 2;
+            const midY = (line.fromY + line.toY) / 2;
+            const dx = line.toX - line.fromX;
+            const dy = line.toY - line.fromY;
+            const len = Math.hypot(dx, dy);
+            
+            // Normal perpendicular vector offset
+            const nx = -dy / len;
+            const ny = dx / len;
+            const offset = (Math.random() * 12 - 6);
+            
+            const bendX = midX + nx * offset;
+            const bendY = midY + ny * offset;
+            
+            ctx.lineTo(bendX, bendY);
+            ctx.lineTo(line.toX, line.toY);
+            ctx.stroke();
+          });
+          
+          ctx.shadowBlur = 0; // reset shadow
+          pt.alpha -= pt.decay;
+        }
+      });
+      
+      // Filter out completed animations
+      gameState.particles = gameState.particles.filter(pt => pt.alpha > 0);
+    }
+
+    // --- Core Engine Loop ---
+    let frameId = null;
+
+    function gameLoop(timestamp) {
+      if (!gameState.lastTime) gameState.lastTime = timestamp;
+      
+      // Calculate delta time capped at 100ms to prevent huge jumps when tab is backgrounded
+      let dt = (timestamp - gameState.lastTime) / 1000;
+      dt = Math.min(0.1, dt);
+      
+      gameState.lastTime = timestamp;
+      
+      // Update logic
+      updateGame(dt);
+      
+      // Draw frame
+      drawGame(timestamp);
+      
+      frameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Start everything!
+    initializeGame();
+    frameId = requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

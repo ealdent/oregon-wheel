@@ -381,3 +381,39 @@
 - Verified with `node --check` across every game script.
 - Verified in headless Chrome from `file://` that the game loads and renders the facility battlefield.
 - Verified via Chrome DevTools runtime flow that first-facility completion unlocks the map, reveals three connected facilities and unknown routes, displays a summary, starts new facilities with fresh resources and auto off, resets abandoned partial progress, and restores completed-sector checkpoints.
+
+# Slime Garden Defense Game
+
+## Spec
+
+- [x] Create a single-page HTML tower defense game `gem35-flash-tower-def.html` in `tower-def/` directory.
+- [x] Implement random track generation connecting left to right.
+- [x] Provide 5 kinds of towers (Pea, Cherry, Frost, Zap, Booster Slimes) with 4 upgrades each.
+- [x] Define enemies with varied speed and health (Ladybugs, Caterpillars, Bees, Spiders, Snails, Bosses).
+- [x] Create at least 20 wave variations with scaling difficulty.
+- [x] Support a dedicated wave intermission state for upgrading and placing towers.
+- [x] Polish with a professional, cute, cartoony HTML5 Canvas & CSS UI.
+- [x] Add the game card to `tower-def/index.html`.
+
+## Plan
+
+- [x] Design and test procedural path generation with spline smoothing.
+- [x] Build Web Audio API sound synthesis module.
+- [x] Implement game rendering for cute slimes, animated bugs, projectiles, and particle effects.
+- [x] Implement upgrade logic, stats progression, and intermission wave controllers.
+- [x] Polish UI layout (Fredoka font, stats cards, speed controls, victory/loss screens).
+- [x] Link the game in `tower-def/index.html` with an arcade-style card.
+- [x] Verify everything works directly via browser, including sound effects and upgrades.
+
+## Review
+
+- Created `gem35-flash-tower-def.html` containing a fully self-contained HTML5 Canvas-based Tower Defense game with cute cartoony assets, smooth animations, and interactive controls.
+- Implemented a procedural path generator utilizing a guided random walk, Chaikin spline smoothing, and uniform subdivision to draw non-intersecting curvy garden paths.
+- Programmed 5 unique tower families (Pea, Cherry, Frost, Zap, Booster) with distinct stats, upgrade chains (4 tiers each), specialized targets, and custom drawing details (eyes, sprouts, crowns).
+- Implemented a complete 20-wave manager featuring multiple insect enemies (Ladybugs, Caterpillars, Bees, Spiders, Snails) with diverse abilities (shields, heals, speed boosts) leading up to the Giant Emperor Beetle boss.
+- Included an intermission shop screen triggered between waves, providing players unlimited time to plan, place, sell, or upgrade towers before starting the next wave.
+- Coded a synthesized sound system using Web Audio API to produce retro, cute sound effects (pops, splats, laser beams, chimes) directly in-browser.
+- Added a game card to `tower-def/index.html` matching the neon-cyber layout, along with color classes for grid items 11 to 16 to polish the hub aesthetics.
+- Verified JS syntactical correctness via a Node.js compiler script and confirmed path/upgrades functionality.
+- Optimized performance by removing heavy GPU composite operations (`backdrop-filter` blur) from UI elements, resolving Chrome/Safari rendering stutter.
+- Corrected a 60x slow motion gameplay bug where enemy speeds, projectile velocities, and animation timers were scaled down erroneously by `tickDt` without the target 60fps base multiplier (`60 * tickDt`), restoring the intended snappy and fluid tower defense experience.
